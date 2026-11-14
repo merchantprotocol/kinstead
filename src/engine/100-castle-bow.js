@@ -64,7 +64,7 @@
     }
     update(dt) {
       const P = this.play, me = P.me, nav = P.nav;
-      const w = this.weapon; if (this.g.tools.belt) this.g.tools.belt.setBadge(w.id, w.ranged ? this.g.castle.amount('arrow') : '');   // arrows left, on the weapon slot
+      const belt = this.g.tools.belt; if (belt) for (const x of belt.weapons) if (x.ranged) belt.setBadge(x.id, this.g.castle.amount('arrow'));   // arrows left, on the bow's slot (never touches the other tools' counts)
       this.arrows = this.arrows.filter((a) => {
         a.step(dt); const p = a.at;
         if (a.travelled > a.range || p.y < nav.y(p.x, p.z) + 0.02) { a.dispose(); return false; }   // out of range, or into a hill; walls and fences do not stop it
