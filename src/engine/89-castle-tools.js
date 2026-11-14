@@ -112,7 +112,9 @@
       return t ? Ic.cursor(this.tool.id, 'pointer') : null;
     }
 
-    update(dt) { this.worker.update(dt); this.archery.update(dt); this.effects.update(dt); this.arms.update(); }
+    update(dt) { this.pills(); this.worker.update(dt); this.archery.update(dt); this.effects.update(dt); this.arms.update(); }
+    /** a small count on each work tool: how much of what it gathers you hold (axe: wood, pickaxe: stone, shovel: dirt) */
+    pills() { const c = this.g.castle, b = this.belt; b.setBadge('axe', c.amount('wood')); b.setBadge('pickaxe', c.amount('stone')); b.setBadge('shovel', c.amount('dirt')); }
     dispose() { this.worker.cancel(); this.hl.hide(); this.arms.dispose(); this.archery.dispose(); this.effects.dispose(); this.drawer.dispose(); this.belt.dispose(); }
   }
 

@@ -115,7 +115,7 @@
     /** the node is used up: stump / rubble look, a respawn timer, saved state */
     deplete() {
       const st = this.state, n = this.spec; st.charges = 0; st.respawnAt = n.respawnSec ? this.ctx.play.t + n.respawnSec : Infinity;
-      this.ctx.game.R.setPropState(this.e.id, 'depleted'); this.ctx.game.changed();
+      this.ctx.game.R.setPropState(this.e.id, 'depleted'); this.ctx.game.forest.cleared(this.e); this.ctx.game.changed();
     }
   }
   class TreeTarget extends NodeTarget {

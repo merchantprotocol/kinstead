@@ -209,7 +209,7 @@
       this.kinActors = {}; this.troll = null;
       this.restoreNodes();
       this.raid = null;
-      this.cui = new K.CastleUI(this); this.vitals = new K.Vitals(this); this.wild = new K.Wild(this); this.calendar.on((ev) => this.onCalendar(ev)); this.tools = new K.CastleTools(this); this.minimap = new K.Minimap(this); this.walls = new K.WallDrawer(this); this.sweep = new K.SweepAttack(this); this.demolisher = new K.Demolisher(this); this.play.refreshProps();
+      this.cui = new K.CastleUI(this); this.vitals = new K.Vitals(this); this.wild = new K.Wild(this); this.calendar.on((ev) => this.onCalendar(ev)); this.tools = new K.CastleTools(this); this.minimap = new K.Minimap(this); this.walls = new K.WallDrawer(this); this.forest = new K.Forest(this); this.site = new K.BuildingSite(this); this.sweep = new K.SweepAttack(this); this.demolisher = new K.Demolisher(this); this.play.refreshProps();
       if (this.day.isNight) this.startRaid();
       play.app.rig.set({ dist: 11, pitch: 0.78 }); play.app.rig.maxDist = 22;   // you can never zoom out far enough to see the edge of the world
       this.cui.toast(this.saved ? 'Welcome back.' : 'You wake in your hut. Eat, sleep, chop wood, and watch for wolves.');
@@ -217,7 +217,7 @@
     }
     exit() {
       this.play.app.rig.maxDist = null; if (this.minimap) this.minimap.dispose(); if (this.vitals) this.vitals.dispose(); if (this.home) this.home.dispose();
-      this.save(); if (this.tools) this.tools.dispose(); if (this.sweep) this.sweep.dispose(); if (this.demolisher) this.demolisher.dispose();
+      this.save(); if (this.tools) this.tools.dispose(); if (this.sweep) this.sweep.dispose(); if (this.demolisher) this.demolisher.dispose(); if (this.site) this.site.dispose();
       if (this.origPlace) this.R.placeDynamics = this.origPlace;
       this.R.scene.remove(this.group); this.cui && this.cui.dispose(); document.body.classList.remove('castle');
     }
@@ -293,31 +293,7 @@
       if (!turned) { if (wallAt(spotX.x - 1.25, spotX.z) || wallAt(spotX.x + 1.25, spotX.z)) return spotX; if (wallAt(spotZ.x, spotZ.z - 1.25) || wallAt(spotZ.x, spotZ.z + 1.25)) return spotZ; return spotX; }
       return spotZ;
     }
-    /* ---- a building you place (the blacksmith): a real building from the building system, anywhere there is room, flush against your house or on its own ---- */
-    buildingSpot(p) { const ti = Math.round(p.x / TILE) - 6, tj = Math.floor(p.z / TILE) - 4; return { x: (ti + 6) * TILE, z: (tj + 4.5) * TILE, rot: 0 }; }
-    buildingOk(x, z) {
-      const nav = this.play.nav, d = this.play.doc, ti = Math.round(x / TILE - 6), tj = Math.round(z / TILE - 4.5); let lo = 1e9, hi = -1e9;
-      if (this.smithy) return 'you already have a blacksmith';
-      for (let j = 0; j < 9; j++) for (let i = 0; i < 12; i++) {
-        const ci = ti + i, cj = tj + j; if (!d.inside(ci, cj)) return 'that is off the map'; const k = cj * d.w + ci, t = d.terrain[k];
-        if (t === K.T.ROCK || t === K.T.CHASM || t === K.T.WATER) return 'the ground is not clear';
-        if (!nav.walk[k] || this.occ[k] || this.R.buildings.at(ci, cj)) return 'something is in the way';
-        lo = Math.min(lo, d.hy(ci, cj)); hi = Math.max(hi, d.hy(ci, cj));
-      }
-      if (hi - lo > 0.55) return 'the ground is too uneven (level it with dirt or a shovel)';
-      const me = this.play.me; if (me.x > ti * TILE - 0.3 && me.x < (ti + 12) * TILE + 0.3 && me.z > tj * TILE - 0.3 && me.z < (tj + 9) * TILE + 0.3) return 'you are standing there';
-      return null;
-    }
-    placeBuilding(x, z, quiet) {
-      const c = this.castle, why = this.buildingOk(x, z) || c.blocker('blacksmith');
-      if (why) { if (!quiet) { this.cui.toast(why[0].toUpperCase() + why.slice(1) + '.'); this.sound.play('clank'); } return false; }
-      const ti = Math.round(x / TILE - 6), tj = Math.round(z / TILE - 4.5), R = this.R, play = this.play;
-      c.spend(c.buildCost('blacksmith'));
-      const spec = K.makeBuilding('smithy', ti, tj, 'smithy', 23); spec.furniture = spec.furniture.filter((f) => ['forge', 'anvil', 'grindstone', 'workbench', 'barrel', 'sack', 'crate'].includes(f.type));   // a workshop, not a shop: no free weapons on the walls
-      play.doc.objects.push(spec); R.syncBuildings(true); play.nav.applyBuildings(R.buildings); play.bplay.dirty(); play.refreshProps(); this.home.door.apply();
-      this.smithy = spec; this.forge = this.forge || new K.Forge(this);
-      this.sound.play('whump'); this.shake(0.2); this.puff(x, z); this.cui.toast('Blacksmith built. Click the anvil to forge new weapons.'); this.changed(); return true;
-    }
+    /* the blacksmith is placed by BuildingSite (104-castle-site.js) */
     /* any building of yours: wolves never go in */
     insideBuilding(x, z) { return !!this.R.buildings.at(Math.floor(x / TILE), Math.floor(z / TILE)); }
     gateTilesOf(p) { const nav = this.play.nav, out = []; this.rectTiles(p.x, p.z, 2, 0.5, p.rot, (i, j) => out.push(i + ',' + j)); return out; }
@@ -421,7 +397,7 @@
         if (got > 0) { play.float(play.me, `+${got}`, 'loot', K.CastleUI.ICON[r]); this.cui.bump(r); this.sound.play('gather'); }
         st.charges--;
         if (e.type === 'c_tree' && st.charges > 0) this.R.setPropState(e.id, 'cut' + Math.min(4, st.max - st.charges));   // the tree visibly shrinks with every swing
-        if (st.charges <= 0) { st.respawnAt = n.respawnSec ? play.t + n.respawnSec : Infinity; this.R.setPropState(e.id, 'depleted'); play.me.view.setState('idle'); }
+        if (st.charges <= 0) { st.respawnAt = n.respawnSec ? play.t + n.respawnSec : Infinity; this.R.setPropState(e.id, 'depleted'); this.forest.cleared(e); play.me.view.setState('idle'); }
         else if (this.castle.amount(r) < this.castle.caps()[r]) this.gather(e); else { play.me.view.setState('idle'); this.cui.toast(`${K.CastleData.resName(r)[0].toUpperCase() + K.CastleData.resName(r).slice(1)} is full.`); this.cui.flashRes(r); }
         this.changed();
       } });
@@ -458,7 +434,7 @@
       const c = this.castle, [w, d] = CastleArt.size(type), nav = this.play.nav;
       let bad = null;
       if (type === 'dirt') return this.dirtOk(x, z);
-      if (type === 'blacksmith') return this.buildingOk(x, z);
+      if (type === 'blacksmith') return null;
       this.rectTiles(x, z, w + 0.2, d + 0.2, rot, (i, j) => { const k = j * nav.w + i; if (this.occ[k]) bad = 'something is in the way'; else if (!nav.walk[k] || nav.deck[k]) bad = bad || 'the ground is not clear'; });
       const me = this.play.me; if (!bad && Math.hypot(me.x - x, me.z - z) < Math.min(w, d) / 2 + 0.2) bad = 'you are standing there';
       if (!bad && type !== 'gate' && this.wouldWallOffKeep(type, x, z, rot)) bad = 'that would wall off the Keep';
@@ -484,7 +460,6 @@
     }
     buildAt(type, x, z, rot = this.autoRot(x, z), quiet = false) {
       if (type === 'dirt') return this.placeDirt(x, z, quiet);
-      if (type === 'blacksmith') return this.placeBuilding(x, z, quiet);
       const why = this.placementOk(type, x, z, rot); if (why) { if (!quiet) { this.cui.toast(why[0].toUpperCase() + why.slice(1) + '.'); this.sound.play('clank'); } return false; }
       const r = this.castle.build(type, { x, z, rot }); if (!r.ok) { if (!quiet) this.cui.toast(`${this.data.piece(type).name}: ${r.why}.`); return false; }
       const m = this.addPieceMesh(r.piece); this.pop(m); this.sound.play('thunk'); this.puff(x, z); this.shake(0.08);
@@ -814,7 +789,7 @@
       for (const m of this.meshes.values()) if (m.userData.shake > 0) { m.userData.shake -= dt; m.position.x += (Math.random() - 0.5) * 0.04; }
       for (const m of this.meshes.values()) m.traverse((o) => { if (o.userData.flame) o.scale.y = 0.85 + 0.25 * Math.sin(play.t * 11 + o.id); });
       { const fog = this.R.scene.fog, dd = this.app.rig.cur.dist; if (fog) { fog.near = dd + 8; fog.far = dd + 32; } }   // the far edge of the world always fades out, at any zoom
-      this.updateArrow(dt); this.minimap.update(dt); this.tools.update(dt); this.sweep.update(dt); this.home.update(dt); this.vitals.update(dt); this.wild.update(dt);
+      this.updateArrow(dt); this.minimap.update(dt); this.forest.update(dt); this.tools.update(dt); this.sweep.update(dt); this.home.update(dt); this.vitals.update(dt); this.wild.update(dt);
       this.updateOcclusion(dt);
       if (this.shakeT > 0) { this.shakeT -= dt; const g = play.app.rig.goal; g.tx += (Math.random() - 0.5) * this.shakeT * 0.6; g.tz += (Math.random() - 0.5) * this.shakeT * 0.6; }
       if (this.thawSnow) { const s = this.R.snow.points; s.material.opacity = (s.material.opacity == null ? 1 : s.material.opacity); s.visible = this.endT == null || this.endT < 3; }
@@ -865,9 +840,9 @@
     /* ---------- input ---------- */
     click(sx, sy) { this.sound.unlock(); return this.tools.click(sx, sy); }
     pointerMove(sx, sy) { return this.cui.pointerMove(sx, sy); }
-    pointerDown(sx, sy) { return this.walls.down(sx, sy) || this.demolisher.down(sx, sy); }
-    pointerDrag(sx, sy) { this.walls.drag(sx, sy); this.demolisher.drag(sx, sy); }
-    pointerUp(sx, sy) { this.walls.up(sx, sy); this.demolisher.up(sx, sy); }
+    pointerDown(sx, sy) { return this.site.down(sx, sy) || this.walls.down(sx, sy) || this.demolisher.down(sx, sy); }
+    pointerDrag(sx, sy) { this.site.drag(sx, sy); this.walls.drag(sx, sy); this.demolisher.drag(sx, sy); }
+    pointerUp(sx, sy) { this.site.up(sx, sy); this.walls.up(sx, sy); this.demolisher.up(sx, sy); }
     key(e) {
       this.sound.unlock();
       if (e.key === 'Escape') { if (!this.dismissTop()) { if (this.onLeave) this.onLeave(); } return true; }   // Esc closes what is open, else leaves the game

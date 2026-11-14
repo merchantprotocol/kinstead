@@ -249,21 +249,22 @@
     startPlacing(type) {
       this.stopPlacing(); const g = this.g;
       this.placing = { type, ghost: g.art.ghost(type) }; g.group.add(this.placing.ghost); this.placing.ghost.visible = false;
-      this.$('cPlace').hidden = false;
-      this.$('cPlace').innerHTML = `${this.art.html(type, PIECE_ICON[type], 30)} Place the <b>${esc(this.c.data.piece(type).name)}</b> anywhere you like. It faces the Keep. <button class="cb" data-rot>Turn <kbd>R</kbd></button><button class="cb" data-close>Done <kbd>Esc</kbd></button>`;
+      this.$('cPlace').hidden = false; if (g.site.handles(type)) { g.site.turns = 0; g.site.steering = false; }
+      this.$('cPlace').innerHTML = `${this.art.html(type, PIECE_ICON[type], 30)} Place the <b>${esc(this.c.data.piece(type).name)}</b> anywhere you like. ${g.site.handles(type) ? 'Press to set it down, hold and swing the mouse to turn it, let go to build. It clears trees, rocks and fences for you.' : 'It faces the Keep.'} <button class="cb" data-rot>Turn <kbd>R</kbd></button><button class="cb" data-close>Done <kbd>Esc</kbd></button>`;
     }
-    stopPlacing() { if (!this.placing) return; this.g.group.remove(this.placing.ghost); this.placing = null; this.$('cPlace').hidden = true; this.g.play.ui.tip(null); }
-    rotate() { this.g.rotExtra = ((this.g.rotExtra || 0) + Math.PI / 2) % (Math.PI * 2); if (this.lastP) this.moveGhost(this.lastP.sx, this.lastP.sy); }
+    stopPlacing() { if (!this.placing) return; if (this.g.site) this.g.site.clearGhost(); this.g.group.remove(this.placing.ghost); this.placing = null; this.$('cPlace').hidden = true; this.g.play.ui.tip(null); }
+    rotate() { if (this.g.site.active) { this.g.site.turn(); if (this.lastP) this.moveGhost(this.lastP.sx, this.lastP.sy); return; } this.g.rotExtra = ((this.g.rotExtra || 0) + Math.PI / 2) % (Math.PI * 2); if (this.lastP) this.moveGhost(this.lastP.sx, this.lastP.sy); }
     moveGhost(sx, sy) {
-      const P = this.placing, g = this.g, p = g.app.pickGround(sx, sy); this.lastP = { sx, sy };
+      this.lastP = { sx, sy }; if (this.g.site.active) { this.g.site.hover(sx, sy); return; }   // a building: the site draws it
+      const P = this.placing, g = this.g, p = g.app.pickGround(sx, sy);
       if (!p) { P.ghost.visible = false; return; }
-      const e = g.walls.handles(P.type) ? g.walls.edgeAt(P.type, p) : P.type === 'gate' ? g.gateSpot(p) : P.type === 'blacksmith' ? g.buildingSpot(p) : null;
+      const e = g.walls.handles(P.type) ? g.walls.edgeAt(P.type, p) : P.type === 'gate' ? g.gateSpot(p) : null;
       const x = e ? e.x : Math.round(p.x * 4) / 4, z = e ? e.z : Math.round(p.z * 4) / 4, rot = e ? e.rot : g.autoRot(x, z), why = g.placementOk(P.type, x, z, rot);
       P.ghost.visible = true; P.ghost.position.set(x, g.play.nav.y(x, z), z); P.ghost.rotation.y = rot; CastleArt.tintGhost(P.ghost, !why); P.at = { x, z, rot, why };
       g.play.ui.tip(why ? `<b>Can’t build here</b> · ${esc(why)}` : `<b>${esc(this.c.data.piece(P.type).name)}</b> · click to build, or drag to draw a wall (${esc(Object.entries(this.c.buildCost(P.type)).map(([r, n]) => n + ' ' + K.CastleData.resName(r)).join(', '))})`, sx, sy);
     }
     click(sx, sy) {
-      if (!this.placing) return false;
+      if (!this.placing) return false; if (this.g.site.active) { this.g.site.hover(sx, sy); return true; }
       this.moveGhost(sx, sy); const P = this.placing; if (!P.at) return true;
       if (this.g.buildAt(P.type, P.at.x, P.at.z, P.at.rot)) {
         const again = ['palisade', 'stone_wall'].includes(P.type) && !this.c.blocker(P.type);

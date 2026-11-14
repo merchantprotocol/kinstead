@@ -16,7 +16,7 @@
   const STORES = (() => {
     const out = [
       { id: 'wood', kind: 'barrel', name: 'Wood barrel', res: 'wood', dx: 2.5, dz: 2.9 }, { id: 'stone', kind: 'barrel', name: 'Stone barrel', res: 'stone', dx: 3.25, dz: 2.5 },
-      { id: 'food', kind: 'barrel', name: 'Food barrel', res: 'food', dx: 2.05, dz: 3.6, own: 6 }, { id: 'dirt', kind: 'crate', name: 'Dirt crate', res: 'dirt', dx: 1.15, dz: 4.0 },
+      { id: 'food', kind: 'barrel', name: 'Food barrel', res: 'food', dx: 2.05, dz: 3.6, own: 6 },
       { id: 'larder', kind: 'crate', name: 'Food crate', res: 'food', dx: 0.45, dz: 3.8, own: 5 },
       { id: 'arrows1', kind: 'crate', name: 'Arrow crate', res: 'arrow', dx: -0.7, dz: 3.9, own: 14 }, { id: 'arrows2', kind: 'crate', name: 'Arrow crate', res: 'arrow', dx: -1.45, dz: 3.6, own: 12 },
     ];
