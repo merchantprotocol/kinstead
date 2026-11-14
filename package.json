@@ -10,7 +10,7 @@
     "build:single": "node tools/build.mjs --single",
     "dev": "node tools/build.mjs --serve",
     "worlds": "node tools/make-worlds.mjs",
-    "test": "node --test \"test/**/*.test.js\""
+    "test": "node --test test/*.test.mjs"
   },
   "engines": { "node": ">=20" },
   "devDependencies": {
