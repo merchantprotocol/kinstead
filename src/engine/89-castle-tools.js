@@ -25,7 +25,8 @@
       this.editor = new K.TerrainEditor(game); this.ledger = new K.ProgressLedger();
       this.effects = new K.Effects(game.group, this.effectsEnv());
       this.ctx = { game, play, effects: this.effects, editor: this.editor, ledger: this.ledger };
-      this.belt = new K.Toolbelt([new K.SwordTool(), new K.AxeTool(), new K.PickaxeTool(), new K.ShovelTool()], (tool) => this.onSelect(tool), game.cui.root);   // inside #castleui so the panel styles apply
+      this.belt = new K.Toolbelt([new K.SwordTool(), new K.AxeTool(), new K.PickaxeTool(), new K.ShovelTool(), new K.HammerTool()], (tool) => this.onSelect(tool), game.cui.root);   // inside #castleui so the panel styles apply
+      this.drawer = new K.BuildDrawer(game.cui, { onMode: (m) => { const dm = game.demolisher; if (dm) dm.setActive(m === 'demolish' && this.tool.id === 'hammer'); } });
       this.worker = new K.Worker(this.ctx, this.belt); this.hl = new TileHighlight(play.ov); this.fullAt = -9;
     }
     get play() { return this.g.play; }
@@ -37,35 +38,44 @@
       return {
         floorY: (x, z) => play.nav.y(x, z), hero: () => play.me, time: () => play.t,
         sound: (n) => g.sound.play(n), shake: (s) => { g.shakeT = Math.max(g.shakeT || 0, s); },
-        canTake: (kind) => g.castle.amount(kind) < (g.castle.caps()[kind] || 0),
+        canTake: (kind) => kind === 'furn' || g.castle.amount(kind) < (g.castle.caps()[kind] || 0),
         notifyFull: (kind) => { if (play.t - this.fullAt < 2) return; this.fullAt = play.t; g.cui.toast(`Your ${K.CastleData.resName(kind)} store is full.`); g.cui.flashRes(kind); },
         grant: (p) => {
-          const c = g.castle, got = Math.round(p.kind === 'dirt' ? c.add('dirt', p.value) : c.gather(p.kind, p.value));
+          if (p.payload && p.payload.restore) { p.payload.restore(); g.sound.play('thunk'); return; }   // a stolen piece of furniture coming home
+          const c = g.castle, got = Math.round(p.exact || p.kind === 'dirt' ? c.add(p.kind, p.value) : c.gather(p.kind, p.value));
           if (got > 0) { play.float(play.me, `+${got}`, 'loot', K.CastleUI.ICON[p.kind]); g.cui.bump(p.kind); g.sound.play('gather'); g.changed(); }
         },
       };
     }
     onSelect(tool) {
+      const hammer = tool.id === 'hammer'; this.drawer.setOpen(hammer);
+      if (!hammer) { this.g.cui.stopPlacing(); if (this.g.demolisher) this.g.demolisher.setActive(false); }
       this.worker.cancel(); this.hl.hide(); this.g.sound.play('clank'); this.g.cui.toast(tool.hint);
       this.play.app.renderer3.domElement.style.cursor = '';
     }
 
     /* ---------- input ---------- */
+    toggleHammer() { this.belt.select(this.tool.id === 'hammer' ? 'sword' : 'hammer'); }
     key(e) {
       if (e.ctrlKey || e.metaKey || e.altKey) return false;
       const P = this.play; if (P.ui.isOpen('ctx') || P.ui.isOpen('dlg')) return false;      // digits pick menu entries then
       const t = this.belt.byKey(e.key); if (!t) return false;
       this.belt.select(t.id); return true;
     }
+    /** may the mouse hit this entity with the tool in hand? Resources are invisible to the wrong tool, so a click just walks. */
+    canInteract(e) {
+      const need = K.WorkTarget.TOOL_FOR[e.type]; if (!need) return true;
+      return this.tool.id === need && this.play.nodeState(e).charges > 0;
+    }
     /** a left-click. true = handled here (the click does not also walk). */
     click(sx, sy) {
       if (this.g.cui.click(sx, sy)) return true;
       const P = this.play; if (!P.me.alive) return false;
       const e = P.pick(sx, sy);
+      if (e && this.g.sweep.clickFoe(e, this.tool)) return true;   // sword + a foe in reach: swing now, as fast as you click
       if (e) { const t = K.WorkTarget.forEntity(this.ctx, e); if (!t) return false; this.engage(t); return true; }
       const p = P.app.pickGround(sx, sy); if (!p) return false;
-      const [i, j] = this.editor.tileOf(p), deny = this.tool.denyGround(i, j, this.ctx);
-      if (deny) { this.g.cui.toast(deny); this.belt.flash('pickaxe'); return true; }
+      const [i, j] = this.editor.tileOf(p);
       const t = this.tool.groundTarget(i, j, this.ctx); if (!t) return false;
       this.engage(t); return true;
     }
@@ -75,32 +85,30 @@
       if (!target) return;
       const cui = this.g.cui; this.g.sound.unlock();
       if (!target.alive) { cui.toast('This is used up.'); return; }
-      if (!this.tool.accepts(target)) {
-        const need = this.belt.byId(target.requires); cui.toast(`Equip your ${need.name.toLowerCase()} (${need.key}) to ${need.verb} this.`); this.belt.flash(need.id); return;
-      }
+      if (!this.tool.accepts(target)) return;   // not this tool's job: the click is simply not for this
       this.play.doAction(target.entity, { id: 'work', label: this.tool.verb, range: target.approach, run: () => this.worker.start(target) }, false);
     }
     /** pressing here is a tool click, not the start of a hold-to-walk */
     claims(sx, sy) {
       const p = this.play.app.pickGround(sx, sy); if (!p) return false;
-      const [i, j] = this.editor.tileOf(p); return !!(this.tool.denyGround(i, j, this.ctx) || this.tool.groundTarget(i, j, this.ctx));
+      const [i, j] = this.editor.tileOf(p); return !!this.tool.groundTarget(i, j, this.ctx);
     }
     /** the cursor for what is under the pointer, or null to keep the default */
     hoverCursor(ent, sx, sy) {
       const Ic = K.Icons;
+      if (this.g.demolisher.active) return this.g.demolisher.hover(sx, sy);
       if (ent) {
         const t = K.WorkTarget.forEntity(this.ctx, ent); if (!t) return null;
         return Ic.cursor(this.tool.accepts(t) && t.alive ? this.tool.id : 'pointer', 'pointer');
       }
       const p = this.play.app.pickGround(sx, sy); if (!p) { this.hl.hide(); return null; }
-      const [i, j] = this.editor.tileOf(p), deny = this.tool.denyGround(i, j, this.ctx), t = deny ? null : this.tool.groundTarget(i, j, this.ctx);
+      const [i, j] = this.editor.tileOf(p), t = this.tool.groundTarget(i, j, this.ctx);
       if (t) this.hl.show(t, this.editor.doc); else this.hl.hide();
-      if (deny) return Ic.cursor('no', 'pointer');
       return t ? Ic.cursor(this.tool.id, 'pointer') : null;
     }
 
     update(dt) { this.worker.update(dt); this.effects.update(dt); }
-    dispose() { this.worker.cancel(); this.hl.hide(); this.effects.dispose(); this.belt.dispose(); }
+    dispose() { this.worker.cancel(); this.hl.hide(); this.effects.dispose(); this.drawer.dispose(); this.belt.dispose(); }
   }
 
   K.CastleTools = CastleTools;

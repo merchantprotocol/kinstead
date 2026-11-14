@@ -16,6 +16,7 @@
   const iceP = r('#1a3a5a', '#3f82aa', '#7fb6d6', '#cfe8f5'), woodP = PAL.wood, steelP = PAL.steel, goldP = PAL.gold;
   Object.assign(Icons.DRAW, {
     stone(c) { c.poly([[1, 13], [3, 8], [7, 7], [9, 10], [6, 14]], stoneP).poly([[7, 14], [9, 8], [13, 7], [15, 12], [13, 15]], stoneP).poly([[4, 8], [6, 3], [10, 2], [12, 6], [9, 8]], stoneP); },
+    food(c) { c.poly([[3, 9], [7, 5], [12, 6], [14, 10], [10, 12]], r('#3a1408', '#7a2a14', '#b04a26', '#e07a46', '#ffb482')).line(10, 11, 14, 14, woodP[3], 2).disc(14.5, 14.5, 1.6, goldP[3]); },
     dirt(c) { c.poly([[1, 13], [3, 8], [8, 6], [13, 8], [15, 13], [12, 15], [4, 15]], dirtP).px(5, 9, dirtP[4]).px(9, 8, dirtP[4]).px(11, 11, dirtP[1]).px(6, 12, dirtP[1]); },
     ember(c) { c.poly([[8, 1], [12, 7], [10, 15], [6, 15], [4, 8]], emberP).px(8, 5, emberP[5]).px(7, 9, emberP[5]); },
     heart(c) { c.disc(5.5, 6, 4, heartP).disc(10.5, 6, 4, heartP).poly([[2, 7], [14, 7], [8, 15]], heartP).px(6, 5, heartP[5]).line(8, 4, 8, 11, iceP[1]); },
@@ -28,8 +29,8 @@
     crown(c) { c.poly([[2, 13], [2, 5], [5, 9], [8, 3], [11, 9], [14, 5], [14, 13]], goldP).px(8, 7, emberP[4]); },
   });
 
-  const ICON = { wood: 'log', stone: 'stone', dirt: 'dirt', iron: 'ore', gold: 'coin', ember_shard: 'ember', troll_heart: 'heart', stoneblade: 'stoneblade', iron_sword: 'sword', ember_brand: 'brand' };
-  const RES_ORDER = ['wood', 'stone', 'dirt', 'iron', 'gold', 'ember_shard'];
+  const ICON = { wood: 'log', stone: 'stone', dirt: 'dirt', food: 'food', iron: 'ore', gold: 'coin', ember_shard: 'ember', troll_heart: 'heart', stoneblade: 'stoneblade', iron_sword: 'sword', ember_brand: 'brand' };
+  const RES_ORDER = ['wood', 'stone', 'dirt', 'food', 'iron', 'gold', 'ember_shard'];
   const PIECE_ICON = { palisade: 'log', stone_wall: 'stone', gatehouse: 'hammer', watchtower: 'eye', ember_brazier: 'ember', woodcutter: 'axe', quarry: 'pickaxe', mine: 'ore', great_hall: 'coin', chapel: 'ember', storehouse: 'bag', smithy: 'hammer', ember_forge: 'brand', barracks: 'shield', heartfire_hearth: 'heart' };
   const SHORT = {
     palisade: 'Blocks raiders; they must chop through it.', stone_wall: 'Blocks raiders. 2.5x a palisade’s HP.', gatehouse: 'The way in. Walls joined to it make the courtyard.',
@@ -62,8 +63,8 @@
       this.g = game; this.c = game.castle; this.placing = null; this.bannerQ = []; this.hudT = 0;
       const root = (this.root = el('div', '', ''));
       root.id = 'castleui';
-      root.innerHTML = `<div id="cHud" class="cp"></div><div id="cGoals" class="cp"></div><div id="cClock" class="cp"></div><div id="cRaid" class="cp" hidden></div>
-        <div id="cBar" class="cp"><button class="cb pri" data-a="build">${Icons.img('hammer', 1)} Build <kbd>B</kbd></button><button class="cb" data-a="book">${Icons.img('book', 1)} Hearthbook <kbd>H</kbd> <b id="cPct">0%</b></button><button class="cb" data-a="bell" title="Ring the Keep bell: dusk comes now">${Icons.img('bell', 1)} Ring bell</button><span class="hint">Click: walk · gather · repair · attack · Double-click: run</span></div>
+      root.innerHTML = `<div id="cLeft"><div id="cHud" class="cp"></div></div><div id="cGoals" class="cp"></div><div id="cClock" class="cp"></div><div id="cRaid" class="cp" hidden></div>
+        <div id="cBar" class="cp"><button class="cb" data-a="book">${Icons.img('book', 1)} Hearthbook <kbd>H</kbd> <b id="cPct">0%</b></button><button class="cb" data-a="bell" title="Ring the Keep bell: dusk comes now">${Icons.img('bell', 1)} Ring bell</button><span class="hint">Click: walk · gather · repair · attack · Double-click: run</span></div>
         <div id="cRadial" hidden></div><div id="cPlace" class="cp" hidden></div><div id="cBanner" hidden></div><div id="cBook" class="cp" hidden></div><div id="cModal" hidden></div>`;
       document.body.appendChild(root);
       this.$ = (id) => root.querySelector('#' + id);
@@ -84,19 +85,12 @@
     render() {
       const c = this.c, g = this.g, cl = c.cl(), row = c.row(), caps = c.caps(), rates = c.rates(), nx = c.nextLevel();
       const p = g.play.player, hp = p.hp, hpMax = p.stats().hpMax;
-      const res = RES_ORDER.map((r) => {
-        const full = c.amount(r) >= caps[r], rate = rates[r] || 0;
-        return `<div class="res ${full ? 'full' : ''}" data-r="${r}" title="${esc(K.CastleData.resName(r))}: ${c.amount(r)} of ${caps[r]}">${Icons.img(ICON[r], 1)}<b>${c.amount(r)}</b><small>/${caps[r]}</small>${rate ? `<i>+${rate}/min</i>` : ''}${full ? '<em>FULL</em>' : ''}</div>`;
-      }).join('') + (c.amount('troll_heart') ? `<div class="res heart">${Icons.img('heart', 1)}<b>Troll’s heart</b></div>` : '');
+
       const next = !c.lit ? 'Light the Keep’s hearth to begin' : nx ? (nx.capped ? (cl >= 4 ? esc(c.data.raw.castleLevel.capMessage) : '') : `Next: CL ${nx.cl} at ${nx.need} castle points (${nx.have}/${nx.need})`) : 'The castle burns at its brightest';
       const w = c.bestWeapon();
-      this.$('cHud').innerHTML = `<div class="clrow"><div class="cl" title="Castle Level">CL<b>${cl}</b></div><div class="clfx"><b>${c.lit ? `${row.heroMaxHP} HP · +${row.heroAtkBonus} attack · +${row.gatherBonus} gather · glow ${row.glowRadiusM} m` : 'The Keep is cold'}</b><small>${next}</small></div></div>
-        <div class="hp"><i style="width:${(100 * hp / hpMax).toFixed(1)}%"></i><span>${Math.ceil(hp)} / ${hpMax} HP · ${w ? esc(w.name) + ' (' + w.atk + ')' : 'bare hands'}</span></div>
-        <div class="resl">${res}</div>
-        ${c.kin.size ? `<div class="kin">Kin: ${[...c.kin].map((k) => esc(c.data.hero(k).name)).join(' · ')}</div>` : ''}`;
-      this.renderGoals(); this.renderClock();
-      this.$('cPct').textContent = c.hearthbook().pct + '%';
-      const bell = this.root.querySelector('[data-a=bell]'); bell.hidden = !(c.lit && g.day.kind === 'day' && g.day.length() != null && g.day.idx + 1 < g.day.phases.length);
+      const pct = Math.max(0, Math.min(100, 100 * hp / hpMax));
+      this.$('cHud').innerHTML = `<div class="hp ${pct < 30 ? 'low' : ''}" title="Health: eat and sleep to recover"><i style="width:${pct.toFixed(1)}%"></i><span>♥ ${Math.ceil(hp)}</span></div>`;
+      if (this.g.tools) this.g.tools.drawer.update();
       if (this.radialOpen) this.renderRadial();
       if (this.bookOpen) this.renderBook();
     }
@@ -281,14 +275,14 @@
       const k = e.key.toLowerCase();
       if (!this.$('cModal').hidden) { if (e.key === 'Escape' || e.key === 'Enter') { const b = this.$('cModal').querySelector('.cb.pri'); if (b) b.click(); } return true; }
       if (e.key === 'Escape') { if (this.placing) { this.stopPlacing(); return true; } if (this.radialOpen) { this.toggleRadial(false); return true; } if (this.bookOpen) { this.toggleBook(false); return true; } return false; }
-      if (k === 'b') { this.toggleRadial(); return true; }
+      if (k === 'b') { this.g.tools.toggleHammer(); return true; }
       if (k === 'h') { this.toggleBook(); return true; }
       if (k === 'r' && this.placing) { this.rotate(); return true; }
       if (this.radialOpen && /^[1-9]$/.test(e.key)) { this.pickCard(+e.key - 1); return true; }
       return false;
     }
   }
-  CastleUI.ICON = ICON;
+  CastleUI.ICON = ICON; CastleUI.RES_ORDER = RES_ORDER; CastleUI.PIECE_ICON = PIECE_ICON; CastleUI.SHORT = SHORT;
   K.ArtLibrary = ArtLibrary;
 
   K.CastleUI = CastleUI;

@@ -17,6 +17,8 @@
   class VoxelRoles {
     static ROLE_OF = { warden: 'knight', hero: 'knight', knight: 'knight', ranger: 'ranger', witch: 'mage', mage: 'mage', troll: 'troll' };
     static of(spriteId) { return VoxelRoles.ROLE_OF[spriteId] || null; }
+    static WIDTH = { troll: 2.1, wolf: 1.35 };       // footprint used for picking
+    static SHADOW = { troll: 0.62, wolf: 0.9 };      // contact-shadow size (x model height)
   }
 
   /* one shared, lazily built model per role (geometry is shared by every actor wearing it) */
@@ -111,10 +113,10 @@
           const model = kit.cache.get(role);
           this.rig = new KV.VoxelRig(model, { rest: KV.CharacterSculptor.REST[role], shadowProxy: kit.shadowProxy });
           this.anim = new KV.VoxelAnimator(this.rig, { phase: this.phase });
-          this.h = model.height * this.scale; this.w = (role === 'troll' ? 2.1 : 0.85) * this.scale;
+          this.h = model.height * this.scale; this.w = (VoxelRoles.WIDTH[role] || 0.85) * this.scale;
           this.rig.group.scale.setScalar(this.scale); this.applyTint();
           this.yaw = this.yaw != null ? this.yaw : Math.atan2(this.dir.x, this.dir.z);
-          const sw = model.height * (role === 'troll' ? 0.62 : 0.5) * this.scale;
+          const sw = model.height * (VoxelRoles.SHADOW[role] || 0.5) * this.scale;
           this.blob = ContactShadow.mesh(sw, sw * 0.6);
           this.R.scene.add(this.rig.group, this.blob); kit.attach(this.R); kit.live.add(this);
         }

@@ -6,7 +6,7 @@
 (function (G) {
   const K = G.K, THREE = G.THREE;
   const rnd = (a, b) => a + Math.random() * (b - a);
-  const COLOR = { dirt: 0x6b4a2b, stone: 0x9aa3b0, wood: 0x6a4424, iron: 0x9a5a3a, snow: 0xeef5fb, leaf: 0x1f4a32 };
+  const COLOR = { dirt: 0x6b4a2b, stone: 0x9aa3b0, wood: 0x6a4424, iron: 0x9a5a3a, snow: 0xeef5fb, leaf: 0x1f4a32, gold: 0xe2a63a, ember_shard: 0xff7a2a, food: 0xd9824a, furn: 0xb07a3a };
 
   /** Shared geometry + materials, and the one place that makes a little mesh of a given kind. */
   class Materials {
@@ -49,8 +49,8 @@
 
   /** A thing on the ground you collect by walking over it. A small state machine: tossed -> resting -> flying -> gone. */
   class Pickup {
-    constructor(kind, value, mesh, size, vx, vy, vz) {
-      this.kind = kind; this.value = value; this.mesh = mesh; this.size = size; this.vx = vx; this.vy = vy; this.vz = vz;
+    constructor(kind, value, mesh, size, vx, vy, vz, exact = false, payload = null) {
+      this.exact = exact; this.payload = payload; this.kind = kind; this.value = value; this.mesh = mesh; this.size = size; this.vx = vx; this.vy = vy; this.vz = vz;
       this.state = 'tossed'; this.restT = 0; this.flyT = 0;
     }
     /** returns false once collected */
@@ -95,11 +95,11 @@
   }
   class PickupField {
     constructor(group, materials, env, cap = 140) { this.group = group; this.materials = materials; this.env = env; this.cap = cap; this.items = []; }
-    spawn(kind, value, x, y, z, speed) {
+    spawn(kind, value, x, y, z, speed, exact = false, payload = null) {
       if (this.items.length >= this.cap) this.group.remove(this.items.shift().mesh);
       const size = kind === 'wood' ? 0.34 : kind === 'dirt' ? 0.17 : 0.17 + value * 0.04, mesh = this.materials.mesh(kind, size), a = rnd(0, 6.28), s = rnd(0.4, 1) * speed;
       mesh.position.set(x, y, z); this.group.add(mesh);
-      this.items.push(new Pickup(kind, value, mesh, size, Math.cos(a) * s, rnd(2.6, 4.4), Math.sin(a) * s));
+      this.items.push(new Pickup(kind, value, mesh, size, Math.cos(a) * s, rnd(2.6, 4.4), Math.sin(a) * s, exact, payload));
     }
     update(dt) { this.items = this.items.filter((p) => { const live = p.update(dt, this.env); if (!live) this.group.remove(p.mesh); return live; }); }
     clear() { for (const p of this.items) this.group.remove(p.mesh); this.items = []; }
@@ -133,7 +133,8 @@
       this.trees = [];
     }
     burst(kind, x, y, z, n, speed) { this.particles.burst(kind, x, y, z, n, speed); }
-    spawnPickup(kind, value, x, y, z, speed) { this.pickups.spawn(kind, value, x, y, z, speed); }
+    /** exact: the value is paid in full (a refund), without the gather bonus a harvest gets */
+    spawnPickup(kind, value, x, y, z, speed, exact = false, payload = null) { this.pickups.spawn(kind, value, x, y, z, speed, exact, payload); }
     /** fell a pine: crash, thud, snow puffs, then onLanded({x, z}) so the caller can drop the logs */
     fellTree(x, z, fromX, fromZ, onLanded) {
       const y = this.env.floorY(x, z); this.env.sound('whump');

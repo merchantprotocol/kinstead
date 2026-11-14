@@ -10,25 +10,25 @@
 
   /* ---------- gatherable props (castle interaction types) ---------- */
   const P = PropBuilder.PROPS;
-  P['c:pine'] = { name: 'Snow pine', group: 'Castle', r: 0.6, h: 3, interact: 'c_tree', build: P['res:pine'].build };
+  P['c:pine'] = { name: 'Snow pine', group: 'Castle', r: 0.6, h: 3, interact: 'c_tree', build(pb, o, st) { if (st === 'depleted') return; P['res:pine'].build(pb, o, st); } };
   /* dead trees are harvestable too: the same stump when they are felled */
   P['c:deadtree'] = { name: 'Dead tree', group: 'Castle', r: 0.5, h: 2.4, interact: 'c_tree', build(pb, o, st) {
-    if (st === 'depleted') { P['res:pine'].build(pb, o, st); return; }
+    if (st === 'depleted') return;   // felled: gone
     P.deadtree.build(pb, o, st);
   } };
   P['c:iron'] = { name: 'Iron rock', group: 'Castle', r: 0.55, h: 0.9, interact: 'c_iron', build: P['res:ore'].build };
   P['c:boulder'] = { name: 'Boulder', group: 'Castle', r: 0.6, h: 0.9, interact: 'c_boulder', build(pb, o, st) {
-    if (st === 'depleted') { pb.rubble(0, 0, 5, 0.35); return; }
+    if (st === 'depleted') return;   // used up: gone
     pb.boulderAt(0, 0, 0, 0.55); pb.boulderAt(0.42, 0, 0.22, 0.3); pb.boulderAt(-0.36, 0, 0.18, 0.26); pb.cap(0, 0.5, 0, 0.42, 0.36, 0.3, 0.07);
   } };
   P['c:rubble'] = { name: 'Ruin rubble', group: 'Castle', r: 0.55, h: 0.5, interact: 'c_rubble', build(pb, o, st) {
-    if (st === 'depleted') { pb.rubble(0, 0, 3, 0.25); return; }
+    if (st === 'depleted') return;
     pb.rubble(0, 0, 12, 0.55); pb.block(0.2, 0, -0.1, 0.36, 0.22, 0.26, 0.4, 3);
   } };
 
   /* piece footprints (m): w along the piece's local x, d along local z; used for nav blocking, raider collision and placement */
   const SIZE = {
-    keep: [4.2, 4.2], palisade: [2, 0.45], stone_wall: [2, 0.7], gatehouse: [3.6, 1.6], watchtower: [1.5, 1.5], ember_brazier: [0.8, 0.8],
+    keep: [4.2, 4.2], palisade: [0.5, 0.5], stone_wall: [0.5, 0.5], dirt: [0.5, 0.5], gatehouse: [3.6, 1.6], watchtower: [1.5, 1.5], ember_brazier: [0.8, 0.8],
     woodcutter: [2.6, 2.2], quarry: [2.6, 2.2], mine: [2.6, 2.4], great_hall: [5.2, 3.2], chapel: [2.2, 2.6], storehouse: [2.8, 2.2],
     smithy: [3.2, 2.6], ember_forge: [1.8, 1.6], barracks: [4.2, 2.2],
   };
@@ -90,17 +90,17 @@
           snowCap(0, 0.35 + (ruin ? 1.6 : H), W / 2 - 0.2, 0.9, 0.4);
           break;
         }
-        case 'palisade': {
-          for (let i = 0; i < 7; i++) { const x = -0.86 + i * 0.287, h = 1.5 + R.range(-0.1, 0.12); k.geo('bark', CYL8, x, h / 2, 0, 0, R.range(0, 3), 0, 0.14, h, 0.14, 0.5, 1); k.geo('wood', CONE6, x, h + 0.13, 0, 0, 0, 0, 0.14, 0.26, 0.14); }
-          k.box('timber', 0, 0.9, -0.16, 2, 0.12, 0.08); k.box('timber', 0, 0.35, -0.16, 2, 0.12, 0.08); k.box('snow', 0, 0, 0.05, 2.1, 0.08, 0.5);
+        case 'palisade': {   // one tile, two cubes high
+          k.box('timber', 0, 0, 0, 0.5, 0.5, 0.5); k.box('wood', 0, 0.5, 0, 0.5, 0.5, 0.5);
+          for (const x of [-0.17, 0.17]) { k.box('bark', x, 0.02, 0.255, 0.1, 0.96, 0.02); k.box('bark', x, 0.02, -0.255, 0.1, 0.96, 0.02); }
+          snowCap(0, 1.0, 0, 0.5, 0.5);
           break;
         }
-        case 'stone_wall': {
-          k.box('ashlar', 0, 0, 0, 2, 1.6, 0.62);
-          for (let i = 0; i < 3; i++) k.box('ashlar', -0.7 + i * 0.7, 1.6, 0.18, 0.44, 0.34, 0.26);
-          k.box('timber', 0, 1.6, -0.12, 2, 0.08, 0.38); snowCap(0, 1.6, 0.18, 2, 0.26);
+        case 'stone_wall': {   // one tile, one cube high
+          k.box('ashlar', 0, 0, 0, 0.5, 0.5, 0.5); k.box('ashlar', -0.12, 0.5, 0.05, 0.2, 0.08, 0.2); snowCap(0, 0.5, 0, 0.5, 0.5);
           break;
         }
+        case 'dirt': { k.box('bark', 0, 0, 0, 0.5, 0.5, 0.5); break; }
         case 'gatehouse': {
           const th = ruin ? 1.3 : 3;
           for (const s of [-1, 1]) { k.box('ashlar', s * 1.3, 0, 0, 1.1, th, 1.4); if (!ruin) { for (const dx of [-0.35, 0.35]) k.box('ashlar', s * 1.3 + dx, th, 0.5, 0.3, 0.3, 0.3); k.box('slate', s * 1.3, th, 0, 0.9, 0.7, 0.9, Math.PI / 4); snowCap(s * 1.3, th + 0.7, 0, 0.5, 0.5); } else snowCap(s * 1.3, th, 0, 1.1, 1.4); }

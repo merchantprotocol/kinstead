@@ -36,8 +36,13 @@
   class ShovelTool extends Tool {
     constructor() { super('shovel', '4', 'Shovel', 'Shovel out. Click the ground to dig.'); }
     groundTarget(i, j, ctx) { return ctx.editor.canDig(i, j) ? new K.DigTarget(ctx, i, j) : null; }
-    denyGround(i, j, ctx) { return ctx.editor.isRockHill(i, j) ? 'Too hard for a shovel. Use the pickaxe (3).' : null; }
     get verb() { return 'dig'; }
+  }
+
+  class HammerTool extends Tool {
+    constructor() { super('hammer', '5', 'Hammer', 'Hammer out. Pick what to build from the drawer on the left.'); }
+    accepts() { return false; }                      // the hammer works through the build drawer, not on harvest targets
+    get verb() { return 'build'; }
   }
 
   /** The hotbar plus the "which tool is out" state. Calls onSelect(tool) whenever the tool changes. */
@@ -65,5 +70,5 @@
     dispose() { if (this.bar.parentNode) this.bar.parentNode.removeChild(this.bar); }
   }
 
-  Object.assign(K, { Tool, SwordTool, AxeTool, PickaxeTool, ShovelTool, Toolbelt });
+  Object.assign(K, { Tool, SwordTool, AxeTool, PickaxeTool, ShovelTool, HammerTool, Toolbelt });
 })(typeof window !== 'undefined' ? window : globalThis);

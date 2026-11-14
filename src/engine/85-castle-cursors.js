@@ -62,6 +62,10 @@
     hammer: { hot: [6, 6], body: `<path d='M14 14L38 38' stroke='#0a1020' stroke-width='6.6' stroke-linecap='round'/><path d='M14 14L38 38' stroke='url(#wd)' stroke-width='4' stroke-linecap='round'/>
       <path d='M5 13L13 5L26 18L18 26Z' fill='url(#st)' ${O}/><path d='M8.4 12.6L13.4 7.6' stroke='#fff' stroke-width='1.1' opacity='.75'/>
       <path d='M20.6 10.4L29.4 19.2' stroke='#ff9a3a' stroke-width='1.6' opacity='.9'/>${gem(15.5, 15.5, 1.7)}` },
+    /* take down: the rune hammer, struck across with a red slash */
+    demolish: { hot: [6, 6], body: `<path d='M14 14L38 38' stroke='#0a1020' stroke-width='6.6' stroke-linecap='round'/><path d='M14 14L38 38' stroke='url(#wd)' stroke-width='4' stroke-linecap='round'/>
+      <path d='M5 13L13 5L26 18L18 26Z' fill='url(#st)' ${O}/><path d='M20.6 10.4L29.4 19.2' stroke='#ff9a3a' stroke-width='1.6' opacity='.9'/>
+      <circle cx='31' cy='12' r='9' fill='#12203a' fill-opacity='.85' stroke='#0a1020' stroke-width='1.2'/><path d='M26 7L36 17M36 7L26 17' stroke='#0a1020' stroke-width='4.6' stroke-linecap='round'/><path d='M26 7L36 17M36 7L26 17' stroke='#ff5a4a' stroke-width='2.6' stroke-linecap='round'/>` },
     /* talk: a spirit bubble with three runes */
     bubble: { hot: [8, 36], body: `<path d='M8 36L13.6 28.6C8 26 5 21.8 5 17C5 9.8 12.6 5 22 5C31.4 5 39 9.8 39 17C39 24.2 31.4 29 22 29C20 29 18.2 28.8 16.4 28.4Z' fill='#12203a' fill-opacity='.92' stroke='url(#gd)' stroke-width='2.4' stroke-linejoin='round'/>
       <path d='M8 36L13.6 28.6C8 26 5 21.8 5 17' fill='none' stroke='#0a1020' stroke-width='.8'/>

@@ -346,6 +346,7 @@
       const v = new V3(), right = new V3().setFromMatrixColumn(cam.matrixWorld, 0);
       for (const e of this.props.concat(this.loot)) {
         if (e.furniture && e.buildingId !== this.bplay.inside) continue;
+        if (this.ext && this.ext.pickable && !this.ext.pickable(e)) continue;   // the game mode can make things unclickable (a tree is not clickable unless you hold an axe)
         v.set(e.x, e.y, e.z).project(cam); if (v.z > 1) continue; const bx = (v.x + 1) / 2 * W, by = (1 - v.y) / 2 * H;
         v.set(e.x, e.y + e.h, e.z).project(cam); const ty = (1 - v.y) / 2 * H;
         v.set(e.x + right.x * e.r, e.y, e.z + right.z * e.r).project(cam); const hw = Math.max(10, Math.abs((v.x + 1) / 2 * W - bx));
@@ -364,7 +365,7 @@
       if (!this.active) return; this.t += dt; this.syncMe();
       const me = this.me;
       // pending hits land a beat after the swing starts
-      this.pending = this.pending.filter((h) => { h.t -= dt; if (h.t > 0) return true; this.resolveHit(h.a, h.b); return false; });
+      this.pending = this.pending.filter((h) => { h.t -= dt; if (h.t > 0) return true; this.resolveHit(h.a, h.b, h.reach); return false; });
       if (!me.alive) { this.defeatT -= dt; if (this.defeatT <= 0) this.respawnPlayer(); }
       else { this.holdWalk(dt); this.updatePlayer(dt); }
       for (const a of this.actors) if (a !== me) { if (a.brain) a.brain.update(dt); else this.updateNpc(a, dt); }
@@ -373,7 +374,7 @@
       this.loot = this.loot.filter((l) => { if (this.t > l.until) { l.view.dispose(); return false; } return true; });
       if (this.talking && this.dist(me, this.talking) > 3.2) { this.ui.close('dlg'); this.ui.close('trade'); this.talking = null; }
       // regen out of combat
-      if (me.alive && !this.inCombat() && this.player.hp < this.player.stats().hpMax) { this.regenT = (this.regenT || 0) + dt; if (this.regenT > 1.5) { this.regenT = 0; this.player.heal(1); } } else this.regenT = 0;
+      if (!(this.ext && this.ext.noRegen) && me.alive && !this.inCombat() && this.player.hp < this.player.stats().hpMax) { this.regenT = (this.regenT || 0) + dt; if (this.regenT > 1.5) { this.regenT = 0; this.player.heal(1); } } else this.regenT = 0;
       // camera follows the player
       const g = this.app.rig.goal; g.tx = me.x; g.tz = me.z; g.ty = me.y * 0.9; this.app.rig.clamp();
       this.bplay.update(dt);
@@ -456,9 +457,10 @@
         if (this.nav.standable(tx, tz) && this.dist({ x: tx, z: tz }, me) > 0.8) { const p = this.nav.find(a.x, a.z, tx, tz, { maxNodes: 400 }); if (p && p.length <= 4) a.path = p; }
       }
     }
-    swing(a, b) { a.cdT = a.cd; a.view.setState('attack'); this.face(a, b); this.pending.push({ t: 0.2, a, b }); }
-    resolveHit(a, b) {
-      if (!a.alive || !b.alive || this.dist(a, b) > a.reach + b.r + 0.6) return;
+    swing(a, b) { if (a === this.me && this.ext && this.ext.sweep) { this.ext.sweep.swing(b, true); return; }   // the hero's auto swing is the big arc (it stops when you stop clicking)
+      a.cdT = a.cd; a.view.setState('attack'); this.face(a, b); this.pending.push({ t: 0.2, a, b }); }
+    resolveHit(a, b, reach) {
+      if (!a.alive || !b.alive || this.dist(a, b) > (reach || a.reach) + b.r + 0.6) return;
       if (!this.ext && Math.random() < 0.08) { this.float(b, 'miss', 'miss'); return; }
       const dmg = this.ext ? this.ext.damage(a, b) : Math.max(1, Math.round(a.atk * rnd(0.7, 1.3) - b.def * 0.5));
       b.view.flash('hit'); if (b.view.state !== 'attack') b.view.setState('hurt');

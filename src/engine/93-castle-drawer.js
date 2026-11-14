@@ -1,0 +1,77 @@
+/* Copyright (c) 2026 Merchant Protocol. All rights reserved. */
+/* Kinstead · the drawer on the left. Always shows how much of each resource you have. With the hammer out it
+   opens into a scrollable list of everything you can build (and a "Take down" mode); pick one to place it.
+   It replaces the old Build button and the centre menu. DOM only: building is done by CastleUI.pickCard,
+   taking down by the Demolisher. Parts are patched only when their HTML changed, and the list keeps its
+   scroll position, because the HUD re-renders several times a second. */
+(function (G) {
+  const K = G.K;
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const GROUPS = [['terrain', 'Land'], ['defense', 'Walls']];
+const BUILDABLE = new Set(['dirt', 'palisade', 'stone_wall']);   // what you can place by the square
+
+  /** Replace an element's HTML only if it changed; keep its scroll. */
+  const patch = (el, html) => { if (el._h === html) return; const top = el.scrollTop; el._h = html; el.innerHTML = html; el.scrollTop = top; };
+
+  class BuildDrawer {
+    constructor(cui, hooks = {}) {
+      this.cui = cui; this.g = cui.g; this.c = cui.c; this.hooks = hooks; this.open = false; this.mode = 'build';
+      const root = (this.root = document.createElement('div')); root.id = 'cDrawer'; root.className = 'cp';
+      root.innerHTML = `<div class="dw-res"></div><div class="dw-body"><div class="dw-mode"><button data-mode="build" class="on">Build</button><button data-mode="demolish">Take down <small>½ back</small></button></div><div class="dw-list"></div></div>`;
+      this.res = root.querySelector('.dw-res'); this.list = root.querySelector('.dw-list'); this.modes = [...root.querySelectorAll('[data-mode]')];
+      root.addEventListener('click', (e) => this.onClick(e));
+      (cui.root.querySelector('#cLeft') || cui.root).appendChild(root); this.update();
+    }
+    setOpen(on) { this.open = !!on; this.root.classList.toggle('open', this.open); if (!this.open) this.setMode('build'); this.update(); }
+    setMode(m) {
+      this.mode = m; for (const b of this.modes) b.classList.toggle('on', b.dataset.mode === m);
+      this.root.classList.toggle('demolish', m === 'demolish'); if (m === 'demolish') this.cui.stopPlacing();
+      if (this.hooks.onMode) this.hooks.onMode(m); this.update();
+    }
+    dispose() { this.root.remove(); }
+
+    /* ---------- rendering ---------- */
+    update() {
+      patch(this.res, this.resourcesHtml());
+      if (this.open) patch(this.list, this.mode === 'demolish' ? this.demolishHtml() : this.catalogHtml());
+    }
+    resourcesHtml() {
+      const c = this.c, caps = c.caps(), rates = c.rates(), Ic = K.Icons, ICON = K.CastleUI.ICON;
+      return K.CastleUI.RES_ORDER.map((r) => {
+        const full = c.amount(r) >= caps[r], rate = rates[r] || 0;
+        return `<div class="res ${full ? 'full' : ''}" data-r="${r}" title="${esc(K.CastleData.resName(r))}: ${c.amount(r)} of ${caps[r]}">${Ic.img(ICON[r], 1)}<b>${c.amount(r)}</b><small>/${caps[r]}</small>${rate ? `<i>+${rate}/min</i>` : ''}${full ? '<em>FULL</em>' : ''}</div>`;
+      }).join('') + (c.amount('troll_heart') ? `<div class="res heart">${Ic.img('heart', 1)}<b>Troll’s heart</b></div>` : '');
+    }
+    demolishHtml() { return `<p class="dw-note"><b>Take down</b><br>Click or drag over anything you built. It comes down at once and half the materials drop for you to collect.<br><br>Restored ruins stay standing.</p>`; }
+    chips(cost) { const ICON = K.CastleUI.ICON; return Object.entries(cost).map(([r, k]) => `<span class="chip ${this.c.amount(r) >= k ? '' : 'bad'}">${K.Icons.img(ICON[r], 1)}${k}</span>`).join(''); }
+    row(x) {
+      return `<button class="dw-row ${x.state}" data-id="${esc(x.id)}" data-kind="${x.kind}" data-why="${esc(x.why || '')}">${this.cui.art.html(x.art || x.id, x.icon, 40)}
+        <div class="dw-t"><b>${esc(x.name)}</b><div class="cost">${this.chips(x.cost)}</div><small>${esc(x.state === 'locked' ? x.why : x.line)}</small></div></button>`;
+    }
+    catalogHtml() {
+      const c = this.c, d = c.data, S = K.CastleUI, rows = [];
+      for (const id of d.pieceIds()) {
+        if (!BUILDABLE.has(id)) continue;
+        const ruin = c.ruinOpen(id), p = d.piece(id), why = c.blocker(id, { ruin, ignoreCost: true }); if (why && /already/.test(why)) continue;
+        const cost = c.buildCost(id, { ruin }), state = why ? 'locked' : c.canAfford(cost) ? 'ok' : 'poor';
+        rows.push({ id, kind: ruin ? 'ruin' : id === 'mine' ? 'site' : 'place', group: p.category, name: ruin ? `Restore the ${p.name}` : p.name, cost, state, why, icon: S.PIECE_ICON[id], art: id, line: p.effect || '' });
+      }
+      const html = [];
+      for (const [g, label] of GROUPS) { const items = rows.filter((r) => r.group === g); if (items.length) html.push(`<h4>${label}</h4>${items.map((x) => this.row(x)).join('')}`); }
+      const extra = this.cui.cards().out.filter((x) => x.kind === 'upgrade' || x.kind === 'craft');
+      if (extra.length) html.push(`<h4>Upgrades & forge</h4>${extra.map((x) => this.row({ id: x.id, kind: x.kind, name: x.name, cost: x.cost, state: 'ok', icon: x.icon, art: x.art, line: x.line })).join('')}`);
+      return html.join('');
+    }
+
+    /* ---------- picking ---------- */
+    onClick(e) {
+      const m = e.target.closest('[data-mode]'); if (m) { this.g.sound.unlock(); this.setMode(m.dataset.mode); return; }
+      const row = e.target.closest('.dw-row'); if (!row) return;
+      this.g.sound.unlock(); const cui = this.cui, { out } = cui.cards(), i = out.findIndex((x) => x.id === row.dataset.id && x.kind === row.dataset.kind);
+      if (i < 0) { cui.toast(row.dataset.why ? row.dataset.why[0].toUpperCase() + row.dataset.why.slice(1) + '.' : 'You need more materials for that.'); this.g.sound.play('clank'); return; }
+      cui.cardList = out; cui.pickCard(i);
+    }
+  }
+
+  K.BuildDrawer = BuildDrawer;
+})(typeof window !== 'undefined' ? window : globalThis);

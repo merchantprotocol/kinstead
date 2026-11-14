@@ -82,14 +82,14 @@ test('ruins repair at half cost, rounded up, once', () => {   // risk: money
 test('Castle Level: thresholds from distinct piece types, gates, and the hearth cap', () => {   // risk: core rules
   const c = new K.Castle(data());
   assert.equal(c.cl(), 0); assert.equal(c.blocker('palisade', { ignoreCost: true }), null, 'you can build before the hearth is lit');
-  assert.match(c.blocker('stone_wall', { ignoreCost: true }), /Castle Level 2/, 'level gates still apply');
+  assert.match(c.blocker('storehouse', { ignoreCost: true }), /Castle Level 2/, 'level gates still apply');
   c.light(); assert.equal(c.cl(), 1);
   give(c, { wood: 60, stone: 60 });
-  assert.match(c.blocker('stone_wall'), /Castle Level 2/);
+  assert.match(c.blocker('storehouse'), /Castle Level 2/);
   c.build('palisade'); c.build('palisade');
   assert.equal(c.score(), 2, 'a second palisade adds nothing');
   c.build('gatehouse'); c.build('quarry'); assert.equal(c.score(), 10); assert.equal(c.cl(), 2);
-  assert.equal(c.blocker('stone_wall'), null);
+  assert.equal(c.blocker('storehouse'), null);
   assert.match(c.blocker('mine', { ignoreCost: true }), /Iron Hills/);
   c.flags.add('zone:iron_hills'); assert.equal(c.blocker('mine', { ignoreCost: true }), null);
   assert.match(c.blocker('ember_forge', { ignoreCost: true }), /Castle Level 4/);

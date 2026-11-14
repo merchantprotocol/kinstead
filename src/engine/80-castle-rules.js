@@ -4,7 +4,7 @@
    runs in the game and in `node --test`. Every number comes from game-data-castle.json (K.CASTLE_DATA). */
 (function (G) {
   const K = (G.K = G.K || {});
-  const RES = ['wood', 'stone', 'dirt', 'iron', 'gold', 'ember_shard'];
+  const RES = ['wood', 'stone', 'dirt', 'food', 'iron', 'gold', 'ember_shard'];
   const KEY_ITEMS = ['troll_heart'];
 
   /* ---------- the data, with lookups and the one item vocabulary ---------- */
@@ -57,7 +57,7 @@
       return `${gain} · pays for itself in ${m.toFixed(1)} min`;
     }
   }
-  CastleData.NAMES = { wood: 'wood', stone: 'stone', dirt: 'dirt', iron: 'iron', gold: 'gold', ember_shard: 'ember', troll_heart: "troll's heart" };
+  CastleData.NAMES = { wood: 'wood', stone: 'stone', dirt: 'dirt', food: 'food', iron: 'iron', gold: 'gold', ember_shard: 'ember', troll_heart: "troll's heart" };
   CastleData.resName = (r) => CastleData.NAMES[r] || r;
 
   /* ---------- the castle: pieces, stores, Castle Level, production, crafting, raid losses ---------- */
@@ -159,6 +159,15 @@
       if (!ignoreCost && !this.canAfford(this.buildCost(type, { ruin }))) return 'not enough resources';
       return null;
     }
+    /* ---- taking down: half of what it cost comes back (restored ruins stay standing) ---- */
+    canDemolish(p) { return !!p && !this.ruins[p.type] && this.pieces.includes(p); }
+    refundFor(p) {
+      const half = (cost) => { const o = {}; for (const [r, n] of Object.entries(cost || {})) { const h = Math.floor(n / 2); if (h > 0) o[r] = h; } return o; };
+      const out = half(this.buildCost(p.type));
+      if (p.level >= 2) for (const [r, n] of Object.entries(half(this.upgradeCost(p)))) out[r] = (out[r] || 0) + n;
+      return out;
+    }
+    demolish(p) { if (!this.canDemolish(p)) return { ok: false }; const refund = this.refundFor(p); this.pieces.splice(this.pieces.indexOf(p), 1); return { ok: true, refund }; }
     build(type, at = {}, { ruin = false } = {}) {
       const why = this.blocker(type, { ruin }); if (why) return { ok: false, why };
       this.spend(this.buildCost(type, { ruin }));

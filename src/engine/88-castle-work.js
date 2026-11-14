@@ -14,7 +14,7 @@
 (function (G) {
   const K = G.K;
   const { TILE, T } = K;
-  const BLOCK = 2, MIN_Q = -6;                       // a dug block is 2 quarter-units (0.5 m); holes bottom out 3 blocks down
+  const BLOCK = 2, MIN_Q = -6, MAX_Q = 12;                       // a dug block is 2 quarter-units (0.5 m); holes bottom out 3 blocks down
   const SWING_MIN = 0.11, SWING_AUTO = 0.55, HITS_PER_CHARGE = 2, DIG_HITS = 3, MINE_HITS = 5;
   const rnd = (a, b) => a + Math.random() * (b - a);
 
@@ -42,11 +42,24 @@
       const d = this.doc, L = this.g.L; if (!d.inside(i, j)) return false;
       const k = j * d.w + i, t = d.terrain[k], x = (i + 0.5) * TILE, z = (j + 0.5) * TILE;
       if (t === T.CHASM || t === T.WATER || t === T.ROCK) return false;
-      if (d.height[k] <= MIN_Q || !this.nav.walk[k]) return false;              // a prop, a wall or a building is in the way
+      if (d.height[k] <= MIN_Q || !this.nav.walk[k] || this.g.home.near(x, z, 1.5)) return false;      // never under or beside the house              // a prop, a wall or a building is in the way
       const R = this.g.play.R; if (R.buildings && R.buildings.at && R.buildings.at(i, j)) return false;
       if (Math.hypot(x - L.keep.x, z - L.keep.z) < 3.6) return false;           // the Keep's footing stays
       for (const b of Object.values(L.barriers || {})) if (x > b.x0 - 1 && x < b.x1 + 1 && z > b.z0 - 1 && z < b.z1 + 1) return false;
       return true;
+    }
+    /** can one more block of dirt go on this tile? (free ground, not under a building, within the height limit) */
+    canRaise(i, j) {
+      const d = this.doc, L = this.g.L; if (!d.inside(i, j)) return false;
+      const k = j * d.w + i, t = d.terrain[k]; if (t === T.CHASM || t === T.WATER || t === T.ROCK) return false;
+      if (d.height[k] >= MAX_Q || !this.nav.walk[k] || this.nav.edge[k] || this.g.home.near((i + 0.5) * TILE, (j + 0.5) * TILE, 1.5)) return false;
+      const R = this.g.play.R; if (R.buildings && R.buildings.at && R.buildings.at(i, j)) return false;
+      return true;
+    }
+    /** put one block of dirt on a tile: the ground rises a cube and turns to dirt */
+    raise(i, j) {
+      const d = this.doc, k = j * d.w + i; d.height[k] = Math.min(MAX_Q, d.height[k] + BLOCK); d.terrain[k] = T.DIRT;
+      this.nav.S[k] = this.nav.surface((i + 0.5) * TILE, (j + 0.5) * TILE, d.hy(i, j)); this.g.play.R.tilesChanged(i, j, i + 1, j + 1);
     }
     /** take one block off a tile; mined rock turns to dirt once it is level with the ground */
     lower(i, j, mining) {
@@ -107,28 +120,21 @@
   }
   class TreeTarget extends NodeTarget {
     get requires() { return 'axe'; }
-    onStrike(n) {
-      const g = this.ctx.game; g.sound.play('thunk');
-      this.ctx.effects.burst('wood', this.e.x + rnd(-0.1, 0.1), this.groundY + 0.8, this.e.z + rnd(-0.1, 0.1), 4, 2.4);
+    onStrike() {
+      this.ctx.game.sound.play('thunk'); const fx = this.ctx.effects, e = this.e, y = this.groundY;
+      fx.burst('wood', e.x + rnd(-0.1, 0.1), y + 0.8, e.z + rnd(-0.1, 0.1), 4, 2.4);
+      fx.spawnPickup('wood', 1, e.x + rnd(-0.15, 0.15), y + 0.9, e.z + rnd(-0.15, 0.15), 2.8, true);   // a chunk of wood flies off: worth 1
     }
-    complete() {
-      const me = this.ctx.play.me, r = this.resource, v = this.yieldEach, y = this.groundY, e = this.e, fx = this.ctx.effects, n = this.pieces;
-      this.deplete();
-      fx.fellTree(e.x, e.z, me.x, me.z, (dir) => { for (let k = 0; k < n; k++) fx.spawnPickup(r, v, e.x + dir.x * (0.5 + k * 0.45), y + 0.3, e.z + dir.z * (0.5 + k * 0.45), 1.4); });
-    }
+    complete() { const me = this.ctx.play.me, e = this.e; this.deplete(); this.ctx.effects.fellTree(e.x, e.z, me.x, me.z, () => {}); }   // it crashes down and is gone
   }
   class RockTarget extends NodeTarget {
     get requires() { return 'pickaxe'; }
     onStrike() {
-      this.ctx.game.sound.play('clank');
-      this.ctx.effects.burst(this.resource, this.e.x + rnd(-0.1, 0.1), this.groundY + 0.4, this.e.z + rnd(-0.1, 0.1), 4, 2.4);
+      const fx = this.ctx.effects, e = this.e, y = this.groundY, r = this.resource; this.ctx.game.sound.play('clank');
+      fx.burst(r, e.x + rnd(-0.1, 0.1), y + 0.4, e.z + rnd(-0.1, 0.1), 4, 2.4);
+      fx.spawnPickup(r, 1, e.x + rnd(-0.15, 0.15), y + 0.5, e.z + rnd(-0.15, 0.15), 2.8, true);       // each swing chips off 1
     }
-    complete() {
-      const e = this.e, r = this.resource, v = this.yieldEach, y = this.groundY, fx = this.ctx.effects;
-      this.deplete(); this.ctx.game.sound.play('crack');
-      for (let k = 0; k < this.pieces; k++) fx.spawnPickup(r, v, e.x, y + 0.5, e.z, 3.2);
-      fx.burst(r, e.x, y + 0.5, e.z, 10, 3.5);
-    }
+    complete() { const e = this.e; this.deplete(); this.ctx.game.sound.play('crack'); this.ctx.effects.burst(this.resource, e.x, this.groundY + 0.5, e.z, 10, 3.5); }   // the rock is gone
   }
 
   class TerrainTarget extends WorkTarget {
@@ -143,7 +149,7 @@
     throwCube(kind, value, speed, sound) {
       const fx = this.ctx.effects, y = this.surfaceY;
       this.ctx.game.sound.play(sound); fx.burst(kind, this.x, y + 0.15, this.z, 4, 2.2);
-      fx.spawnPickup(kind, value, this.x + rnd(-0.1, 0.1), y + 0.3, this.z + rnd(-0.1, 0.1), speed);
+      fx.spawnPickup(kind, value, this.x + rnd(-0.1, 0.1), y + 0.3, this.z + rnd(-0.1, 0.1), speed, true);
     }
   }
   class DigTarget extends TerrainTarget {
@@ -159,11 +165,11 @@
     get hitsNeeded() { return MINE_HITS; }
     onStrike() { this.throwCube('stone', 1, 2.4, 'clank'); }
     complete() {
-      const fx = this.ctx.effects; fx.spawnPickup('stone', 2, this.x, this.surfaceY + 0.4, this.z, 3);
       this.ctx.editor.lower(this.i, this.j, true); this.ctx.game.sound.play('thunk');
     }
   }
   WorkTarget.TYPES = { c_tree: TreeTarget, c_boulder: RockTarget, c_rubble: RockTarget, c_iron: RockTarget };
+  WorkTarget.TOOL_FOR = { c_tree: 'axe', c_boulder: 'pickaxe', c_rubble: 'pickaxe', c_iron: 'pickaxe' };   // which tool a resource type needs (cheap lookup for picking)
 
   /** Swings at one target. Every start() is a swing, so clicking fast is faster; it also keeps swinging by itself. */
   class Worker {
