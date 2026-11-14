@@ -610,12 +610,13 @@
     }
     addBarrier(zone, b) {
       const w = b.x1 - b.x0, d = b.z1 - b.z0, x = (b.x0 + b.x1) / 2, z = (b.z0 + b.z1) / 2, m = this.art.ice(w, 2.4, d, zone.length * 5);
-      this.place(m, x, z, 0); this.barriers[zone] = { m, x, z, w, d };
-      const nav = this.play.nav; this.rectTiles(x, z, w + 0.6, d + 0.6, 0, (i, j) => { nav.walk[j * nav.w + i] = 0; });
+      const nav = this.play.nav, prev = [];   // remember each tile's walkability: bridge decks stand on chasm terrain
+      this.rectTiles(x, z, w + 0.6, d + 0.6, 0, (i, j) => { const k = j * nav.w + i; prev.push([k, nav.walk[k]]); nav.walk[k] = 0; });
+      this.place(m, x, z, 0); this.barriers[zone] = { m, x, z, w, d, prev };
     }
     openBarrier(zone) {
       const b = this.barriers[zone]; if (!b) return; this.group.remove(b.m); delete this.barriers[zone];
-      const nav = this.play.nav; this.rectTiles(b.x, b.z, b.w + 0.6, b.d + 0.6, 0, (i, j) => { const k = j * nav.w + i; if (this.play.doc.terrain[k] !== K.T.CHASM && !this.occ[k]) nav.walk[k] = 1; });
+      const nav = this.play.nav; for (const [k, v] of b.prev) if (!this.occ[k]) nav.walk[k] = v;
       this.puff(b.x, b.z); this.sound.play('crack');
       this.cui.toast(zone === 'iron_hills' ? 'Dawn: a thaw wave opens the Iron Hills (north-east). Iron rocks, an outcrop for a mine… and a figure in the ice.' : 'Dawn: the frost on the bridge breaks. The Rime Troll waits on the far side.');
     }

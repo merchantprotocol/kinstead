@@ -30,7 +30,7 @@
       this.ridgeX = 35.5; this.ridgeZ = 14.5; this.pass = { x0: 40.5, x1: 43.5 };
       this.barriers = {
         iron_hills: { x0: 40.5, x1: 43.5, z0: 14, z1: 15.5, opensAfter: 'night1' },
-        troll_bridge: { x0: 48.6, x1: 50, z0: 23.5, z1: 26.5, opensAfter: 'night2' },
+        troll_bridge: { x0: 51.2, x1: 52.6, z0: 23.6, z1: 26.4, opensAfter: 'night2' },   // on the deck, over the chasm: no way around it
       };
       this.frostEdges = { north: { x0: 16, x1: 36, z: 3.2 }, south: { x0: 18, x1: 34, z: 46.2 }, west: { z0: 16, z1: 34, x: 2.5 } };
       this.nodes = {
