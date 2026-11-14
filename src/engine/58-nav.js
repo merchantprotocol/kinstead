@@ -163,7 +163,10 @@
       let [ti, tj] = this.tile(gx, gz), exact = !range;
       if (!range && !this.ok(ti, tj)) { const q = this.nearestOk(ti, tj, 3); if (!q) return null; [ti, tj] = q; exact = false; }
       const goalC = range ? [gx, gz] : this.centre(ti, tj);
-      const isGoal = range ? (i, j) => Math.hypot((i + 0.5) * TILE - gx, (j + 0.5) * TILE - gz) <= range : (i, j) => i === ti && j === tj;
+      // a range goal accepts tile centres within range; a goal on a tile corner has no centre closer than TILE/sqrt2,
+      // so a range below that could never be met: the search stops on the nearest tiles, the last step closes in
+      const reach = Math.max(range, TILE * 0.75);
+      const isGoal = range ? (i, j) => Math.hypot((i + 0.5) * TILE - gx, (j + 0.5) * TILE - gz) <= reach : (i, j) => i === ti && j === tj;
       const hf = (i, j) => Math.max(0, Math.hypot((i + 0.5) * TILE - goalC[0], (j + 0.5) * TILE - goalC[1]) - range) / TILE;
       const n = w * this.h, g = new Float32Array(n).fill(Infinity), from = new Int32Array(n).fill(-1), closed = new Uint8Array(n), open = new Heap();
       const s = sj * w + si; g[s] = 0; open.push(s, hf(si, sj));
