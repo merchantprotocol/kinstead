@@ -15,7 +15,7 @@
       this.actor = this; this.type = cfg.role; this.hp = this.hpMax; this.alive = true; this.path = null; this.cdT = 0; this.repathT = 0;
       this.home = { x: cfg.x, z: cfg.z }; this.y = game.nav.y(cfg.x, cfg.z); this.r = cfg.r || 0.3;
       this.hostile = cfg.role === 'enemy'; this.aggro = false; this.wanderT = rnd(1, 5); this.deadT = 0;
-      this.view = new K.SpriteActorView(game.R, cfg.spriteId, { scale: cfg.scale || 1, phase: Math.random() * 7 });
+      this.view = new (K.ActorViews ? K.ActorViews.classFor(cfg.spriteId) : K.SpriteActorView)(game.R, cfg.spriteId, { scale: cfg.scale || 1, phase: Math.random() * 7 });
       this.view.setFacing((cfg.flip ? -1 : 1) * this.view.native, 0); this.view.setPosition(this.x, this.y, this.z);
     }
     get h() { return this.view.h; }
