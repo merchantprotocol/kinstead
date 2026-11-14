@@ -248,8 +248,38 @@
     }
 
     /* ---------- input ---------- */
-    pointerDown(e, sx, sy) { this.down = { sx, sy, t: performance.now() }; }
-    pointerUp(e, sx, sy) { const d = this.down; this.down = null; if (!d || Math.hypot(sx - d.sx, sy - d.sy) > 6) return; this.click(sx, sy); }
+    pointerDown(e, sx, sy) { this.down = { sx, sy, cx: sx, cy: sy, t: performance.now(), held: false, moved: false }; this.holdT = 0; }
+    /* button held and the pointer moved: remember where, for hold-to-walk */
+    dragMove(sx, sy) { const d = this.down; if (!d) return; d.cx = sx; d.cy = sy; if (Math.hypot(sx - d.sx, sy - d.sy) > 6) d.moved = true; }
+    pointerUp(e, sx, sy) {
+      const d = this.down; this.down = null;
+      if (!d || d.held || Math.hypot(sx - d.sx, sy - d.sy) > 6) return;   // a hold-walk or a drag is not a click
+      this.click(sx, sy);
+    }
+    /* Diablo-style hold-to-walk: keep the left button down on open ground and the hero follows the cursor */
+    holdWalk(dt) {
+      const d = this.down; if (!d || !this.me.alive) return;
+      if (this.ext && this.ext.cui && this.ext.cui.placing) return;
+      if (performance.now() - d.t < 230 && !d.held) return;
+      this.holdT -= dt; if (this.holdT > 0) return; this.holdT = 0.1;
+      if (!d.held) { const first = this.pick(d.sx, d.sy); if (first) { d.cancel = true; } }   // pressed on a thing: that is a click, not a walk
+      if (d.cancel) return;
+      const p = this.app.pickGround(d.cx, d.cy); if (!p || !this.nav.standable(p.x, p.z)) return;
+      if (Math.hypot(p.x - this.me.x, p.z - this.me.z) < 0.35) return;
+      d.held = true; this.holdGo(p.x, p.z);
+    }
+    holdGo(x, z) {
+      const path = this.nav.find(this.me.x, this.me.z, x, z); if (!path) return;
+      this.cancelChannel(); this.intent = null; this.target = null; this.ui.close('ctx'); this.ui.close('card');
+      this.me.path = path; this.me.run = true; this.ov.mark(x, z);
+    }
+    /* right-click (no drag): the "more…" menu for the thing under the cursor */
+    rightClick(sx, sy) {
+      if (!this.me.alive) return;
+      this.ui.close('ctx'); this.ui.close('card'); this.ui.tip(null);
+      const e = this.pick(sx, sy); if (!e || e === this.me) return;
+      const acts = this.reg.actions(e, this); if (acts.length) this.ui.openMenu(e, acts, sx, sy);
+    }
     click(sx, sy) {
       if (this.ext && this.ext.click(sx, sy)) return;
       if (!this.me.alive) return;
@@ -260,8 +290,7 @@
       if (e === this.me) { this.ui.toggleHud(); return; }
       if (e) {
         const acts = this.reg.actions(e, this);
-        if (dbl && acts.length) { this.doAction(e, acts[0], true); return; }     // double-click: do the main action, running
-        if (acts.length) this.ui.openMenu(e, acts, sx, sy);
+        if (acts.length) { this.doAction(e, acts[0], dbl); return; }   // Diablo: one click does the main action (walk over, then chop / mine / attack / talk)
         return;
       }
       const p = this.app.pickGround(sx, sy); if (!p) return;
@@ -330,7 +359,7 @@
       // pending hits land a beat after the swing starts
       this.pending = this.pending.filter((h) => { h.t -= dt; if (h.t > 0) return true; this.resolveHit(h.a, h.b); return false; });
       if (!me.alive) { this.defeatT -= dt; if (this.defeatT <= 0) this.respawnPlayer(); }
-      else this.updatePlayer(dt);
+      else { this.holdWalk(dt); this.updatePlayer(dt); }
       for (const a of this.actors) if (a !== me) { if (a.brain) a.brain.update(dt); else this.updateNpc(a, dt); }
       if (this.ext) this.ext.update(dt);
       for (const [id, n] of this.nodes) if (n.respawnAt && this.t >= n.respawnAt) { n.respawnAt = 0; n.charges = n.max; this.R.setPropState(id, null); }
