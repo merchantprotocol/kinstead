@@ -121,7 +121,7 @@
     render() {
       const mine = this.panel(this.me.title, 'me', this.grid(this.me, 'me'), 'bag');
       const there = this.forge ? this.panel('Blacksmith', 'there', this.forgeBody(), 'iron') : this.there ? this.panel(this.there.title, 'there', this.grid(this.there, 'there'), /ward/i.test(this.there.title) ? 'bag' : 'wood') : '';
-      this.root.innerHTML = `<div class="pw ${there ? 'two' : ''}">${mine}${there}<button class="cb x" data-close>Close <kbd>Esc</kbd></button></div>`;
+      this.root.innerHTML = `<div class="torch l"></div><div class="torch r"></div><div class="pw ${there ? 'two' : ''}">${mine}${there}<button class="cb x" data-close>Close <kbd>Esc</kbd></button></div>`;
     }
     holdings(side) { return side === 'me' ? this.me : this.forge ? new TrayHoldings(this.forge) : this.there; }
     onClick(e) {
@@ -157,8 +157,10 @@
     /** chests and wardrobes (the building system's own furniture) open the two-purse screen */
     hook() {
       const reg = K.Interactions, purse = this;
-      const wrap = (type, label, drop) => { const orig = reg.get(type) || {}, base = orig.baseActions || orig.actions; reg.register(type, Object.assign({}, orig, { baseActions: base, actions: (e, game) => [{ id: 'open_purse', label, icon: 'bag', range: e.range, run: () => purse.openVault(e) }].concat((base ? base(e, game) : []).filter((a) => a.id !== drop)) })); };   // baseActions: re-entering the game must not stack wrappers
-      wrap('storage', 'Open the chest', 'open'); wrap('wardrobe', 'Open the wardrobe', null);
+      const wrap = (type, label, drop) => { const orig = reg.get(type) || {}, base = orig.baseActions || orig.actions; reg.register(type, Object.assign({}, orig, { baseActions: base, actions: (e, game) => [{ id: 'open_purse', label: `${label} the ${String(e.name || 'furniture').toLowerCase()}`, icon: 'bag', range: e.range, run: () => purse.openVault(e) }].concat((base ? base(e, game) : []).filter((a) => a.id !== drop)) })); };   // baseActions: re-entering the game must not stack wrappers
+      const sh = K.FURNITURE.shelf; if (sh && !sh.interact) sh.interact = { type: 'storage', label: 'Shelf', actions: [{ id: 'open', label: 'Open storage' }] };   // shelves hold things too
+      wrap('storage', 'Open', 'open');
+      for (const t of ['wardrobe', 'eat', 'cook', 'weapon_rack', 'armor_stand', 'read']) wrap(t, 'Look', null);
     }
     dispose() { this.win.dispose(); }
   }
