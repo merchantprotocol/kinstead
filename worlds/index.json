@@ -1,0 +1,39 @@
+{
+  "worlds": [
+    {
+      "id": "frostcliff-crossing",
+      "name": "Frostcliff Crossing",
+      "description": "The hand-built example: a camp by the rift bridge, a witch, ghouls and a troll on the far side.",
+      "file": "worlds/frostcliff-crossing.world.json",
+      "thumbnail": "worlds/thumbs/frostcliff-crossing.png",
+      "size": {
+        "w": 64,
+        "h": 48
+      }
+    },
+    {
+      "id": "rimewood-rift",
+      "name": "Rimewood Rift",
+      "description": "A small generated world (seed 7): pine woods split by a frozen chasm.",
+      "file": "worlds/rimewood-rift.world.json",
+      "thumbnail": "worlds/thumbs/rimewood-rift.png",
+      "size": {
+        "w": 64,
+        "h": 48
+      },
+      "seed": 7
+    },
+    {
+      "id": "hollowmere-reach",
+      "name": "Hollowmere Reach",
+      "description": "A medium generated world (seed 90210): a long rift with several crossings to explore.",
+      "file": "worlds/hollowmere-reach.world.json",
+      "thumbnail": "worlds/thumbs/hollowmere-reach.png",
+      "size": {
+        "w": 128,
+        "h": 96
+      },
+      "seed": 90210
+    }
+  ]
+}

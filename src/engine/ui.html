@@ -1,0 +1,58 @@
+<!-- Copyright (c) 2026 Merchant Protocol. All rights reserved. -->
+<div id="stage"></div>
+<div id="loading">painting pixels…</div>
+<div id="top" class="pnl">
+  <h1 class="eo">Kinstead · World Builder</h1>
+  <button class="b play" id="bPlay" title="Play this world (G)">▶ Play</button>
+  <span class="sep"></span>
+  <button class="b eo" id="bNew" title="New blank world">New</button>
+  <select class="eo" id="gSize" title="World size for Generate"></select>
+  <input class="eo" type="number" id="gSeed" value="4242" title="Seed">
+  <button class="b eo" id="bGen" title="Generate a Frostcliff-style world from the seed">Generate</button>
+  <span class="sep eo"></span>
+  <button class="b pri" id="bSaveW" title="Save to My worlds (Ctrl+S)">Save world</button>
+  <button class="b" id="bWorlds" title="Open, rename, duplicate or delete saved worlds">My worlds</button>
+  <button class="b eo" id="bOpen" title="Open a .world.json file">Open file…</button>
+  <button class="b" id="bSave" title="Download this world as a .world.json file">Download</button>
+  <button class="b eo" id="bRecover" style="display:none" title="Reopen the world you were last editing (autosaved in this browser)">Recover autosave</button>
+  <button class="b eo" id="bPng" title="Export a PNG of the current view">PNG</button>
+  <span id="storeNote"><span>⚠ <b>Not stored.</b> <span id="storeWhy"></span> Download your world to keep it.</span><button class="b" id="bNoteDl">Download</button></span>
+  <span class="sep eo"></span>
+  <button class="b eo" id="bUndo" title="Undo (Ctrl+Z)">↶ Undo</button>
+  <button class="b eo" id="bRedo" title="Redo (Ctrl+Shift+Z / Ctrl+Y)">↷ Redo</button>
+  <span class="sp eo"></span>
+  <button class="b eo" id="bView" title="Toggle orbit / top-down camera (Tab)">Top-down</button>
+  <button class="b eo" id="bClose" title="Close-up of the hero crossing">Close-up</button>
+  <button class="b eo" id="bFit" title="Frame the whole world (Home)">Frame</button>
+  <label class="tg eo"><input type="checkbox" id="tDof" checked> DOF</label>
+  <label class="tg eo"><input type="checkbox" id="tBloom" checked> Bloom</label>
+  <label class="tg eo"><input type="checkbox" id="tSnow" checked> Snow</label>
+  <select class="eo" id="qual" title="Render resolution"><option value="2">Sharp</option><option value="1" selected>Balanced</option><option value="0.7">Fast</option></select>
+  <input type="file" id="file" accept=".json,.world.json,application/json" style="display:none">
+</div>
+<div id="tools" class="pnl eo"></div>
+<div id="insp" class="pnl eo"></div>
+<div id="status" class="pnl eo"><span id="sDirty"></span><span id="sHover">—</span><span id="sInfo"></span><span id="sFps"></span></div>
+<div id="toast"></div>
+<div id="modal"><div class="pnl">
+  <h2>New blank world</h2>
+  <div class="row"><span>Name</span><input type="text" id="nName" value="Untitled world"></div>
+  <div class="row"><span>Size</span><select id="nSize"></select></div>
+  <div class="row"><span>Ground</span><select id="nBase"><option value="0">Snow plateau</option><option value="2">Frozen dirt</option><option value="7">Bare rock</option></select></div>
+  <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="b" id="nCancel">Cancel</button><button class="b pri" id="nOk">Create</button></div>
+</div></div>
+<div id="saveModal" class="mdl"><div class="pnl">
+  <h2>Save world</h2>
+  <div class="row"><input type="text" id="svName" placeholder="World name" maxlength="80"></div>
+  <p id="svWhere"></p>
+  <div class="acts"><button class="b" id="svCancel">Cancel</button><button class="b" id="svCopy" title="Keep the saved one and save this as a new world">Save as new</button><button class="b pri" id="svOk">Save</button></div>
+</div></div>
+<div id="worldsModal" class="mdl"><div class="pnl">
+  <div style="display:flex;align-items:center;gap:8px"><h2 style="flex:1;margin:0">My worlds</h2><button class="b" id="wlOpenFile">Open file…</button><button class="b" id="wlDl">Download current</button><button class="b" id="wlClose">Close</button></div>
+  <p id="wlWhere"></p>
+  <div class="wl" id="wlList"></div>
+</div></div>
+<div id="askModal" class="mdl"><div class="pnl">
+  <h2 id="askTitle"></h2><p id="askText"></p>
+  <div class="acts"><button class="b" id="askNo">Cancel</button><button class="b pri" id="askYes">OK</button></div>
+</div></div>
