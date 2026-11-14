@@ -25,6 +25,8 @@
 
   /** What the blacksmith can make. cost is in castle resources; make() returns the weapon (or null for ammunition). */
   class Armory {
+    /** a fresh weapon by id (the bow, or anything the blacksmith makes); null if unknown */
+    static make(id) { if (id === 'bow') return new K.BowTool(); const r = Armory.CATALOG.find((x) => x.id === id); return r ? r.make() : null; }
     static get CATALOG() {
       return [
         { id: 'ironsword', name: 'Iron sword', cost: { iron: 4, wood: 2 }, blurb: 'Keen iron. Hits half again as hard as your sword.', make: () => new MeleeWeapon({ id: 'ironsword', name: 'Iron sword', art: 'sword', blurb: 'Keen iron. Hits half again as hard as your sword.', combat: { scale: 1.5, gap: 0.16, radius: 2.8, arc: PI * 0.85 } }) },
@@ -41,9 +43,16 @@
     get belt() { return this.g.tools.belt; }
     owned(id) { return this.belt.weapons.some((w) => w.id === id); }
     costText(cost) { return Object.entries(cost).map(([r, n]) => `${n} ${K.CastleData.resName(r)}`).join(', '); }
+    get title() { return 'Blacksmith'; }
+    get icon() { return 'iron'; }
+    get verb() { return 'Make'; }
+    get busy() { return 'hammering…'; }
+    has(res) { return this.g.castle.amount(res); }
+    glyph(res) { return K.GoodsArt.url(res); }
     /** the forge's own purse: what it has made, waiting for you */
     get tray() { return this._tray || (this._tray = []); }
     set tray(v) { this._tray = v; }
+    restoreTray(list) { this.tray = list.map((t) => { if (t.weapon) { const w = Armory.make(t.weapon); return w ? { kind: 'weapon', id: t.weapon, n: 1, name: w.name, art: K.Toolbelt.artUrl(w.art), weapon: w } : null; } return { kind: 'res', id: t.res, n: t.n, name: 'Arrows', art: K.GoodsArt.url(t.res) }; }).filter(Boolean); }
     /** what can be made: every weapon (with a picture) and arrows */
     recipes() {
       const out = Armory.CATALOG.map((r) => { const w = r.make(); return { id: r.id, name: r.name, cost: r.cost, art: K.Toolbelt.artUrl(w.art), have: this.owned(r.id) || this.tray.some((t) => t.id === r.id) }; });

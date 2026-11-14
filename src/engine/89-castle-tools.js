@@ -116,12 +116,12 @@
       const p = this.play.app.pickGround(sx, sy); if (!p) { this.hl.hide(); return null; }
       const [i, j] = this.editor.tileOf(p), t = this.tool.groundTarget(i, j, this.ctx);
       if (t) this.hl.show(t, this.editor.doc); else this.hl.hide();
-      return t ? Ic.cursor(this.tool.id, 'pointer') : null;
+      return t && !this.tool.doubleClick ? Ic.cursor(this.tool.id, 'pointer') : null;   // a double-click tool keeps the walking cursor: a single click only walks
     }
 
     update(dt) { this.pills(); this.worker.update(dt); this.archery.update(dt); this.effects.update(dt); this.arms.update(); }
     /** a small count on each work tool: how much of what it gathers you hold (axe: wood, pickaxe: stone, shovel: dirt) */
-    pills() { const c = this.g.castle, b = this.belt; b.setBadge('axe', c.amount('wood')); b.setBadge('pickaxe', c.amount('stone')); b.setBadge('shovel', c.amount('dirt')); }
+    pills() { const c = this.g.castle, b = this.belt; b.setBadge('axe', c.amount('wood'), 'wood'); b.setBadge('pickaxe', c.amount('stone'), 'stone'); b.setBadge('shovel', c.amount('dirt'), 'dirt'); }
     dispose() { this.worker.cancel(); this.hl.hide(); this.arms.dispose(); this.archery.dispose(); this.effects.dispose(); this.drawer.dispose(); this.belt.dispose(); }
   }
 

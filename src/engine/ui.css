@@ -372,3 +372,6 @@ body.castle #voxOrbit{display:none!important}
   #cPurse .pb::-webkit-scrollbar-thumb{border-radius:8px;border:2px solid #4a2f08;background:linear-gradient(90deg,#f3d38a,#c9953c 55%,#8a5f14);box-shadow:inset 0 1px 0 #fff3c4}
   #cPurse .pb::-webkit-scrollbar-thumb:hover{background:linear-gradient(90deg,#ffe6a8,#e0a93e 55%,#a06f18)}
   #cPurse .pb::-webkit-scrollbar-corner{background:transparent}
+  #cPurse .hint{position:absolute;bottom:30px;left:calc(50% + 110px);right:0;text-align:left;font:italic 13px Georgia,serif;color:#ffe9b8;text-shadow:0 1px 3px #000,0 0 8px #000;pointer-events:none}
+  #cTools .tl .bd[data-ic]{display:flex;align-items:center;gap:2px;padding:0 4px 0 2px}
+  #cTools .tl .bd[data-ic]::before{content:"";width:13px;height:13px;background:var(--ic) center/contain no-repeat}

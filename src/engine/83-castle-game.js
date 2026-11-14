@@ -212,6 +212,7 @@
       this.cui = new K.CastleUI(this); this.vitals = new K.Vitals(this); this.wild = new K.Wild(this); this.calendar.on((ev) => this.onCalendar(ev)); this.tools = new K.CastleTools(this); this.minimap = new K.Minimap(this); this.walls = new K.WallDrawer(this); this.forest = new K.Forest(this); this.purse = new K.Purse(this); this.stash = new K.Stash(this); this.site = new K.BuildingSite(this); this.sweep = new K.SweepAttack(this); this.demolisher = new K.Demolisher(this); this.play.refreshProps();
       if (this.day.isNight) this.startRaid();
       play.app.rig.set({ dist: 11, pitch: 0.78 }); play.app.rig.maxDist = 44;   // you can never zoom out far enough to see the edge of the world
+      this.persist = new K.Persist(this); if (this.saved && this.saved.extras) { try { this.persist.restore(this.saved.extras); } catch (err) { console.warn('could not restore the homestead', err); } }
       this.cui.toast(this.saved ? 'Welcome back.' : 'You wake in your hut. Eat, sleep, chop wood, and watch for wolves.');
       G.castle = this;   // test hook (and the console's best friend)
     }
@@ -360,6 +361,7 @@
         if (e.res === 'food') act('take', `Take a turnip (${st.amount} left)`, 'hand', () => this.home.takeFood(st), { range: rg });
         else if (e.res === 'arrow') act('take', `Take arrows (${st.amount} left)`, 'hand', () => this.home.takeArrows(st), { range: rg });
         else act('look', `${e.name}: ${st.amount} ${K.CastleData.resName(e.res)}`, 'eye', () => this.cui.toast(`${st.amount} ${K.CastleData.resName(e.res)} stored here.`), { range: rg });
+        if (!st.pile && st.stock != null && st.stock > 0) act('pickup', `Pick up everything (${st.stock})`, 'hand', () => this.stash.take(st), { range: rg });   // crates and barrels can be emptied into your purse and put down elsewhere
       } else if (e.type === 'c_kin') {
         const id = e.kinId;
         if (!c.kin.has(id) && id === 'emberwright') act('touch', 'Touch her with the lantern', 'lantern', () => this.touchEmberwright(), { range: 1.4 });
@@ -875,8 +877,10 @@
     snapshot() {
       const me = this.play.me, nodes = {};
       for (const [id, n] of this.play.nodes || []) if (n.charges < n.max) nodes[id] = { charges: n.charges, max: n.max, respawnIn: n.respawnAt === Infinity ? -1 : Math.max(0, (n.respawnAt || 0) - this.play.t) };
-      return { castle: this.castle.toJSON(), day: this.day.toJSON(), hero: me ? [+me.x.toFixed(2), +me.z.toFixed(2)] : null, nodes, playTime: +this.playTime.toFixed(1), ended: !!this.endShown };
+      return { castle: this.castle.toJSON(), day: this.day.toJSON(), hero: me ? [+me.x.toFixed(2), +me.z.toFixed(2)] : null, nodes, playTime: +this.playTime.toFixed(1), ended: !!this.endShown, extras: this.safeExtras() };
     }
+    /** the homestead extras (piles, chests, terrain...); a problem here must never stop the main save */
+    safeExtras() { try { return this.persist ? this.persist.capture() : null; } catch (err) { console.warn('could not capture the homestead', err); return null; } }
     save() { if (!this.castle.lit) return false; return this.slot.write(this.snapshot()); }
     restoreNodes() {
       const s = this.saved; if (!s || !s.nodes) return;

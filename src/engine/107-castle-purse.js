@@ -27,11 +27,18 @@
         arrow: '<g stroke-linecap="round"><path d="M10 54L52 12" stroke="#8a5a32" stroke-width="3"/><path d="M52 12l-10 2 8 8z" fill="#aeb7c6" stroke="#4b5568" stroke-width="1.5"/><path d="M10 54l-2-8m2 8l8-2M16 48l-2-8m2 8l8-2" stroke="#f3f6ff" stroke-width="2.5"/></g>',
         gold: '<circle cx="32" cy="32" r="20" fill="#f2c14e" stroke="#7a5a12" stroke-width="3"/><circle cx="32" cy="32" r="12" fill="none" stroke="#b98a22" stroke-width="2.5"/>',
         ember_shard: '<path d="M32 8l14 22-14 26-14-26z" fill="#ff8a3a" stroke="#7a2a0a" stroke-width="2.5"/><path d="M32 8l6 22-6 26" fill="#ffc35c" opacity=".7"/>',
+        roast: '<path d="M12 40c0-14 18-20 30-12s6 22-8 24-22-2-22-12z" fill="#9a5a2a" stroke="#4a2a10" stroke-width="2.5"/><path d="M20 36c6-6 16-6 20 0" stroke="#d9a060" stroke-width="3" fill="none"/><rect x="40" y="18" width="14" height="6" rx="3" transform="rotate(35 40 18)" fill="#f4e3c8" stroke="#6a4a2a" stroke-width="2"/>',
+        stew: '<path d="M10 30h44c0 14-8 24-22 24S10 44 10 30z" fill="#6a4a3a" stroke="#2a1a10" stroke-width="2.5"/><ellipse cx="32" cy="30" rx="22" ry="6" fill="#c9783a" stroke="#2a1a10" stroke-width="2"/><circle cx="26" cy="29" r="3" fill="#e8c27a"/><circle cx="38" cy="31" r="3" fill="#8a4a2a"/><path d="M24 18c-2-4 2-6 0-10M34 20c-2-4 2-6 0-10" stroke="#fff" stroke-width="2" fill="none" opacity=".6"/>',
+        bread: '<path d="M8 40c0-14 10-22 24-22s24 8 24 22c0 6-4 8-10 8H18c-6 0-10-2-10-8z" fill="#d99a4a" stroke="#6a3a10" stroke-width="2.5"/><path d="M20 26l4 10M32 24l4 12M44 28l2 8" stroke="#f3cf8a" stroke-width="3" stroke-linecap="round"/>',
+        fish: '<path d="M8 32c10-14 30-14 40 0-10 14-30 14-40 0z" fill="#8fb4d0" stroke="#2a4a62" stroke-width="2.5"/><path d="M48 32l10-9v18z" fill="#6a94b4" stroke="#2a4a62" stroke-width="2"/><circle cx="20" cy="29" r="2.5" fill="#102030"/>',
         bag: '<path d="M18 26h28l6 26H12z" fill="#9b7a4a" stroke="#4a3418" stroke-width="2.5"/><path d="M22 26c0-8 4-12 10-12s10 4 10 12" fill="none" stroke="#4a3418" stroke-width="3"/>',
       };
     }
     static url(id) { const body = GoodsArt.SVG[id] || GoodsArt.SVG.bag; return 'data:image/svg+xml,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">${body}</svg>`); }
   }
+
+  const ITEM_ART = { turnip: 'food', raw_meat: 'meat', cooked_meat: 'roast', stew: 'stew', bread: 'bread', cooked_fish: 'fish', raw_fish: 'fish' };
+  const itemArt = (id) => GoodsArt.url(ITEM_ART[id] || 'bag');
 
   /** a stack: { key, kind: 'res'|'item'|'weapon', id, n, name, art, weapon? } */
   class Holdings {
@@ -50,7 +57,7 @@
       for (const r of ORDER) { const n = c.amount(r); if (n > 0) out.push({ key: 'res:' + r, kind: 'res', id: r, n, name: NAME[r] || r, art: GoodsArt.url(r) }); }
       for (const w of g.tools.belt.weapons) out.push({ key: 'weapon:' + w.id, kind: 'weapon', id: w.id, n: 1, name: w.name, art: K.Toolbelt.artUrl(w.art), weapon: w, held: g.tools.belt.tools.includes(w) });
       const seen = new Map(), p = g.play.player; for (const s of p.bag) if (s) seen.set(s.id, (seen.get(s.id) || 0) + s.n);
-      for (const [id, n] of seen) { const d = p.items.get(id) || { name: id }; out.push({ key: 'item:' + id, kind: 'item', id, n, name: d.name, art: GoodsArt.url({ turnip: 'food', raw_meat: 'meat' }[id] || 'bag') }); }
+      for (const [id, n] of seen) { const d = p.items.get(id) || { name: id }; out.push({ key: 'item:' + id, kind: 'item', id, n, name: d.name, art: itemArt(id) }); }
       return out;
     }
     give(s) {
@@ -78,7 +85,7 @@
       const v = this.v, out = [];
       for (const [r, n] of Object.entries(v.res)) if (n > 0) out.push({ key: 'res:' + r, kind: 'res', id: r, n, name: NAME[r] || r, art: GoodsArt.url(r) });
       for (const w of v.weapons) out.push({ key: 'weapon:' + w.id, kind: 'weapon', id: w.id, n: 1, name: w.name, art: K.Toolbelt.artUrl(w.art), weapon: w });
-      for (const [id, n] of Object.entries(v.items)) if (n > 0) out.push({ key: 'item:' + id, kind: 'item', id, n, name: (this.g.play.player.items.get(id) || { name: id }).name, art: GoodsArt.url({ turnip: 'food', raw_meat: 'meat' }[id] || 'bag') });
+      for (const [id, n] of Object.entries(v.items)) if (n > 0) out.push({ key: 'item:' + id, kind: 'item', id, n, name: (this.g.play.player.items.get(id) || { name: id }).name, art: itemArt(id) });
       return out;
     }
     give(s) { const v = this.v; if (s.kind === 'res') v.res[s.id] = (v.res[s.id] || 0) + s.n; else if (s.kind === 'item') v.items[s.id] = (v.items[s.id] || 0) + s.n; else v.weapons.push(s.weapon); return s.n; }
@@ -97,7 +104,7 @@
     constructor(purse) {
       this.p = purse; this.g = purse.g; this.mode = null; this.there = null; this.forge = null; this.me = new PurseHoldings(this.g);
       const root = this.root = document.createElement('div'); root.id = 'cPurse'; root.hidden = true; this.g.cui.root.appendChild(root);
-      root.addEventListener('click', (e) => this.onClick(e)); root.addEventListener('dragstart', (e) => this.onDrag(e)); root.addEventListener('dragover', (e) => { if (e.target.closest('.pp')) e.preventDefault(); }); root.addEventListener('drop', (e) => this.onDrop(e));
+      root.addEventListener('click', (e) => this.onClick(e)); root.addEventListener('dragstart', (e) => this.onDrag(e)); root.addEventListener('dragover', (e) => { if (e.target.closest('.pp')) e.preventDefault(); }); root.addEventListener('drop', (e) => this.onDrop(e)); root.addEventListener('dragend', (e) => this.onDragEnd(e)); root.addEventListener('contextmenu', (e) => this.onContext(e));
       root.addEventListener('pointerdown', (e) => e.stopPropagation());
     }
     get isOpen() { return !this.root.hidden; }
@@ -110,32 +117,41 @@
     grid(h, side) { const l = h.list(); return `<div class="pg">${l.length ? l.map((s) => this.tile(s, side)).join('') : '<span class="empty">Empty</span>'}</div>`; }
     /** the forge's side: weapons to make (their materials as pictures), then what is ready */
     forgeBody() {
-      const f = this.forge, c = this.g.castle, recipes = f.recipes().map((r) => {
-        const cost = Object.entries(r.cost).map(([res, n]) => `<span class="cs ${c.amount(res) >= n ? '' : 'poor'}"><img src="${GoodsArt.url(res)}" width="22" height="22" alt="${NAME[res] || res}">${n}</span>`).join('');
-        const ok = !r.have && c.canAfford(r.cost);
+      const f = this.forge, recipes = f.recipes().map((r) => {
+        const cost = Object.entries(r.cost).map(([res, n]) => `<span class="cs ${f.has(res) >= n ? '' : 'poor'}"><img src="${f.glyph(res)}" width="22" height="22" alt="${NAME[res] || res}">${n}</span>`).join('');
+        const ok = !r.have && Object.entries(r.cost).every(([res, n]) => f.has(res) >= n);
         return `<button class="pt rc${ok ? '' : ' dim'}" data-recipe="${r.id}" title="${esc(r.name)}${r.have ? ' (you have it)' : ''}"><img src="${r.art}" width="52" height="52" alt=""><div class="cost">${cost}</div><i>${esc(r.name)}${r.have ? ' ✓' : ''}</i></button>`;
       }).join('');
-      const mats = f.pending ? `<div class="mats">${Object.entries(f.pending).map(([res, n]) => `<span class="cs"><img src="${GoodsArt.url(res)}" width="26" height="26" alt="">${n}</span>`).join('')}<em>hammering…</em></div>` : '';
-      return `<h4>Make</h4><div class="pg">${recipes}</div>${mats}<h4>Ready</h4>${this.grid(new TrayHoldings(f), 'there')}`;
+      const mats = f.pending ? `<div class="mats">${Object.entries(f.pending).map(([res, n]) => `<span class="cs"><img src="${f.glyph(res)}" width="26" height="26" alt="">${n}</span>`).join('')}<em>${f.busy}</em></div>` : '';
+      return `<h4>${f.verb}</h4><div class="pg">${recipes}</div>${mats}<h4>Ready</h4>${this.grid(new TrayHoldings(f), 'there')}`;
     }
     render() {
       const mine = this.panel(this.me.title, 'me', this.grid(this.me, 'me'), 'bag');
-      const there = this.forge ? this.panel('Blacksmith', 'there', this.forgeBody(), 'iron') : this.there ? this.panel(this.there.title, 'there', this.grid(this.there, 'there'), /ward/i.test(this.there.title) ? 'bag' : 'wood') : '';
-      this.root.innerHTML = `<div class="pw ${there ? 'two' : ''}">${mine}${there}<button class="cb x" data-close>Close <kbd>Esc</kbd></button></div>`;
+      const there = this.forge ? this.panel(this.forge.title, 'there', this.forgeBody(), this.forge.icon) : this.there ? this.panel(this.there.title, 'there', this.grid(this.there, 'there'), /ward/i.test(this.there.title) ? 'bag' : 'wood') : '';
+      this.root.innerHTML = `<div class="pw ${there ? 'two' : ''}">${mine}${there}<div class="hint">Click moves a stack · Shift-click one · Right-click half · Drag onto the ground to put it down</div><button class="cb x" data-close>Close <kbd>Esc</kbd></button></div>`;
     }
     holdings(side) { return side === 'me' ? this.me : this.forge ? new TrayHoldings(this.forge) : this.there; }
     onClick(e) {
       if (e.target === this.root || e.target.closest('[data-close]')) { this.close(); return; }
       const rc = e.target.closest('[data-recipe]'); if (rc) { this.forge.make(rc.dataset.recipe); return; }
-      const t = e.target.closest('.pt[data-key]'); if (!t) return; this.move(t.dataset.side, t.dataset.key);
+      const t = e.target.closest('.pt[data-key]'); if (!t) return; this.move(t.dataset.side, t.dataset.key, e.shiftKey ? 1 : 0);   // click: all; shift-click: one
     }
+    /** right-click a stack: half of it */
+    onContext(e) { const t = e.target.closest('.pt[data-key]'); if (!t) return; e.preventDefault(); e.stopPropagation(); const s = this.holdings(t.dataset.side).find(t.dataset.key); if (s) this.move(t.dataset.side, t.dataset.key, Math.ceil(s.n / 2)); }
     onDrag(e) { const t = e.target.closest('.pt[data-key]'); if (t) e.dataTransfer.setData('text/plain', t.dataset.side + '|' + t.dataset.key); }
+    /** a stack let go over the world (not over a panel): put it down there as a pile */
+    onDragEnd(e) {
+      if (e.dataTransfer.dropEffect !== 'none') return; const t = e.target.closest && e.target.closest('.pt[data-key]'); if (!t || t.dataset.side !== 'me') return;
+      const g = this.g, s = this.me.find(t.dataset.key); if (!s || s.kind !== 'res') return;
+      const r = g.app.renderer3.domElement.getBoundingClientRect(), p = g.app.pickGround(e.clientX - r.left, e.clientY - r.top); if (!p) return;
+      g.stash.dropAt(s.id, p); this.render();
+    }
     onDrop(e) { const to = e.target.closest('.pp'); if (!to) return; e.preventDefault(); const [side, key] = (e.dataTransfer.getData('text/plain') || '|').split('|'); if (side && side !== to.dataset.panel) this.move(side, key); }
     /** move a whole stack from one purse to the other (a lone purse: a weapon click equips it) */
-    move(side, key) {
-      const g = this.g, from = this.holdings(side), s = from.find(key); if (!s) return;
+    move(side, key, amount = 0) {
+      const g = this.g, from = this.holdings(side), s0 = from.find(key); if (!s0) return; const s = Object.assign({}, s0, { n: amount > 0 ? Math.min(amount, s0.n) : s0.n });   // amount 0: the whole stack
       if (!this.there && !this.forge) { if (s.kind === 'weapon') { g.tools.belt.equip(s.weapon); this.render(); } return; }
-      if (this.forge && side === 'me') { g.cui.toast('Click a weapon under Make to have it forged.'); return; }
+      if (this.forge && side === 'me') { g.cui.toast(`Click something under ${this.forge.verb} to have it made.`); return; }
       const to = this.holdings(side === 'me' ? 'there' : 'me'), why = side === 'me' && from.keep ? from.keep(s) : null; if (why) { g.cui.toast(why); return; }
       if (this.forge && side === 'there' && s.kind === 'weapon' && g.tools.belt.weapons.some((w) => w.id === s.id)) { g.cui.toast('You already have one.'); return; }
       const got = to.give(s); if (got <= 0) { g.cui.toast(side === 'there' ? 'It will not fit in your purse.' : 'No room.'); return; }
@@ -144,8 +160,28 @@
     dispose() { this.root.remove(); }
   }
 
+  /** the kitchen hearth: a workshop whose recipes come from your bag (raw meat, turnips, flour) and whose finished dishes wait in its purse */
+  class Hearth {
+    constructor(game) { this.g = game; this.tray = []; this.pending = null; }
+    get title() { return 'Kitchen hearth'; }
+    get icon() { return 'roast'; }
+    get verb() { return 'Cook'; }
+    get busy() { return 'cooking…'; }
+    has(id) { return this.g.play.player.count(id); }
+    glyph(id) { return itemArt(id); }
+    name(id) { return (this.g.play.player.items.get(id) || { name: id }).name; }
+    recipes() { return K.BUILDING_DATA.RECIPES.filter((r) => r.station === 'hearth').map((r) => ({ id: r.id, name: r.name, cost: r.in, art: itemArt(Object.keys(r.out)[0]), have: false })); }
+    make(id) {
+      const g = this.g, p = g.play.player, r = K.BUILDING_DATA.RECIPES.find((x) => x.id === id && x.station === 'hearth'); if (!r || this.pending) return;
+      if (!Object.entries(r.in).every(([it, n]) => p.count(it) >= n)) { g.cui.toast('You are missing something for that.'); g.sound.play('clank'); return; }
+      for (const [it, n] of Object.entries(r.in)) p.removeItem(it, n);
+      this.pending = r.in; g.purse.update();
+      setTimeout(() => { this.pending = null; for (const [it, n] of Object.entries(r.out)) this.tray.push({ kind: 'item', id: it, n, name: this.name(it), art: itemArt(it) }); g.sound.play('fanfare'); g.purse.update(); }, 600);
+    }
+  }
+
   class Purse {
-    constructor(game) { this.g = game; this.win = new PurseWindow(this); this.vaults = new Map(); this.hook(); }
+    constructor(game) { this.g = game; this.hearth = new Hearth(game); this.win = new PurseWindow(this); this.vaults = new Map(); this.hook(); }
     get isOpen() { return this.win.isOpen; }
     toggle() { if (this.isOpen) this.win.close(); else this.openPurse(); }
     close() { this.win.close(); }
@@ -154,16 +190,18 @@
     vault(id) { if (!this.vaults.has(id)) this.vaults.set(id, new Vault()); return this.vaults.get(id); }
     openVault(e) { this.win.open(new VaultHoldings(this.g, this.vault(e.id), e.name || 'Chest')); }
     openForge(forge) { this.win.open(null, forge); }
+    openHearth() { this.win.open(null, this.hearth); }
     /** chests and wardrobes (the building system's own furniture) open the two-purse screen */
     hook() {
       const reg = K.Interactions, purse = this;
-      const wrap = (type, label, drop) => { const orig = reg.get(type) || {}, base = orig.baseActions || orig.actions; reg.register(type, Object.assign({}, orig, { baseActions: base, actions: (e, game) => [{ id: 'open_purse', label: `${label} the ${String(e.name || 'furniture').toLowerCase()}`, icon: 'bag', range: e.range, run: () => purse.openVault(e) }].concat((base ? base(e, game) : []).filter((a) => a.id !== drop)) })); };   // baseActions: re-entering the game must not stack wrappers
+      const wrap = (type, label, drop, open) => { const orig = reg.get(type) || {}, base = orig.baseActions || orig.actions; reg.register(type, Object.assign({}, orig, { baseActions: base, actions: (e, game) => [{ id: 'open_purse', label: `${label} ${String(e.name || 'furniture').toLowerCase()}`, icon: 'bag', range: e.range, run: () => (open ? open(e) : purse.openVault(e)) }].concat((base ? base(e, game) : []).filter((a) => a.id !== drop)) })); };   // baseActions: re-entering the game must not stack wrappers
       const sh = K.FURNITURE.shelf; if (sh && !sh.interact) sh.interact = { type: 'storage', label: 'Shelf', actions: [{ id: 'open', label: 'Open storage' }] };   // shelves hold things too
-      wrap('storage', 'Open', 'open');
-      for (const t of ['wardrobe', 'eat', 'cook', 'weapon_rack', 'armor_stand', 'read']) wrap(t, 'Look', null);
+      wrap('storage', 'Open the', 'open');
+      for (const t of ['wardrobe', 'eat', 'weapon_rack', 'armor_stand', 'read']) wrap(t, 'Look at the', null);
+      wrap('cook', 'Cook at the', null, () => purse.openHearth());
     }
     dispose() { this.win.dispose(); }
   }
 
-  Object.assign(K, { GoodsArt, Holdings, PurseHoldings, VaultHoldings, TrayHoldings, PurseWindow, Purse });
+  Object.assign(K, { Hearth, GoodsArt, Holdings, PurseHoldings, VaultHoldings, TrayHoldings, PurseWindow, Purse });
 })(typeof window !== 'undefined' ? window : globalThis);

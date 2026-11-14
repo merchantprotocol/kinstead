@@ -80,7 +80,7 @@
       this.bar.innerHTML = this.tools.map((t) => `<button class="tl" data-t="${t.id}" title="${t.name} (${t.key})"><img src="${Toolbelt.artUrl(t.art)}" width="40" height="40" alt=""><kbd>${t.key}</kbd><i class="bd"></i><span>${t.name}</span></button>`).join(''); this.paint();
     }
     /** a small number on a slot (arrows left for a bow) */
-    setBadge(id, text) { const b = this.bar.querySelector(`[data-t="${id}"] .bd`); if (b && b.textContent !== String(text)) b.textContent = text; }
+    setBadge(id, text, icon) { const b = this.bar.querySelector(`[data-t="${id}"] .bd`); if (!b) return; if (b.textContent !== String(text)) b.textContent = text; if (icon && b.dataset.ic !== icon && K.GoodsArt) { b.dataset.ic = icon; b.style.setProperty('--ic', `url("${K.GoodsArt.url(icon)}")`); } }   // icon: a little picture of what the number counts
     /** you now own this weapon (it is offered in the weapon drawer; it is not equipped until you pick it) */
     addWeapon(w) { if (!this.weapons.some((x) => x.id === w.id)) { this.weapons.push(w); this.changed(); } }
     changed() { if (this.onWeaponsChanged) this.onWeaponsChanged(); }

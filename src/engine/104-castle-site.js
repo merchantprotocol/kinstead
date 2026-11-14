@@ -11,7 +11,7 @@
   const rnd = (a, b) => a + Math.random() * (b - a);
 
   class Forest {
-    constructor(game) { this.g = game; this.queue = []; this.t = 0; }
+    constructor(game) { this.g = game; this.queue = []; this.t = 0; this.moved = {}; }   // moved: where regrown trees now stand (saved)
     get play() { return this.g.play; }
     get nav() { return this.g.play.nav; }
     get doc() { return this.g.play.doc; }
@@ -49,7 +49,7 @@
     /** move a fallen tree's slot to a new place and let it stand again */
     regrow(e) {
       const p = this.spot(); if (!p) return false; const R = this.g.R, o = e.obj;
-      o.x = p.x; o.z = p.z; e.x = p.x; e.z = p.z; e.y = this.nav.y(p.x, p.z);
+      o.x = p.x; o.z = p.z; this.moved[e.id] = [p.x, p.z]; e.x = p.x; e.z = p.z; e.y = this.nav.y(p.x, p.z);
       const st = this.play.nodeState(e); st.charges = st.max; st.respawnAt = 0; R.propState.delete(e.id);
       R.objectsChanged(false);   // the old and the new patch of forest both rebuild
       this.nav.blockProp(o); return true;
@@ -140,8 +140,14 @@
       const spec = this.specAt(ti, tj, turns, 'smithy'); play.doc.objects.push(spec);
       R.syncBuildings(true); play.nav.applyBuildings(R.buildings); play.bplay.dirty(); play.refreshProps(); g.home.door.apply();
       const me = play.me; if (!play.nav.standable(me.x, me.z)) { const q = play.nav.nearestOk(...play.nav.tile(me.x, me.z), 10); if (q) { [me.x, me.z] = play.nav.centre(...q); me.path = null; } }
-      g.smithy = spec; g.forge = g.forge || new K.Forge(g); this.clearGhost(); g.cui.stopPlacing();
+      g.smithy = spec; g.smithyTurns = turns; g.forge = g.forge || new K.Forge(g); this.clearGhost(); g.cui.stopPlacing();
       const cx = (ti + w / 2) * TILE, cz = (tj + h / 2) * TILE; g.sound.play('whump'); g.shake(0.2); g.puff(cx, cz); g.cui.toast('Blacksmith built. Click the anvil to forge new weapons.'); g.changed(); return true;
+    }
+    /** put a saved blacksmith back (no cost, no ceremony) */
+    restore(ti, tj, turns) {
+      const g = this.g, play = this.play, R = g.R, spec = this.specAt(ti, tj, turns, 'smithy'); play.doc.objects.push(spec);
+      R.syncBuildings(true); play.nav.applyBuildings(R.buildings); play.bplay.dirty(); play.refreshProps(); g.home.door.apply();
+      g.smithy = spec; g.smithyTurns = turns; g.forge = g.forge || new K.Forge(g);
     }
     /** wipe out whatever stands on the plot: trees, boulders, your fences and walls */
     clearSite(ti, tj, w, h) {
