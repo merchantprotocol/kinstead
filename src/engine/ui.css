@@ -250,3 +250,12 @@
   #cBook .tk.on{color:#fff4dc}#cBook .tk.on i{background:#ffc35c;border-color:#ffe08a}
   #cBook .tk.new i{animation:ctickbox .8s ease}@keyframes ctickbox{0%{transform:scale(2);box-shadow:0 0 18px #ffc35c}}
   .dmg.snow{color:#eef6ff;font-size:14px;opacity:.9}
+
+/* castle tool bar: the tool in your hand decides what a click does */
+#cTools{left:50%;bottom:64px;transform:translateX(-50%);padding:6px 8px;display:flex;gap:6px;align-items:flex-end}
+#cTools .tl{position:relative;width:62px;padding:6px 4px 4px;border:2px solid #3a4660;border-radius:10px;background:#101826;color:#b9c6dd;display:flex;flex-direction:column;align-items:center;gap:1px;cursor:pointer;font:600 11px/1.1 system-ui,sans-serif;transition:transform .12s,border-color .12s,box-shadow .12s}
+#cTools .tl:hover{transform:translateY(-2px);border-color:#9fb4d8}
+#cTools .tl.on{border-color:#ffd27a;box-shadow:0 0 0 2px #7a4a12 inset,0 0 14px #ff9a3a88;background:#1c2334;color:#fff3c4}
+#cTools .tl kbd{position:absolute;left:4px;top:3px;font:700 10px system-ui;color:#ffd27a;background:#0a1020;border-radius:4px;padding:0 4px}
+#cTools .tl.flash{animation:toolflash .7s ease 1}
+@keyframes toolflash{0%,100%{transform:none}25%{transform:translateY(-8px) scale(1.12);border-color:#ff9a3a;box-shadow:0 0 18px #ff9a3a}60%{transform:translateY(-3px)}}

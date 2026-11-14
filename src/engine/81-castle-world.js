@@ -18,6 +18,7 @@
         great_hall: { x: 18.6, z: 26.9, rot: Math.PI / 2 },
         smithy: { x: 36.6, z: 27.2, rot: -Math.PI / 2 },
       };
+      this.hills = [{ x: 41, z: 37, r: 6, h: 3.5 }, { x: 8.5, z: 40, r: 4.8, h: 2.75 }];   // rocky hillsides to mine with the pickaxe
       this.outcrop = { x: 43, z: 8.5 };                    // the Iron mine's site, in the Iron Hills
       this.kin = {
         pinewarden: { x: 18.6, z: 20.4 },                  // 8.5 m out at the pine stand
@@ -71,6 +72,8 @@
       // mountains on the north and west rims so the horizon is rock, not void
       const rim = Math.min(z - 1.2, x - 1.2, wu - x - 1.2, hu - z - 1.2);
       if (rim < 0.6 && !(x > L.chasm.x0 - 1 && x < L.chasm.x1 + 1)) return { h: 2 + Math.round(n.fbm(x * 0.4, z * 0.4, 3) * 4) * 0.75, rock: true };
+      // rocky hillsides near the castle: stone you mine out a block at a time
+      for (const H of L.hills) { const d = Math.hypot(x - H.x, z - H.z); if (d < H.r) return { h: Math.round(H.h * Math.pow(1 - d / H.r, 0.85) * 4) / 4 + 0.25, rock: true }; }
       // castle hill: flat inside 17 m of the Keep; gentle swells beyond
       const dk = Math.hypot(x - L.keep.x, z - L.keep.z);
       if (dk < 17) return { h: 0 };

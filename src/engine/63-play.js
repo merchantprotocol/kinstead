@@ -263,7 +263,7 @@
       if (this.ext && this.ext.cui && this.ext.cui.placing) return;
       if (performance.now() - d.t < 230 && !d.held) return;
       this.holdT -= dt; if (this.holdT > 0) return; this.holdT = 0.1;
-      if (!d.held) { const first = this.pick(d.sx, d.sy); if (first) { d.cancel = true; } }   // pressed on a thing: that is a click, not a walk
+      if (!d.held && (this.pick(d.sx, d.sy) || (this.ext && this.ext.tools && this.ext.tools.claims(d.sx, d.sy)))) d.cancel = true;   // pressed on a thing or a tool target: a click, not a walk   // pressed on a thing: that is a click, not a walk
       if (d.cancel) return;
       const p = this.app.pickGround(d.cx, d.cy); if (!p || !this.nav.standable(p.x, p.z)) return;
       if (Math.hypot(p.x - this.me.x, p.z - this.me.z) < 0.35) return;
@@ -298,7 +298,12 @@
       if (dbl && this.me.path) { this.me.run = true; return; }   // second click of a double-click: same target, now running
       this.walkTo(p.x, p.z, dbl);
     }
+    /* the pointer moved: default hover, then the game mode may restyle the cursor (the castle tools do) */
     pointerMove(e, sx, sy) {
+      this.hoverDefault(e, sx, sy);
+      if (this.ext && this.ext.tools && !this.ext.cui.placing) { const c = this.ext.tools.hoverCursor(this.hover, sx, sy); if (c) this.app.renderer3.domElement.style.cursor = c; }
+    }
+    hoverDefault(e, sx, sy) {
       if (this.ext && this.ext.pointerMove(sx, sy)) return;
       const ent = this.pick(sx, sy), el = this.app.renderer3.domElement;
       if (ent !== this.hover) {

@@ -214,14 +214,14 @@
       this.troll = null; if (!this.castle.flags.has('killed:rime_troll')) this.spawnTroll();
       this.restoreNodes();
       this.raid = null;
-      this.cui = new K.CastleUI(this); this.play.refreshProps();
+      this.cui = new K.CastleUI(this); this.tools = new K.CastleTools(this); this.play.refreshProps();
       if (this.day.isNight) this.startRaid();
       play.app.rig.set({ dist: 14, pitch: 0.78 });
       this.cui.toast(this.saved ? 'Welcome back. The fire remembers you.' : 'Your ember is the last warm thing on this hill. Click the Keep’s cold hearth.');
       G.castle = this;   // test hook (and the console's best friend)
     }
     exit() {
-      this.save();
+      this.save(); if (this.tools) this.tools.dispose();
       if (this.origPlace) this.R.placeDynamics = this.origPlace;
       this.R.scene.remove(this.group); this.cui && this.cui.dispose(); document.body.classList.remove('castle');
     }
@@ -720,7 +720,7 @@
       this.tracers = this.tracers.filter((l) => { l.userData.t += dt; l.material.opacity = 1 - l.userData.t / 0.25; if (l.userData.t > 0.25) { this.group.remove(l); l.geometry.dispose(); l.material.dispose(); return false; } return true; });
       for (const m of this.meshes.values()) if (m.userData.shake > 0) { m.userData.shake -= dt; m.position.x += (Math.random() - 0.5) * 0.04; }
       for (const m of this.meshes.values()) m.traverse((o) => { if (o.userData.flame) o.scale.y = 0.85 + 0.25 * Math.sin(play.t * 11 + o.id); });
-      this.updateArrow(dt);
+      this.updateArrow(dt); this.tools.update(dt);
       this.updateOcclusion(dt);
       if (this.shakeT > 0) { this.shakeT -= dt; const g = play.app.rig.goal; g.tx += (Math.random() - 0.5) * this.shakeT * 0.6; g.tz += (Math.random() - 0.5) * this.shakeT * 0.6; }
       if (this.thawSnow) { const s = this.R.snow.points; s.material.opacity = (s.material.opacity == null ? 1 : s.material.opacity); s.visible = this.endT == null || this.endT < 3; }
@@ -768,9 +768,9 @@
     }
 
     /* ---------- input ---------- */
-    click(sx, sy) { this.sound.unlock(); return this.cui.click(sx, sy); }
+    click(sx, sy) { this.sound.unlock(); return this.tools.click(sx, sy); }
     pointerMove(sx, sy) { return this.cui.pointerMove(sx, sy); }
-    key(e) { this.sound.unlock(); return this.cui.key(e); }
+    key(e) { this.sound.unlock(); return this.cui.key(e) || this.tools.key(e); }
 
     /* ---------- save ---------- */
     snapshot() {
@@ -798,7 +798,7 @@
   reg.register('c_piece', spec(0x9fd8ff, 'hand'));
   reg.register('c_kin', Object.assign(spec(0x8fe0a0, 'bubble'), { name: (e) => e.name }));
   const node = (verb, cursor, charges, respawn) => ({ color: 0x9fd8ff, cursor: (e, game) => (game.nodeState(e).charges > 0 ? cursor : 'no'), node: { charges, respawn },
-    actions: (e) => [{ id: 'gather', label: verb, icon: cursor, range: e.r + 0.55, run: (game, x) => castleOf(game).gather(x) }, { id: 'inspect', label: 'Inspect', icon: 'eye', run: (game, x) => game.inspect(x) }],
+    actions: (e) => [{ id: 'gather', label: verb, icon: cursor, range: e.r + 0.55, run: (game, x) => castleOf(game).tools.engage(x) }, { id: 'inspect', label: 'Inspect', icon: 'eye', run: (game, x) => game.inspect(x) }],
     inspect: (e, game) => castleOf(game).inspect(e) });
   const D = K.CASTLE_DATA, N = (id) => D.harvestNodes.find((n) => n.id === id);
   reg.register('c_tree', node('Chop', 'axe', N('tree').charges, N('tree').respawnSec));

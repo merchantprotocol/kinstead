@@ -67,6 +67,14 @@
    "kind": "key",
    "source": "the Rime Troll (boss); bound into the Keep's hearth",
    "valueSec": null
+  },
+  "dirt": {
+   "id": "dirt",
+   "name": "Dirt",
+   "kind": "raw",
+   "source": "digging the ground with the shovel",
+   "valueSec": 0.5,
+   "valueNote": "a dug block throws 3 dirt cubes in about 2 s"
   }
  },
  "itemAliases": {
@@ -140,7 +148,8 @@
    "stone": 60,
    "iron": 40,
    "gold": 40,
-   "ember_shard": 20
+   "ember_shard": 20,
+   "dirt": 60
   },
   "baseFrom": "the Keep",
   "rule": "production and gathering stop at the cap; a full producer shows a red 'FULL' flag (the hint to build a Storehouse or spend)",

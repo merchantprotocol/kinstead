@@ -1,0 +1,107 @@
+/* Copyright (c) 2026 Merchant Protocol. All rights reserved. */
+/* Kinstead · the castle's tool controller. Thin on purpose: it turns pointer and key input into WorkTargets
+   and hands them to the Worker, and owns the collaborators (Toolbelt, Effects, TerrainEditor, ProgressLedger).
+   Rules live in the classes in 86-88; this file only wires them to CastleGame and PlayMode.
+
+   Hooks CastleGame calls:   click(sx, sy)  engage(target|entity)  key(e)  update(dt)  dispose()
+   Hooks PlayMode calls:     claims(sx, sy)  hoverCursor(entity, sx, sy) */
+(function (G) {
+  const K = G.K;
+
+  /** The outline drawn on the tile you are about to work. */
+  class TileHighlight {
+    constructor(overlay) { this.ov = overlay; this.shown = false; }
+    show(target, doc) {
+      const x0 = target.i * K.TILE, z0 = target.j * K.TILE, s = K.TILE, y = doc.hy(target.i, target.j) + 0.06;
+      this.ov.set(this.ov.hov, [x0, y, z0, x0 + s, y, z0, x0 + s, y, z0 + s, x0, y, z0 + s]);
+      this.ov.hov.material.color.setHex(target.requires === 'pickaxe' ? 0xff9a3a : 0xffe08a); this.shown = true;
+    }
+    hide() { if (this.shown) { this.ov.hov.visible = false; this.shown = false; } }
+  }
+
+  class CastleTools {
+    constructor(game) {
+      this.g = game; const play = game.play;
+      this.editor = new K.TerrainEditor(game); this.ledger = new K.ProgressLedger();
+      this.effects = new K.Effects(game.group, this.effectsEnv());
+      this.ctx = { game, play, effects: this.effects, editor: this.editor, ledger: this.ledger };
+      this.belt = new K.Toolbelt([new K.SwordTool(), new K.AxeTool(), new K.PickaxeTool(), new K.ShovelTool()], (tool) => this.onSelect(tool), game.cui.root);   // inside #castleui so the panel styles apply
+      this.worker = new K.Worker(this.ctx, this.belt); this.hl = new TileHighlight(play.ov); this.fullAt = -9;
+    }
+    get play() { return this.g.play; }
+    get tool() { return this.belt.current; }
+
+    /** what Effects needs from the game, in one place */
+    effectsEnv() {
+      const g = this.g, play = g.play;
+      return {
+        floorY: (x, z) => play.nav.y(x, z), hero: () => play.me, time: () => play.t,
+        sound: (n) => g.sound.play(n), shake: (s) => { g.shakeT = Math.max(g.shakeT || 0, s); },
+        canTake: (kind) => g.castle.amount(kind) < (g.castle.caps()[kind] || 0),
+        notifyFull: (kind) => { if (play.t - this.fullAt < 2) return; this.fullAt = play.t; g.cui.toast(`Your ${K.CastleData.resName(kind)} store is full.`); g.cui.flashRes(kind); },
+        grant: (p) => {
+          const c = g.castle, got = Math.round(p.kind === 'dirt' ? c.add('dirt', p.value) : c.gather(p.kind, p.value));
+          if (got > 0) { play.float(play.me, `+${got}`, 'loot', K.CastleUI.ICON[p.kind]); g.cui.bump(p.kind); g.sound.play('gather'); g.changed(); }
+        },
+      };
+    }
+    onSelect(tool) {
+      this.worker.cancel(); this.hl.hide(); this.g.sound.play('clank'); this.g.cui.toast(tool.hint);
+      this.play.app.renderer3.domElement.style.cursor = '';
+    }
+
+    /* ---------- input ---------- */
+    key(e) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return false;
+      const P = this.play; if (P.ui.isOpen('ctx') || P.ui.isOpen('dlg')) return false;      // digits pick menu entries then
+      const t = this.belt.byKey(e.key); if (!t) return false;
+      this.belt.select(t.id); return true;
+    }
+    /** a left-click. true = handled here (the click does not also walk). */
+    click(sx, sy) {
+      if (this.g.cui.click(sx, sy)) return true;
+      const P = this.play; if (!P.me.alive) return false;
+      const e = P.pick(sx, sy);
+      if (e) { const t = K.WorkTarget.forEntity(this.ctx, e); if (!t) return false; this.engage(t); return true; }
+      const p = P.app.pickGround(sx, sy); if (!p) return false;
+      const [i, j] = this.editor.tileOf(p), deny = this.tool.denyGround(i, j, this.ctx);
+      if (deny) { this.g.cui.toast(deny); this.belt.flash('pickaxe'); return true; }
+      const t = this.tool.groundTarget(i, j, this.ctx); if (!t) return false;
+      this.engage(t); return true;
+    }
+    /** start work on a target, or say which tool it needs. Also the entry point for the right-click menu. */
+    engage(target) {
+      if (target instanceof Object && !(target instanceof K.WorkTarget)) target = K.WorkTarget.forEntity(this.ctx, target);
+      if (!target) return;
+      const cui = this.g.cui; this.g.sound.unlock();
+      if (!target.alive) { cui.toast('This is used up.'); return; }
+      if (!this.tool.accepts(target)) {
+        const need = this.belt.byId(target.requires); cui.toast(`Equip your ${need.name.toLowerCase()} (${need.key}) to ${need.verb} this.`); this.belt.flash(need.id); return;
+      }
+      this.play.doAction(target.entity, { id: 'work', label: this.tool.verb, range: target.approach, run: () => this.worker.start(target) }, false);
+    }
+    /** pressing here is a tool click, not the start of a hold-to-walk */
+    claims(sx, sy) {
+      const p = this.play.app.pickGround(sx, sy); if (!p) return false;
+      const [i, j] = this.editor.tileOf(p); return !!(this.tool.denyGround(i, j, this.ctx) || this.tool.groundTarget(i, j, this.ctx));
+    }
+    /** the cursor for what is under the pointer, or null to keep the default */
+    hoverCursor(ent, sx, sy) {
+      const Ic = K.Icons;
+      if (ent) {
+        const t = K.WorkTarget.forEntity(this.ctx, ent); if (!t) return null;
+        return Ic.cursor(this.tool.accepts(t) && t.alive ? this.tool.id : 'pointer', 'pointer');
+      }
+      const p = this.play.app.pickGround(sx, sy); if (!p) { this.hl.hide(); return null; }
+      const [i, j] = this.editor.tileOf(p), deny = this.tool.denyGround(i, j, this.ctx), t = deny ? null : this.tool.groundTarget(i, j, this.ctx);
+      if (t) this.hl.show(t, this.editor.doc); else this.hl.hide();
+      if (deny) return Ic.cursor('no', 'pointer');
+      return t ? Ic.cursor(this.tool.id, 'pointer') : null;
+    }
+
+    update(dt) { this.worker.update(dt); this.effects.update(dt); }
+    dispose() { this.worker.cancel(); this.hl.hide(); this.effects.dispose(); this.belt.dispose(); }
+  }
+
+  K.CastleTools = CastleTools;
+})(typeof window !== 'undefined' ? window : globalThis);

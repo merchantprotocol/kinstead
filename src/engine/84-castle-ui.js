@@ -12,9 +12,11 @@
   /* ---------- castle icons (16x16 pixel drawings, same style as the item icons) ---------- */
   const r = K.ramp, PAL = K.PAL;
   const stoneP = r('#1c1f27', '#3a3f4b', '#5d6370', '#868c98', '#b4b9c2'), emberP = r('#3a0e04', '#8a2a08', '#d0561a', '#ff9a3a', '#ffe08a'), heartP = r('#200a10', '#5a1a28', '#a83a3a', '#ff7a4a', '#ffd08a');
+  const dirtP = r('#1c1208', '#3d2a18', '#5e4128', '#86603a', '#a9835a');
   const iceP = r('#1a3a5a', '#3f82aa', '#7fb6d6', '#cfe8f5'), woodP = PAL.wood, steelP = PAL.steel, goldP = PAL.gold;
   Object.assign(Icons.DRAW, {
     stone(c) { c.poly([[1, 13], [3, 8], [7, 7], [9, 10], [6, 14]], stoneP).poly([[7, 14], [9, 8], [13, 7], [15, 12], [13, 15]], stoneP).poly([[4, 8], [6, 3], [10, 2], [12, 6], [9, 8]], stoneP); },
+    dirt(c) { c.poly([[1, 13], [3, 8], [8, 6], [13, 8], [15, 13], [12, 15], [4, 15]], dirtP).px(5, 9, dirtP[4]).px(9, 8, dirtP[4]).px(11, 11, dirtP[1]).px(6, 12, dirtP[1]); },
     ember(c) { c.poly([[8, 1], [12, 7], [10, 15], [6, 15], [4, 8]], emberP).px(8, 5, emberP[5]).px(7, 9, emberP[5]); },
     heart(c) { c.disc(5.5, 6, 4, heartP).disc(10.5, 6, 4, heartP).poly([[2, 7], [14, 7], [8, 15]], heartP).px(6, 5, heartP[5]).line(8, 4, 8, 11, iceP[1]); },
     stoneblade(c) { c.poly([[5, 11], [11, 2], [14, 3], [8, 12]], stoneP).line(2, 14, 6, 10, woodP[3], 2).line(3, 9, 8, 13, PAL.leather ? PAL.leather[3] : woodP[2]); },
@@ -26,8 +28,8 @@
     crown(c) { c.poly([[2, 13], [2, 5], [5, 9], [8, 3], [11, 9], [14, 5], [14, 13]], goldP).px(8, 7, emberP[4]); },
   });
 
-  const ICON = { wood: 'log', stone: 'stone', iron: 'ore', gold: 'coin', ember_shard: 'ember', troll_heart: 'heart', stoneblade: 'stoneblade', iron_sword: 'sword', ember_brand: 'brand' };
-  const RES_ORDER = ['wood', 'stone', 'iron', 'gold', 'ember_shard'];
+  const ICON = { wood: 'log', stone: 'stone', dirt: 'dirt', iron: 'ore', gold: 'coin', ember_shard: 'ember', troll_heart: 'heart', stoneblade: 'stoneblade', iron_sword: 'sword', ember_brand: 'brand' };
+  const RES_ORDER = ['wood', 'stone', 'dirt', 'iron', 'gold', 'ember_shard'];
   const PIECE_ICON = { palisade: 'log', stone_wall: 'stone', gatehouse: 'hammer', watchtower: 'eye', ember_brazier: 'ember', woodcutter: 'axe', quarry: 'pickaxe', mine: 'ore', great_hall: 'coin', chapel: 'ember', storehouse: 'bag', smithy: 'hammer', ember_forge: 'brand', barracks: 'shield', heartfire_hearth: 'heart' };
   const SHORT = {
     palisade: 'Blocks raiders; they must chop through it.', stone_wall: 'Blocks raiders. 2.5x a palisade’s HP.', gatehouse: 'The way in. Walls joined to it make the courtyard.',
