@@ -26,6 +26,8 @@
       return pup ? { name: 'Wolf pup', hp: 10, atk: 2, speed: 2.3, cd: 1.6, scale: 0.8 } : { name: 'Wolf', hp: 18 + d * 3, atk: 3 + Math.floor(d / 2), speed: 2.8 + Math.min(0.5, d * 0.05), cd: 1.15, scale: 1 };
     }
     get packSize() { return Math.min(5, 1 + Math.ceil(this.day / 2) + (this.day > 2 ? 1 : 0)); }   // night 1: 2, night 2: 2, night 3: 3 ... up to 5
+    /** how many bites of your food a wolf takes before it is full: a few on the first night, more as the days go on */
+    get appetite() { return Math.min(20, 3 + this.day * 2); }
     get dayCap() { return 1; }
     get nightCap() { return this.packSize + 1; }
     get thievesAllowed() { return this.day >= 5; }
@@ -64,7 +66,7 @@
   }
 
   class WolfBrain extends Brain {
-    constructor(game, actor) { super(game, actor); this.mode = 'hunt'; this.spot = null; this.spotT = 0; this.leave = null; this.pace = 0; }
+    constructor(game, actor) { super(game, actor); this.mode = 'hunt'; this.spot = null; this.spotT = 0; this.leave = null; this.pace = 0; this.plunder = null; this.food = null; this.badStore = null; }
     /** wolves also never plan a route through the house */
     blocker() { const g = this.g, T = K.TILE; return (i, j) => g.gateTiles.has(i + ',' + j) || g.insideBuilding((i + 0.5) * T, (j + 0.5) * T); }
     /** dawn: go back to the dark */
@@ -72,12 +74,27 @@
     update(dt) {
       const g = this.g, P = this.P, a = this.a, me = P.me; if (!this.tickDead(dt)) return;
       this.cd -= dt; const d = dist(a, me);
-      if (d > 80 && this.mode !== 'retreat') { g.removeActor(a); return; }
-      if (this.mode === 'retreat') { if (dist(a, this.leave) < 4) { g.removeActor(a); return; } this.goTo(this.leave.x, this.leave.z, a.speed, 1.5, dt); return; }
+      if (d > 80 && this.mode !== 'retreat') { if (this.plunder) this.plunder.release(); g.removeActor(a); return; }
+      if (this.plunder) this.plunder.follow();
+      if (this.mode === 'retreat') { if (dist(a, this.leave) < 4) { if (this.plunder) this.plunder.escape(); g.removeActor(a); return; } this.goTo(this.leave.x, this.leave.z, a.speed, 1.5, dt); return; }
+      if (g.calendar.isNight && this.forage(dt, d)) return;   // at night the smell of your food is what they came for
       if (!me.alive || g.isSanctuary(me.x, me.z) || this.pace > 0) { this.pace -= dt; this.prowl(dt); this.keepOut(); return; }   // you are in your house or at a gate: they circle outside
       this.hunt(dt, d); this.keepOut();
       if (this.noWay) this.prowl(dt);          // no way to you: they can only circle
     }
+    /** go for your food stores and gnaw them (until full, then slink off with it). false = do something else (you are near, or it is hurt). */
+    forage(dt, d) {
+      const g = this.g, a = this.a, me = this.P.me, pl = this.plunder || (this.plunder = new K.Plunder(g, a, g.wild.difficulty.appetite));
+      if ((a.hp != null && a.hp < a.hpMax - 0.01) || (me.alive && d < 6 && !g.isSanctuary(me.x, me.z))) return false;   // hurt, or you came close: it fights you
+      if (pl.done) { this.retreat(); return true; }
+      let st = this.food; if (!st || !st.present || st.amount < 1) { st = this.food = this.pickFood(); if (!st) { if (pl.carrying) this.retreat(); return false; } }
+      const tx = st.ent.x, tz = st.ent.z;
+      if (dist(a, { x: tx, z: tz }) <= 1.5) { a.path = null; this.face({ x: tx, z: tz }); if (!pl.gnaw(dt, st) && pl.done) this.retreat(); this.anim(false); this.keepOut(); return true; }
+      this.goTo(tx, tz, a.speed, 1.2, dt); if (this.noWay) { this.badStore = st; this.food = null; } this.keepOut(); return true;
+    }
+    pickFood() { const a = this.a; return this.g.home.stores.filter((s) => s.res === 'food' && s.present && s.amount >= 1 && s !== this.badStore).sort((p, q) => dist(p.ent, a) - dist(q.ent, a))[0] || null; }
+    /** killed: what it took falls out */
+    onDeath() { if (this.plunder) this.plunder.drop(); }
     /** wolves never step into the house or onto a gate, whether the door is open or not */
     keepOut() {
       const a = this.a, g = this.g; if (!g.isSanctuary(a.x, a.z)) { this.px = a.x; this.pz = a.z; return; }
@@ -244,7 +261,7 @@
     onKill(a) {
       const P = this.P, y = P.nav.y(a.x, a.z) + 0.5;
       if (a.wolf) { const n = 1 + Math.floor(Math.random() * 2); if (P.player.canAdd('raw_meat', n)) { P.player.addItem('raw_meat', n); P.float(P.me, `+${n} raw meat`, 'loot'); } this.g.sound.play('pop'); }   // cook it at the hearth
-      if (a.thief && a.brain) a.brain.onDeath();
+      if ((a.thief || a.wolf) && a.brain && a.brain.onDeath) a.brain.onDeath();
     }
   }
 
