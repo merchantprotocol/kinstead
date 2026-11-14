@@ -190,10 +190,16 @@
       if (!p.canAdd('turnip', 1)) { g.cui.toast('Your bag is full.'); return; }
       store.rob(1); p.addItem('turnip', 1); g.play.float(g.play.me, '+1 turnip', 'loot'); g.sound.play('gather');
     }
+    /** a heap you dropped: joins the one already on that spot, else starts a new one */
+    dropPile(res, x, z, n, same) {
+      if (same) { same.add(n); return same; }
+      const s = new K.Pile(this, { id: 'pile' + (this.seq = (this.seq || 0) + 1), kind: 'pile', name: this.g.stash.name(res), res, dx: x - this.center.x, dz: z - this.center.z, own: n });
+      this.stores.push(s); this.g.play.refreshProps(); return s;
+    }
     /** after a store vanishes, re-mark the ground under the ones still standing */
     reblock() { for (const s of this.stores) if (s.present) this.g.blockRect(s.x, s.z, 0.5, 0.5, 0, false); this.door.apply(); }
     entities() { return this.stores.filter((s) => s.present).map((s) => s.ent).concat([this.door.ent, this.rack.ent]); }
-    update(dt) { this.door.apply(); this.door.update(dt); this.stores.forEach((x) => x.sync()); }   // the building re-reads the ground now and then; the door is written back every frame
+    update(dt) { this.door.apply(); this.door.update(dt); this.stores.forEach((x) => x.sync()); if (this.stores.some((x) => x.pile && !x.present)) { this.stores = this.stores.filter((x) => { if (x.pile && !x.present) { x.dispose(); return false; } return true; }); this.g.play.refreshProps(); } }   // the building re-reads the ground now and then; the door is written back every frame
     dispose() { this.stores.forEach((s) => s.dispose()); this.rack.dispose(); this.g.group.remove(this.door.leaf); }
   }
 

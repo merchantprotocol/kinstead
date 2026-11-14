@@ -279,7 +279,7 @@
     rightClick(sx, sy) {
       if (!this.me.alive) return;
       this.ui.close('ctx'); this.ui.close('card'); this.ui.tip(null);
-      const e = this.pick(sx, sy); if (!e || e === this.me) return;
+      const e = this.pick(sx, sy); if (!e || e === this.me) { if (this.ext && this.ext.rightClick) this.ext.rightClick(sx, sy); return; }   // empty ground: a game mode may use it (drop a pile)
       const acts = this.reg.actions(e, this); if (acts.length) this.ui.openMenu(e, acts, sx, sy);
     }
     click(sx, sy) {

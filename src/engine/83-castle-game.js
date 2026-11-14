@@ -209,7 +209,7 @@
       this.kinActors = {}; this.troll = null;
       this.restoreNodes();
       this.raid = null;
-      this.cui = new K.CastleUI(this); this.vitals = new K.Vitals(this); this.wild = new K.Wild(this); this.calendar.on((ev) => this.onCalendar(ev)); this.tools = new K.CastleTools(this); this.minimap = new K.Minimap(this); this.walls = new K.WallDrawer(this); this.forest = new K.Forest(this); this.site = new K.BuildingSite(this); this.sweep = new K.SweepAttack(this); this.demolisher = new K.Demolisher(this); this.play.refreshProps();
+      this.cui = new K.CastleUI(this); this.vitals = new K.Vitals(this); this.wild = new K.Wild(this); this.calendar.on((ev) => this.onCalendar(ev)); this.tools = new K.CastleTools(this); this.minimap = new K.Minimap(this); this.walls = new K.WallDrawer(this); this.forest = new K.Forest(this); this.stash = new K.Stash(this); this.site = new K.BuildingSite(this); this.sweep = new K.SweepAttack(this); this.demolisher = new K.Demolisher(this); this.play.refreshProps();
       if (this.day.isNight) this.startRaid();
       play.app.rig.set({ dist: 11, pitch: 0.78 }); play.app.rig.maxDist = 22;   // you can never zoom out far enough to see the edge of the world
       this.cui.toast(this.saved ? 'Welcome back.' : 'You wake in your hut. Eat, sleep, chop wood, and watch for wolves.');
@@ -356,6 +356,7 @@
         const door = this.home.door; act('door', door.broken ? 'Repair the door (3 wood)' : door.open ? 'Shut the door' : 'Open the door', 'hand', () => door.toggle(), { range: 1.3 });
       } else if (e.type === 'c_barrel') {
         const rg = e.r + 0.8, st = e.store;
+        if (st.pile) act('take', `Pick up the ${e.name.toLowerCase()} (${st.amount})`, 'hand', () => this.stash.take(st), { range: rg }); else
         if (e.res === 'food') act('take', `Take a turnip (${st.amount} left)`, 'hand', () => this.home.takeFood(st), { range: rg });
         else if (e.res === 'arrow') act('take', `Take arrows (${st.amount} left)`, 'hand', () => this.home.takeArrows(st), { range: rg });
         else act('look', `${e.name}: ${st.amount} ${K.CastleData.resName(e.res)}`, 'eye', () => this.cui.toast(`${st.amount} ${K.CastleData.resName(e.res)} stored here.`), { range: rg });
@@ -840,6 +841,7 @@
     /* ---------- input ---------- */
     click(sx, sy) { this.sound.unlock(); return this.tools.click(sx, sy); }
     pointerMove(sx, sy) { return this.cui.pointerMove(sx, sy); }
+    rightClick(sx, sy) { return this.stash.rightClick(sx, sy); }
     pointerDown(sx, sy) { return this.site.down(sx, sy) || this.walls.down(sx, sy) || this.demolisher.down(sx, sy); }
     pointerDrag(sx, sy) { this.site.drag(sx, sy); this.walls.drag(sx, sy); this.demolisher.drag(sx, sy); }
     pointerUp(sx, sy) { this.site.up(sx, sy); this.walls.up(sx, sy); this.demolisher.up(sx, sy); }
