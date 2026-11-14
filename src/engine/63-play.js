@@ -55,6 +55,7 @@
   class PlayMode {
     constructor(app) {
       this.app = app; this.reg = K.Interactions; this.items = new K.ItemCatalog(); this.active = false; this.player = null; this.flags = new Set();
+      this.ext = null;   // an optional game mode layered on play (K.CastleGame): it gets enter/exit/update/input hooks
       this.bplay = new K.BuildingPlay(this);   // buildings: furniture, interiors, horses, clock, saved progress
     }
     get R() { return this.app.renderer; }
@@ -80,7 +81,7 @@
       if (!this.nav.standable(sx, sz)) { const q = this.nav.nearestOk(...this.nav.tile(sx, sz), 8); if (q) [sx, sz] = this.nav.centre(...q); }
       this.spawn = { x: sx, z: sz };
       if (!this.player && saved) { this.player = new K.PlayerState(this.items, { name: 'You' }).load(saved.player); this.flags = new Set(saved.flags || []); }
-      if (!this.player) this.player = this.newPlayer(start && start.hero ? start.hero : 'warden');
+      if (!this.player) this.player = this.ext && this.ext.makePlayer ? this.ext.makePlayer() : this.newPlayer(start && start.hero ? start.hero : 'warden');
       // resume where the saved game left off (the start prop stays the respawn point)
       if (saved && saved.pos && this.nav.standable(saved.pos[0], saved.pos[1])) { sx = saved.pos[0]; sz = saved.pos[1]; }
       this.unsub = this.player.on((what) => this.onPlayer(what));
@@ -101,10 +102,12 @@
       app.rig.set({ tx: sx, tz: sz, ty: this.me.y, dist: 13, pitch: 0.74 }, true);
       this.active = true; document.body.classList.add('playing'); this.ui.show(true); this.ui.bar(); this.syncMe();
       app.renderer3.domElement.style.cursor = Icons.cursor('boot', 'pointer');
+      if (this.ext) { this.ext.enter(); return; }
       app.toast(this.noStart ? 'Playing. No Player start in this world, so you start at the camera (add one from Props → Characters).' : 'Playing. Click to walk, double-click to run, click yourself for gear.');
     }
     exit() {
       if (!this.active) return; const app = this.app;
+      if (this.ext) this.ext.exit();
       this.doc.game = this.snapshot(); this.bplay.exit();
       this.actors.forEach((a) => a.view.dispose()); this.loot.forEach((l) => l.view.dispose()); this.actors = []; this.loot = [];
       this.R.clearPropStates(); this.R.setStaticActorsVisible(true);
@@ -147,7 +150,7 @@
       this.face(this.me, e);
       this.channel({ label: (o.ing || o.verb + 'ing') + '…', time: o.time, onDone: () => {
         this.player.addItem(o.item, 1); this.float(this.me, '+1 ' + it.name, 'loot', it.icon); this.gainXp(o.xp);
-        if (o.item === 'ore' && Math.random() < 0.3 && this.player.addItem('coal', 1) === 0) this.float(this.me, '+1 Coal', 'loot', 'coal');
+        if (o.item === 'iron' && Math.random() < 0.3 && this.player.addItem('coal', 1) === 0) this.float(this.me, '+1 Coal', 'loot', 'coal');
         n.charges--;
         if (n.charges <= 0) { n.respawnAt = this.t + ((this.reg.get(e.type).node || {}).respawn || 30); this.R.setPropState(e.id, 'depleted'); this.toast(`The ${e.name.toLowerCase()} is spent. It will regrow in a while.`); this.me.view.setState('idle'); }
         else this.gather(e, o);   // keep working until it runs out (any click stops)
@@ -201,7 +204,7 @@
       if (!e.items.length) this.removeLoot(e); else this.toast('Your bag is full; some loot is left on the ground.');
     }
     removeLoot(e) { e.view.dispose(); this.loot = this.loot.filter((l) => l !== e); if (this.hover === e) this.hover = null; }
-    gainXp(n) { if (this.player.gainXp(n)) { this.float(this.me, 'Level ' + this.player.level + '!', 'heal'); this.toast(`Level up! You are now level ${this.player.level}.`); } }
+    gainXp(n) { if (this.ext) return; if (this.player.gainXp(n)) { this.float(this.me, 'Level ' + this.player.level + '!', 'heal'); this.toast(`Level up! You are now level ${this.player.level}.`); } }
     onPlayer(what) {
       if (what === 'outfit') this.me.view.setSprite(this.player.outfit);
       if (what === 'hp' || what === 'xp' || what === 'level' || what === 'coins' || what === 'bag' || what === 'equip' || what === 'use' || what === 'load') {
@@ -211,7 +214,7 @@
       if (what !== 'hp' && what !== 'xp') this.bplay.dirty();
     }
     /* clickable things: resource props + furniture inside buildings */
-    refreshProps() { this.props = (this.baseProps || []).concat(this.bplay.entities()); if (this.hover && this.hover.furniture && !this.props.some((p) => p.id === this.hover.id)) this.hover = null; }
+    refreshProps() { this.props = (this.baseProps || []).concat(this.bplay.entities(), this.ext && this.ext.entities ? this.ext.entities() : []); if (this.hover && this.hover.furniture && !this.props.some((p) => p.id === this.hover.id)) this.hover = null; }
     snapshot() { return this.bplay.snapshot(); }
 
     /* ---------- commands ---------- */
@@ -248,6 +251,7 @@
     pointerDown(e, sx, sy) { this.down = { sx, sy, t: performance.now() }; }
     pointerUp(e, sx, sy) { const d = this.down; this.down = null; if (!d || Math.hypot(sx - d.sx, sy - d.sy) > 6) return; this.click(sx, sy); }
     click(sx, sy) {
+      if (this.ext && this.ext.click(sx, sy)) return;
       if (!this.me.alive) return;
       const now = performance.now(), last = this.lastClick, dbl = last && now - last.t < 340 && Math.hypot(sx - last.sx, sy - last.sy) < 26;
       this.lastClick = dbl ? null : { t: now, sx, sy };
@@ -265,6 +269,7 @@
       this.walkTo(p.x, p.z, dbl);
     }
     pointerMove(e, sx, sy) {
+      if (this.ext && this.ext.pointerMove(sx, sy)) return;
       const ent = this.pick(sx, sy), el = this.app.renderer3.domElement;
       if (ent !== this.hover) {
         if (this.hover && this.hover.view && this.hover.view.setHighlight) this.hover.view.setHighlight(null);
@@ -286,6 +291,7 @@
     }
     key(e) {
       const k = e.key.toLowerCase();
+      if (this.ext && this.ext.key(e)) return true;
       if (e.key === 'Escape') { this.ui.closeTop(); this.ui.tip(null); return true; }
       if (k === 'c' || k === 'i') { this.ui.toggleHud(); return true; }
       if (k === 'm' && this.bplay.mounted) { this.bplay.dismount(); return true; }
@@ -317,7 +323,7 @@
     }
 
     /* ---------- simulation ---------- */
-    syncMe() { const s = this.player.stats(); Object.assign(this.me, { hpMax: s.hpMax, hp: this.player.hp, atk: s.atk, def: s.def, level: s.level, speed: 2.3 * s.speed * this.bplay.speedMul, cd: 0.9, reach: 0.85 }); }
+    syncMe() { const s = this.player.stats(); Object.assign(this.me, { hpMax: s.hpMax, hp: this.player.hp, atk: s.atk, def: s.def, level: s.level, speed: 2.3 * s.speed * this.bplay.speedMul, cd: s.cd || 0.9, reach: 0.85 }); }
     update(dt) {
       if (!this.active) return; this.t += dt; this.syncMe();
       const me = this.me;
@@ -325,7 +331,8 @@
       this.pending = this.pending.filter((h) => { h.t -= dt; if (h.t > 0) return true; this.resolveHit(h.a, h.b); return false; });
       if (!me.alive) { this.defeatT -= dt; if (this.defeatT <= 0) this.respawnPlayer(); }
       else this.updatePlayer(dt);
-      for (const a of this.actors) if (a !== me) this.updateNpc(a, dt);
+      for (const a of this.actors) if (a !== me) { if (a.brain) a.brain.update(dt); else this.updateNpc(a, dt); }
+      if (this.ext) this.ext.update(dt);
       for (const [id, n] of this.nodes) if (n.respawnAt && this.t >= n.respawnAt) { n.respawnAt = 0; n.charges = n.max; this.R.setPropState(id, null); }
       this.loot = this.loot.filter((l) => { if (this.t > l.until) { l.view.dispose(); return false; } return true; });
       if (this.talking && this.dist(me, this.talking) > 3.2) { this.ui.close('dlg'); this.ui.close('trade'); this.talking = null; }
@@ -416,14 +423,15 @@
     swing(a, b) { a.cdT = a.cd; a.view.setState('attack'); this.face(a, b); this.pending.push({ t: 0.2, a, b }); }
     resolveHit(a, b) {
       if (!a.alive || !b.alive || this.dist(a, b) > a.reach + b.r + 0.6) return;
-      if (Math.random() < 0.08) { this.float(b, 'miss', 'miss'); return; }
-      const dmg = Math.max(1, Math.round(a.atk * rnd(0.7, 1.3) - b.def * 0.5));
+      if (!this.ext && Math.random() < 0.08) { this.float(b, 'miss', 'miss'); return; }
+      const dmg = this.ext ? this.ext.damage(a, b) : Math.max(1, Math.round(a.atk * rnd(0.7, 1.3) - b.def * 0.5));
       b.view.flash('hit'); if (b.view.state !== 'attack') b.view.setState('hurt');
       if (b === this.me) {
         this.float(b, '-' + dmg, 'hurt');
         if (this.player.hurt(dmg)) this.defeat();
       } else {
         b.hp -= dmg; this.float(b, String(dmg), 'dealt');
+        if (this.ext) this.ext.onHit(a, b, dmg);
         if (!b.aggro) { b.aggro = true; b.hostile = true; }
         if (b.hp <= 0) this.kill(b);
       }
@@ -432,6 +440,7 @@
       a.alive = false; a.hp = 0; a.deadT = 0; a.dropped = false; a.aggro = false; a.path = null; a.view.setState('dead');
       if (this.target === a) this.target = null; if (this.hover === a) this.hover = null;
       this.toast(`${a.name} is defeated.`); this.gainXp(a.info.xp || 10);
+      if (this.ext) this.ext.onKill(a);
     }
     dropLoot(a) {
       const items = []; for (const [id, lo, hi, p] of a.info.loot || []) if (Math.random() < p) items.push([id, irnd(lo, hi)]);
@@ -445,14 +454,14 @@
       a.view.setState('idle'); a.view.setVisible(true);
     }
     defeat() {
-      const me = this.me; me.alive = false; me.path = null; this.target = null; this.intent = null; this.ch = null; this.defeatT = 2.6;
+      const me = this.me; me.alive = false; me.path = null; this.target = null; this.intent = null; this.ch = null; this.defeatT = this.ext ? this.ext.wakeSec() : 2.6;
       if (this.bplay.mounted) this.bplay.dismount({ quiet: true });
-      me.view.setState('dead'); this.ui.closeAll(); this.toast('You were defeated… you will wake at the start.');
+      me.view.setState('dead'); this.ui.closeAll(); this.toast(this.ext ? 'You fall… you will wake by the Keep. Nothing is lost.' : 'You were defeated… you will wake at the start.');
       for (const a of this.actors) if (a !== me) a.aggro = false;
     }
     respawnPlayer() {
       const me = this.me; me.x = this.spawn.x; me.z = this.spawn.z; me.y = this.nav.y(me.x, me.z); me.alive = true;
-      this.player.healFull(); me.view.setState('idle'); this.app.rig.set({ tx: me.x, tz: me.z }, true); this.toast('You wake at the start, a little wiser.');
+      this.player.healFull(); me.view.setState('idle'); this.app.rig.set({ tx: me.x, tz: me.z }, true); this.toast(this.ext ? 'You wake by the Keep.' : 'You wake at the start, a little wiser.');
     }
   }
 

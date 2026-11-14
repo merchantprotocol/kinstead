@@ -12,7 +12,8 @@
   const { FurnitureFootprint } = K;
 
   /* ---------- one item vocabulary ---------- */
-  const ALIAS = { wood: 'log', iron_ore: 'ore', raw_fish: 'fish', iron_sword: 'sword', mail_shirt: 'mail', iron_helmet: 'helm', wooden_shield: 'shield', wood_axe: 'axe', pickaxe: 'pickaxe', bread: 'bread' };
+  /* building ids -> game ids; ids the castle data already names (wood, iron…) map onto themselves or their castle id */
+  const ALIAS = { wood: 'wood', iron_ore: 'iron', iron_ingot: 'iron', raw_fish: 'fish', iron_sword: 'iron_sword', mail_shirt: 'mail', iron_helmet: 'helm', wooden_shield: 'shield', wood_axe: 'axe', pickaxe: 'pickaxe', bread: 'bread' };
   const ICON_OF = { coal: 'coal', hide: 'hide', leather: 'hide', iron_ingot: 'ingot', raw_meat: 'meat', cooked_meat: 'roast', turnip: 'turnip', flour: 'bag', cooked_fish: 'fish', stew: 'stew', cheese: 'cheese', apple: 'apple',
     keen_iron_sword: 'sword', iron_axe: 'axe', spear: 'spear', hunting_bow: 'bow', leather_armor: 'jerkin', horseshoes: 'shoe', saddle: 'saddle', bridle: 'saddle' };
   const DESC = { coal: 'Black and dusty. A forge needs it to smelt.', hide: 'A rough hide. Tan it at a workbench.', leather: 'Tanned leather, for armor and saddles.', iron_ingot: 'Smelted iron, ready for the anvil.',
@@ -38,6 +39,7 @@
       const D = K.BUILDING_DATA; if (!D || D.__bridged) return; D.__bridged = true;
       const ITEMS = K.ITEMS, BI = D.ITEMS;
       D.RECIPES.forEach((r) => { r.in = ItemBridge.mapCounts(r.in); r.out = ItemBridge.mapCounts(r.out); });
+      D.RECIPES = D.RECIPES.filter((r) => !Object.keys(r.out).some((id) => r.in[id]));   // smelting ore -> ingot is one id now
       for (const k of Object.keys(D.LOOT)) D.LOOT[k] = ItemBridge.mapCounts(D.LOOT[k]);
       D.OUTFITS.forEach((o) => { if (o.requires && o.requires.items) o.requires.items = ItemBridge.mapCounts(o.requires.items); });
       const food = {};

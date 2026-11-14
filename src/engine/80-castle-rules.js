@@ -309,6 +309,12 @@
     exists() { return !!this.read(); }
   }
   CastleSave.KEY = 'kinstead.castle.v1';
+  /* the browser's localStorage, or an in-memory stand-in where it is blocked (data: URLs, private modes) */
+  CastleSave.defaultStorage = () => {
+    try { const s = G.localStorage; s.getItem(CastleSave.KEY); return s; } catch (e) { /* blocked */ }
+    if (!G.__kinsteadMemStore) { const m = new Map(); G.__kinsteadMemStore = { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) }; }
+    return G.__kinsteadMemStore;
+  };
 
   Object.assign(K, { CastleData, CastleCost: Cost, Payback, Castle, DayCycle, CastleSave, CASTLE_RES: RES });
 })(typeof window !== 'undefined' ? window : globalThis);

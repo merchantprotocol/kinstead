@@ -14,6 +14,8 @@
     $(id) { return this.doc.getElementById(id); }
 
     init() {
+      this.$('mCastle').onclick = () => this.router.go('play', { mode: 'castle' });
+      this.$('mCastleCont').onclick = () => this.router.go('play', { mode: 'castle', resume: 1 });
       this.$('mContinue').onclick = () => this.router.go('play', { world: 'continue' });
       this.$('mPlay').onclick = () => this.openWorlds();
       this.$('mBuilder').onclick = () => this.router.go('builder');
@@ -27,7 +29,14 @@
     }
     show(id) { for (const p of this.panels) this.$(p).hidden = p !== id; this.current = id; }
 
+    /* the castle story's save (localStorage) */
+    refreshCastle() {
+      const s = K.CastleSave ? new K.CastleSave(K.CastleSave.defaultStorage()).read() : null, b = this.$('mCastleCont'); b.hidden = !s;
+      if (s && s.castle) this.$('mCastleContName').textContent = `Castle Level ${K.Castle.fromJSON(new K.CastleData(K.CASTLE_DATA), s.castle).cl()} · ${new Date(s.savedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
+      return s;
+    }
     async refreshContinue() {
+      try { this.refreshCastle(); } catch (e) { console.warn('castle save unreadable', e); }
       let s = null; try { s = await this.slot.read(); } catch (e) { s = null; }
       const b = this.$('mContinue'); b.hidden = !s;
       if (s) this.$('mContinueName').textContent = `${s.name || 'Your world'} · ${new Date(s.at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
