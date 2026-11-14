@@ -32,6 +32,8 @@
         iron_hills: { x0: 40.5, x1: 43.5, z0: 14, z1: 15.5, opensAfter: 'night1' },
         troll_bridge: { x0: 51.2, x1: 52.6, z0: 23.6, z1: 26.4, opensAfter: 'night2' },   // on the deck, over the chasm: no way around it
       };
+      // points out in the wilds where raiders come from: the Keep must always connect to one of them
+      this.outside = [{ x: 26, z: 45 }, { x: 26, z: 4.5 }, { x: 3.6, z: 25 }];
       this.frostEdges = { north: { x0: 16, x1: 36, z: 3.2 }, south: { x0: 18, x1: 34, z: 46.2 }, west: { z0: 16, z1: 34, x: 2.5 } };
       this.nodes = {
         tree: [[16, 18.5], [14.2, 21], [17.2, 16.6], [13, 24.5], [15.6, 23.3], [12.8, 18], [20.6, 17.4], [11.4, 21.8], [14.4, 29.6], [12.6, 32], [15.8, 33.4], [11, 27.6], [19.6, 32.6], [13.4, 35.4]],

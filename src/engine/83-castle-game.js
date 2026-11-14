@@ -370,7 +370,17 @@
       let bad = null;
       this.rectTiles(x, z, w + 0.2, d + 0.2, rot, (i, j) => { const k = j * nav.w + i; if (this.occ[k]) bad = 'something is in the way'; else if (!nav.walk[k] || nav.deck[k]) bad = bad || 'the ground is not clear'; });
       const me = this.play.me; if (!bad && Math.hypot(me.x - x, me.z - z) < Math.min(w, d) / 2 + 0.2) bad = 'you are standing there';
+      if (!bad && this.wouldWallOffKeep(type, x, z, rot)) bad = 'that would wall off the Keep';
       return bad;
+    }
+    /* a piece may never seal the Keep in: its approach must still reach the wilds (walls need the Gatehouse as the way in) */
+    wouldWallOffKeep(type, x, z, rot) {
+      const nav = this.play.nav, [w, d] = CastleArt.size(type), gate = type === 'gatehouse', saved = [];
+      this.rectTiles(x, z, w, d, rot, (i, j, lx) => { if (gate && Math.abs(lx) <= 0.75) return; const k = j * nav.w + i; saved.push([k, nav.walk[k]]); nav.walk[k] = 0; });
+      const a = this.keepEnt.goal || [this.L.keep.x, this.L.keep.z + this.L.keep.r + 1];
+      const open = this.L.outside.some((o) => nav.find(a[0], a[1], o.x, o.z, { range: 1.5 }));
+      for (const [k, v] of saved) nav.walk[k] = v;
+      return !open;
     }
     autoRot(x, z) { return Math.atan2(-(x - this.L.keep.x), -(z - this.L.keep.z)) + (this.rotExtra || 0); }
     buildAt(type, x, z) {
