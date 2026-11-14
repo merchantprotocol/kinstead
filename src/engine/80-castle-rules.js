@@ -255,7 +255,7 @@
       return false;
     }
     objectives() { return this.data.raw.objectives.map((o) => Object.assign({ done: this.objectiveDone(o) }, o)); }
-    currentGoals(n = 3) { const all = this.objectives(), i = all.findIndex((o) => !o.done); return i < 0 ? [] : all.slice(i, i + n); }
+    currentGoals(n = 3) { return this.objectives().filter((o) => !o.done).slice(0, n); }   // goals met early drop out of the list
     /* ---- save ---- */
     toJSON() {
       return { v: 1, stores: Object.assign({}, this.stores), pieces: this.pieces.map((p) => ({ uid: p.uid, type: p.type, level: p.level, x: +p.x.toFixed(3), z: +p.z.toFixed(3), rot: +(p.rot || 0).toFixed(3), hp: p.hp, ruin: !!p.ruin, frosted: !!p.frosted, frostedUntil: p.frostedUntil || 0 })),

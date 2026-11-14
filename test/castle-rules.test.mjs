@@ -180,3 +180,11 @@ test('item ids: old engine ids resolve to the castle ids', () => {   // risk: on
   assert.equal(d.canon('coins'), 'gold'); assert.equal(d.canon('sword'), 'iron_sword'); assert.equal(d.canon('rusted_sword'), 'stoneblade');
   assert.equal(d.canon('stone'), 'stone');
 });
+
+test('goals: an objective finished early drops out of the goal list', () => {   // risk: core business rule (guided progression)
+  const c = fresh(); give(c, { wood: 100, stone: 100 });
+  assert.equal(c.build('woodcutter', { x: 1, z: 1 }).ok, true);       // o3 done before o2
+  const ids = c.currentGoals(3).map((o) => o.id);
+  assert.deepEqual(ids, ['o2', 'o4', 'o5']);
+  assert.equal(c.currentGoals(20).some((o) => o.id === 'o3'), false);
+});

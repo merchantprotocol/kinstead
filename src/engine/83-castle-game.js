@@ -427,7 +427,8 @@
     spawnKin(id) {
       const c = this.castle, at = this.L.kin[id], joined = c.kin.has(id);
       if (id === 'rime_brute' && !joined && !c.flags.has('brute:walking')) return;
-      const sprite = { pinewarden: 'warden', emberwright: 'witch', rime_brute: 'troll' }[id], h = this.data.hero(id);
+      const v3 = !!(K.ActorViews && K.ActorViews.enabled);   // the 3D view has a hooded ranger; the 2D sprite set does not
+      const sprite = { pinewarden: v3 ? 'ranger' : 'warden', emberwright: 'witch', rime_brute: 'troll' }[id], h = this.data.hero(id);
       const pos = joined ? { x: this.play.me.x + 1, z: this.play.me.z + 1 } : at;
       const a = this.addActor({ id: 'kin:' + id, role: 'npc', spriteId: sprite, name: h.name, x: pos.x, z: pos.z, hpMax: 80, atk: 6, def: 0, speed: id === 'rime_brute' ? 2.0 : 2.3, cd: 1.4, reach: 1, scale: id === 'rime_brute' ? 0.95 : 1, level: 1 });
       a.type = 'c_kin'; a.kinId = id; a.hostile = false;
