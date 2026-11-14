@@ -880,5 +880,5 @@
     }
   }
 
-  Object.assign(K, { CH, PPU, PropBuilder, WorldRenderer, CameraRig, Chunk, SpriteActor, GeometryBuilderW: GeometryBuilder, M4, UNIT });
+  Object.assign(K, { SnowField, CH, PPU, PropBuilder, WorldRenderer, CameraRig, Chunk, SpriteActor, GeometryBuilderW: GeometryBuilder, M4, UNIT });
 })(typeof window !== 'undefined' ? window : globalThis);

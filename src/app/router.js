@@ -4,7 +4,7 @@
   const K = (G.K = G.K || {});
 
   class Router {
-    static PAGES = { menu: 'index.html', builder: 'builder.html', play: 'play.html' };
+    static PAGES = { menu: 'index.html', lab: 'lab.html', builder: 'builder.html', play: 'play.html' };
 
     /* location: an object with assign(url) and search (window.location, or a recorder in tests) */
     constructor(location) { this.location = location; }
