@@ -200,6 +200,35 @@
       }
       return p;
     }
+    /* a flat slab along the segment a -> b (blades, planks, axe hafts at any angle). o: { a, b, wdir (the blade's
+       width direction, roughly perpendicular to b - a), half(t) -> half width at t in [0, 1] (or a number), thick (half) }
+       paint gets (x, y, z, t, w) where t is along the blade and w across it (-1..1) */
+    static slab(p, o, paint) {
+      const [a, b] = [o.a, o.b], d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], L = Math.hypot(...d), u = d.map((v) => v / L);
+      let w = o.wdir || [0, 0, 1]; const wd = w[0] * u[0] + w[1] * u[1] + w[2] * u[2]; w = [w[0] - wd * u[0], w[1] - wd * u[1], w[2] - wd * u[2]];
+      const wl = Math.hypot(...w); w = w.map((v) => v / wl); const n = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]];
+      const half = typeof o.half === 'function' ? o.half : () => o.half, th = (o.thick == null ? 0.5 : o.thick) + 0.3, R = Math.max(half(0), half(0.5), half(1)) + 1;
+      return p.fill(Math.min(a[0], b[0]) - R, Math.max(a[0], b[0]) + R, Math.min(a[1], b[1]) - R, Math.max(a[1], b[1]) + R, Math.min(a[2], b[2]) - R, Math.max(a[2], b[2]) + R, (x, y, z) => {
+        const r = [x - a[0], y - a[1], z - a[2]], t = (r[0] * u[0] + r[1] * u[1] + r[2] * u[2]) / L; if (t < -0.01 || t > 1.01) return false;
+        const ww = r[0] * w[0] + r[1] * w[1] + r[2] * w[2], nn = r[0] * n[0] + r[1] * n[1] + r[2] * n[2];
+        return Math.abs(ww) <= half(Math.max(0, Math.min(1, t))) + 0.3 && Math.abs(nn) <= th;
+      }, (x, y, z) => {
+        if (typeof paint !== 'function') return paint;
+        const r = [x - a[0], y - a[1], z - a[2]], t = (r[0] * u[0] + r[1] * u[1] + r[2] * u[2]) / L, ww = r[0] * w[0] + r[1] * w[1] + r[2] * w[2];
+        return paint(x, y, z, t, ww / (half(Math.max(0, Math.min(1, t))) + 0.3));
+      });
+    }
+    /* a domed disc / oval facing +z (shields, bucklers, round windows). o: { cx, cy, z (back face), rx, ry, thick, dome (extra
+       voxels at the centre) }; paint gets (x, y, z, d) with d = 0 at the centre and 1 at the rim */
+    static disc(p, o, paint) {
+      const dome = o.dome || 0, th = o.thick || 1;
+      for (let x = Math.floor(o.cx - o.rx - 1); x <= Math.ceil(o.cx + o.rx + 1); x++) for (let y = Math.floor(o.cy - o.ry - 1); y <= Math.ceil(o.cy + o.ry + 1); y++) {
+        const d = Math.hypot((x - o.cx) / (o.rx + 0.4), (y - o.cy) / (o.ry + 0.4)); if (d > 1) continue;
+        const top = o.z + th - 1 + Math.round(dome * (1 - d * d));
+        for (let z = o.z; z <= top; z++) { const c = ink(typeof paint === 'function' ? (xx, yy, zz) => paint(xx, yy, zz, d, zz === top) : paint, x, y, z); if (c) p.set(x, y, z, c); }
+      }
+      return p;
+    }
     /* copy every voxel with x on one side of the plane x = cx to the other side (characters are symmetric) */
     static mirrorX(p, cx = 0, fromNeg = true) {
       for (const [k, c] of [...p.vox]) { const [x, y, z] = VoxelPart.unkey(k); if (fromNeg ? x < cx : x > cx) p.set(Math.round(2 * cx - x), y, z, c); }

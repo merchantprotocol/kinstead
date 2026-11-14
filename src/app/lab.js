@@ -23,8 +23,8 @@
       ['Furniture', () => true],
     ];
     /* default reference views: yaw (radians, camera toward +x), pitch, vertical fov (degrees) */
-    static VIEW_HERO = { yaw: 0.36, pitch: 0.16, fov: 18 };
-    static VIEW_ITEM = { yaw: 0.86, pitch: 0.5, fov: 18 };
+    static VIEW_HERO = { yaw: 0.36, pitch: 0.16, fov: 18, fit: 'height' };
+    static VIEW_ITEM = { yaw: 0.86, pitch: 0.5, fov: 18, fit: 'both' };
 
     constructor(models, art, win) { this.models = models; this.art = art || { base: 'art/', ids: [] }; this.win = win; }
     ids() {
@@ -154,7 +154,7 @@
         camera.position.copy(target).addScaledVector(dir, dist); camera.lookAt(target); camera.updateMatrixWorld(true);
         let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
         for (const p of pts) { v.copy(p).project(camera); x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y); }
-        const hk = (y1 - y0) / want.h, wk = (x1 - x0) / want.w, k = (hk + wk) / 2;   // match the reference's height and width on average
+        const hk = (y1 - y0) / want.h, wk = (x1 - x0) / want.w, k = view.fit === 'height' ? hk : view.fit === 'width' ? wk : (hk + wk) / 2;   // match the reference's height (heroes) or height and width on average
         dist *= k;
         const halfH = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * dist, halfW = halfH * camera.aspect;
         right.setFromMatrixColumn(camera.matrixWorld, 0); up.setFromMatrixColumn(camera.matrixWorld, 1);
@@ -195,10 +195,21 @@
       const N = LabStage.PLOT_TILES, doc = new K.WorldDoc(N, N, { name: 'Asset Lab', seed: 7 });   // all snow, flat
       this.world.setDoc(doc); this.doc = doc;
       this.centre = new THREE.Vector3(doc.wu / 2, 0, doc.hu / 2);
+      this.plot = LabStage.makePlot(); this.plot.position.copy(this.centre); this.world.scene.add(this.plot);
+      this.showPlot(true);
       this.lighting = new LabLighting(this.world);
       this.time = 0; this.orbit = false; this.orbitYaw = 0; this.view = null; this.fit = null;
       this.state = 'idle'; this.stateT = 0; this.subject = null;
     }
+    /* the one plot: a small snowy voxel tile patch (stone sides, lumpy snow top), top surface at y = 0 */
+    static makePlot() {
+      const KVm = KV.StaticVoxelModel, S = K.Shapes, P = S.palette({ snow: '#e9eef2', snowS: '#c9d6e0', snowB: '#f7f9fb', stone: '#6f747b', stoneD: '#4d5258', stoneL: '#8d9299' });
+      const m = new KVm('lab_plot', { size: 0.05 }), p = m.part();
+      S.basePatch(p, { cx: 0, cz: 0, rx: 34, rz: 34, y0: 0, h: 4, square: true, wobble: 0.06, seed: 5 }, S.mottle([[P.stone, 5], [P.stoneD, 3], [P.stoneL, 2]], 51), S.mottle([[P.snow, 6], [P.snowS, 2], [P.snowB, 2]], 52));
+      const g = m.object3d(); g.children.forEach((c) => (c.position.y = -4 * 0.05)); g.name = 'lab:plot'; return g;
+    }
+    /* the plot replaces the world's terrain chunks (lights, snow, fog and post stay the game's own) */
+    showPlot(on) { this.plot.visible = on; this.world.chunks.forEach((c) => { if (c.group) c.group.visible = false; }); }
     setSize(w, h) {
       this.w = w; this.h = h;
       this.gl.setPixelRatio(1); this.gl.setSize(w, h, false);
@@ -280,6 +291,7 @@
       on('wipe', (e) => { this.wipe = +e.target.value; this.applyMode(); });
       on('orbit', (e) => { this.stage.orbit = e.target.checked; if (!this.stage.orbit) this.stage.orbitYaw = 0; });
       on('dof', (e) => { this.stage.post.enabled.dof = e.target.checked; });
+      on('plot', (e) => this.stage.showPlot(e.target.checked));
       on('bSnap', () => this.downloadSnapshot());
       on('bReframe', () => this.reframe());
     }
@@ -321,6 +333,7 @@
     }
     setLight(name) {
       this.light = name; this.stage.lighting.apply(name, this.stage.fireSpot());
+      const pc = this.$('plot'); if (pc) { pc.checked = name !== 'studio'; this.stage.showPlot(pc.checked); }
       this.doc.querySelectorAll('[data-light]').forEach((b) => b.classList.toggle('on', b.dataset.light === name));
       this.doc.body.dataset.light = name;
     }
