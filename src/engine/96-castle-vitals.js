@@ -11,11 +11,12 @@
     constructor(game) { this.g = game; this.acc = 0; this.warned = false; }
     get play() { return this.g.play; }
     get player() { return this.play.player; }
+    get floor() { return Math.max(2, Math.round(this.player.stats().hpMax * 0.06)); }
     get weak() { return this.player.hp < this.player.stats().hpMax * 0.3; }
     update(dt) {
       const P = this.play; if (!P.me.alive) return;
       this.acc += dt * DRAIN_PER_SEC;
-      if (this.acc >= 1) { this.acc -= 1; if (this.player.hurt(1)) P.defeat(); }
+      if (this.acc >= 1) { this.acc -= 1; if (this.player.hp > this.floor) this.player.hurt(1); }   // hunger and tiredness wear you down to a bare minimum, never to death
       if (this.weak && !this.warned) { this.warned = true; this.g.cui.toast('You are getting weak. Eat something and get some sleep.'); }
       else if (this.warned && this.player.hp > this.player.stats().hpMax * 0.5) this.warned = false;
     }

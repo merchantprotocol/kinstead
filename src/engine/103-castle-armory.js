@@ -41,17 +41,28 @@
     get belt() { return this.g.tools.belt; }
     owned(id) { return this.belt.weapons.some((w) => w.id === id); }
     costText(cost) { return Object.entries(cost).map(([r, n]) => `${n} ${K.CastleData.resName(r)}`).join(', '); }
-    open() {
-      const g = this.g, c = g.castle, buttons = [], lines = [];
-      for (const r of Armory.CATALOG) {
-        const have = this.owned(r.id), ok = c.canAfford(r.cost);
-        lines.push(`<div class="fg ${have ? 'have' : ok ? '' : 'poor'}"><b>${r.name}</b> <small>${have ? 'you have it' : this.costText(r.cost)}</small><br><small>${r.blurb}</small></div>`);
-        if (!have && ok) buttons.push({ label: `Forge ${r.name}`, run: () => this.craft(r) });
-      }
-      lines.push(`<div class="fg ${c.amount('wood') >= 1 ? '' : 'poor'}"><b>Arrows</b> <small>1 wood makes 4 (you have ${c.amount('arrow')})</small></div>`);
-      if (c.amount('wood') >= 1) buttons.push({ label: 'Make 4 arrows', run: () => { this.arrows(); this.open(); } });
-      buttons.push({ label: 'Done', pri: true });
-      g.cui.modal(`<h2>The forge</h2>${lines.join('')}`, buttons);
+    /** the forge's own purse: what it has made, waiting for you */
+    get tray() { return this._tray || (this._tray = []); }
+    set tray(v) { this._tray = v; }
+    /** what can be made: every weapon (with a picture) and arrows */
+    recipes() {
+      const out = Armory.CATALOG.map((r) => { const w = r.make(); return { id: r.id, name: r.name, cost: r.cost, art: K.Toolbelt.artUrl(w.art), have: this.owned(r.id) || this.tray.some((t) => t.id === r.id) }; });
+      out.push({ id: 'arrows', name: 'Arrows ×4', cost: { wood: 1 }, art: K.GoodsArt.url('arrow'), have: false });
+      return out;
+    }
+    open() { this.g.purse.openForge(this); }
+    /** click a recipe: the materials go into the forge, it hammers, and the finished piece waits in its purse */
+    make(id) {
+      const g = this.g, c = g.castle, r = id === 'arrows' ? { id, name: 'Arrows', cost: { wood: 1 } } : Armory.CATALOG.find((x) => x.id === id); if (!r || this.pending) return;
+      if (id !== 'arrows' && (this.owned(id) || this.tray.some((t) => t.id === id))) { g.cui.toast('You already have that.'); return; }
+      if (!c.spend(r.cost)) { g.cui.toast('Not enough materials.'); g.sound.play('clank'); return; }
+      this.pending = r.cost; g.changed(); g.sound.play('clank'); g.purse.update();
+      setTimeout(() => {
+        this.pending = null;
+        if (id === 'arrows') this.tray.push({ kind: 'res', id: 'arrow', n: 4, name: 'Arrows', art: K.GoodsArt.url('arrow') });
+        else { const w = r.make(); this.tray.push({ kind: 'weapon', id, n: 1, name: r.name, art: K.Toolbelt.artUrl(w.art), weapon: w }); }
+        g.sound.play('fanfare'); g.purse.update();
+      }, 550);
     }
     arrows() { const g = this.g, c = g.castle; if (c.amount('wood') < 1) return; c.spend({ wood: 1 }); c.add('arrow', 4); g.sound.play('clank'); g.changed(); }
     craft(r) {

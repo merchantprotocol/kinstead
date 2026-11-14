@@ -209,7 +209,7 @@
       this.kinActors = {}; this.troll = null;
       this.restoreNodes();
       this.raid = null;
-      this.cui = new K.CastleUI(this); this.vitals = new K.Vitals(this); this.wild = new K.Wild(this); this.calendar.on((ev) => this.onCalendar(ev)); this.tools = new K.CastleTools(this); this.minimap = new K.Minimap(this); this.walls = new K.WallDrawer(this); this.forest = new K.Forest(this); this.stash = new K.Stash(this); this.site = new K.BuildingSite(this); this.sweep = new K.SweepAttack(this); this.demolisher = new K.Demolisher(this); this.play.refreshProps();
+      this.cui = new K.CastleUI(this); this.vitals = new K.Vitals(this); this.wild = new K.Wild(this); this.calendar.on((ev) => this.onCalendar(ev)); this.tools = new K.CastleTools(this); this.minimap = new K.Minimap(this); this.walls = new K.WallDrawer(this); this.forest = new K.Forest(this); this.purse = new K.Purse(this); this.stash = new K.Stash(this); this.site = new K.BuildingSite(this); this.sweep = new K.SweepAttack(this); this.demolisher = new K.Demolisher(this); this.play.refreshProps();
       if (this.day.isNight) this.startRaid();
       play.app.rig.set({ dist: 11, pitch: 0.78 }); play.app.rig.maxDist = 44;   // you can never zoom out far enough to see the edge of the world
       this.cui.toast(this.saved ? 'Welcome back.' : 'You wake in your hut. Eat, sleep, chop wood, and watch for wolves.');
@@ -217,7 +217,7 @@
     }
     exit() {
       this.play.app.rig.maxDist = null; if (this.minimap) this.minimap.dispose(); if (this.vitals) this.vitals.dispose(); if (this.home) this.home.dispose();
-      this.save(); if (this.tools) this.tools.dispose(); if (this.sweep) this.sweep.dispose(); if (this.demolisher) this.demolisher.dispose(); if (this.site) this.site.dispose();
+      this.save(); if (this.tools) this.tools.dispose(); if (this.sweep) this.sweep.dispose(); if (this.demolisher) this.demolisher.dispose(); if (this.site) this.site.dispose(); if (this.purse) this.purse.dispose();
       if (this.origPlace) this.R.placeDynamics = this.origPlace;
       this.R.scene.remove(this.group); this.cui && this.cui.dispose(); document.body.classList.remove('castle');
     }
@@ -848,6 +848,7 @@
     key(e) {
       this.sound.unlock();
       if (e.key === 'Escape') { if (!this.dismissTop()) { if (this.onLeave) this.onLeave(); } return true; }   // Esc closes what is open, else leaves the game
+      if (e.key.toLowerCase() === 'i' && !e.ctrlKey && !e.metaKey && !e.altKey) { this.purse.toggle(); return true; }
       return this.cui.key(e) || this.tools.key(e);
     }
     /* may the mouse hit this entity right now? Resources only answer to the tool that works them. */
@@ -856,6 +857,7 @@
     /* close the topmost thing; false when nothing was open */
     dismissTop() {
       const cui = this.cui, ui = this.play.ui;
+      if (this.purse && this.purse.isOpen) { this.purse.close(); return true; }
       if (cui.placing) { cui.stopPlacing(); return true; }
       if (cui.bookOpen) { cui.toggleBook(false); return true; }
       if (ui.isOpen('ctx') || ui.isOpen('dlg') || ui.isOpen('card') || ui.isOpen('trade')) { ui.closeTop(); return true; }

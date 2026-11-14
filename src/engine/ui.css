@@ -328,3 +328,21 @@ body.castle #voxOrbit{display:none!important}
 #cTools .tl .bd{position:absolute;right:4px;top:3px;font:700 10px system-ui;color:#0a1020;background:#9fdcff;border-radius:4px;padding:0 4px;font-style:normal}
 #cTools .tl .bd:empty{display:none}
 #cModal .fg{margin:6px 0;padding:6px 8px;border:1px solid #2f3b54;border-radius:8px;background:#101826}#cModal .fg.have{opacity:.55}#cModal .fg.poor b{color:#c9a07a}#cModal .fg small{color:#8c9bb4}
+  /* the purse screens */
+  #cPurse{position:fixed;inset:0;background:rgba(6,8,14,.55);display:flex;align-items:center;justify-content:center;z-index:12;pointer-events:auto}
+  #cPurse[hidden]{display:none}
+  #cPurse .pw{display:flex;gap:18px;align-items:flex-start;position:relative;padding:0 10px 54px}
+  #cPurse .pp{background:linear-gradient(180deg,#1d2638,#141b29);border:2px solid #e0a24a;border-radius:16px;padding:14px 16px;min-width:300px;max-width:440px;max-height:78vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+  #cPurse .pp[data-panel=there]{border-color:#7fb0ff}
+  #cPurse h3{font:700 20px Georgia,serif;margin:0 0 10px;color:#fff4dc}#cPurse h4{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#9fb0c8;margin:12px 0 6px}
+  #cPurse .pg{display:flex;flex-wrap:wrap;gap:8px;min-height:64px}
+  #cPurse .pt{position:relative;width:84px;min-height:88px;background:#26324a;border:1px solid #4a5a7a;border-radius:10px;padding:6px 4px 4px;color:#eef3fa;cursor:grab;display:flex;flex-direction:column;align-items:center;gap:2px}
+  #cPurse .pt:hover{background:#31405e;border-color:#ffc35c}
+  #cPurse .pt img{pointer-events:none}#cPurse .pt i{font:normal 10px system-ui;color:#b8c4d8;text-align:center;line-height:1.1}
+  #cPurse .pt b{position:absolute;right:5px;top:3px;font:800 13px system-ui;color:#fff;text-shadow:0 1px 3px #000}
+  #cPurse .pt.held{border-color:#7fe08a}#cPurse .pt.dim{opacity:.55}
+  #cPurse .cost{display:flex;gap:4px;flex-wrap:wrap;justify-content:center}
+  #cPurse .cs{display:inline-flex;align-items:center;font:700 11px system-ui;color:#e6edf8}#cPurse .cs.poor{color:#ff8a7a}
+  #cPurse .mats{display:flex;gap:10px;align-items:center;margin:8px 0;padding:6px;background:#1a2133;border-radius:8px}#cPurse .mats em{color:#ffc35c;font-size:12px}
+  #cPurse .empty{color:#7f8ea8;font-size:12px;align-self:center}
+  #cPurse .x{position:absolute;bottom:6px;left:50%;transform:translateX(-50%)}
