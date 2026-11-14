@@ -1,0 +1,1492 @@
+{
+ "meta": {
+  "game": "Kinstead",
+  "version": "1.1-castle",
+  "date": "2026-11-14",
+  "strategy": "Economic: every build is an investment. Spend resources on the right things, in the right order, to save time and earn more.",
+  "pillar": "Restoration + completion: the castle visibly grows and the frost recedes; the Hearthbook tracks completion.",
+  "social": "Growth has a purpose: a stronger castle holds off raids, and your heroes are worth lending to friends.",
+  "oneSentence": "Rebuild a frozen castle. Spend smart so it pays you back. Guard it, and your friends', against the frost.",
+  "note": "Supersedes game-data-simple.json v1.0. Houses become a castle; furniture-recipe rooms become castle buildings; fur becomes gold; Hearth Level becomes Castle Level.",
+  "cell": "1 build cell = 2 m = 4x4 engine tiles (TILE 0.5)",
+  "characters": "Heroes are true 3D voxel models (separate work). Names used here: Hearthguard, Pinewarden, Emberwright, Rime Brute; enemies Frostling, Frost wolf, Rime ghoul, Rime Troll."
+ },
+ "resources": {
+  "wood": {
+   "id": "wood",
+   "name": "Wood",
+   "kind": "raw",
+   "source": "pine trees; Woodcutter's lodge",
+   "valueSec": 2.25,
+   "valueNote": "a pine gives 2 per action, about 4.5 s per action with walking",
+   "existingIds": [
+    "wood",
+    "log"
+   ]
+  },
+  "stone": {
+   "id": "stone",
+   "name": "Stone",
+   "kind": "raw",
+   "source": "boulders, ruin rubble; Quarry",
+   "valueSec": 2.25,
+   "valueNote": "a boulder gives 2 per action, about 4.5 s per action"
+  },
+  "iron": {
+   "id": "iron",
+   "name": "Iron",
+   "kind": "raw",
+   "source": "iron rocks in the Iron Hills (after Night 1); Mine; rime ghouls; the troll",
+   "valueSec": 3.0,
+   "valueNote": "an iron rock gives 2 per action, about 6 s per action (longer walk)",
+   "existingIds": [
+    "ore",
+    "iron_ore",
+    "iron_ingot"
+   ]
+  },
+  "gold": {
+   "id": "gold",
+   "name": "Gold",
+   "kind": "raw",
+   "source": "Great Hall (taxes and feasts); frost wolves, rime ghouls, the troll; raid loot (v2)",
+   "valueSec": 4.5,
+   "valueNote": "not gatherable by hand; set at 2x wood. Tune after playtests"
+  },
+  "ember_shard": {
+   "id": "ember_shard",
+   "name": "Ember shard",
+   "kind": "raw",
+   "source": "frost creatures at dusk; Chapel",
+   "valueSec": 6.0,
+   "valueNote": "raid drop, about 1 per frostling; set at 2.7x wood"
+  },
+  "troll_heart": {
+   "id": "troll_heart",
+   "name": "Troll's warm heart",
+   "kind": "key",
+   "source": "the Rime Troll (boss); bound into the Keep's hearth",
+   "valueSec": null
+  }
+ },
+ "itemAliases": {
+  "log": "wood",
+  "ore": "iron",
+  "iron_ore": "iron",
+  "iron_ingot": "iron",
+  "coins": "gold",
+  "sword": "iron_sword",
+  "rusted_sword": "stoneblade"
+ },
+ "harvestNodes": [
+  {
+   "id": "tree",
+   "name": "Snow pine",
+   "yields": {
+    "wood": 2
+   },
+   "charges": 5,
+   "respawnSec": 60,
+   "zone": "castle_hill",
+   "count": 14,
+   "actionSec": 4.5
+  },
+  {
+   "id": "boulder",
+   "name": "Boulder",
+   "yields": {
+    "stone": 2
+   },
+   "charges": 5,
+   "respawnSec": 60,
+   "zone": "castle_hill",
+   "count": 6,
+   "actionSec": 4.5
+  },
+  {
+   "id": "rubble",
+   "name": "Ruin rubble",
+   "yields": {
+    "stone": 2
+   },
+   "charges": 2,
+   "respawnSec": 0,
+   "zone": "castle_hill",
+   "count": 6,
+   "actionSec": 4.5,
+   "note": "beside each ruin; gone once picked"
+  },
+  {
+   "id": "iron_rock",
+   "name": "Iron rock",
+   "yields": {
+    "iron": 2
+   },
+   "charges": 4,
+   "respawnSec": 90,
+   "zone": "iron_hills",
+   "count": 4,
+   "actionSec": 6.0
+  }
+ ],
+ "gatherRules": {
+  "click": "click a node: the hero walks over and works it; each action uses 1 charge",
+  "yieldPerAction": "node yield + gatherBonus(CL)",
+  "noTools": "bare hands gather everything"
+ },
+ "storage": {
+  "base": {
+   "wood": 60,
+   "stone": 60,
+   "iron": 40,
+   "gold": 40,
+   "ember_shard": 20
+  },
+  "baseFrom": "the Keep",
+  "rule": "production and gathering stop at the cap; a full producer shows a red 'FULL' flag (the hint to build a Storehouse or spend)",
+  "keyItemsUncapped": true
+ },
+ "castlePieces": {
+  "keep": {
+   "id": "keep",
+   "name": "The Keep",
+   "category": "core",
+   "cost": {},
+   "requiresCastleLevel": 0,
+   "castlePoints": 0,
+   "hp": "keepHP by CL",
+   "effect": "Your castle's heart. Restored for free when you light its hearth with the ember lantern. Holds base storage. Its workbench crafts the Stoneblade. Raiders walk at it.",
+   "artPrompt": "a squat ruined stone keep tower with a timber hoarding, an arched doorway glowing with a bright orange hearth fire inside, frost on the upper stones",
+   "prePlaced": true,
+   "ruin": true,
+   "hearthCap": 4,
+   "station": "tier1",
+   "storageCap": {},
+   "buildRequires": []
+  },
+  "palisade": {
+   "id": "palisade",
+   "name": "Timber palisade",
+   "category": "defense",
+   "cost": {
+    "wood": 4
+   },
+   "requiresCastleLevel": 1,
+   "castlePoints": 2,
+   "hp": 60,
+   "effect": "1 cell of wall. Blocks raiders; they must chop through it.",
+   "artPrompt": "a single straight section of log palisade wall, sharpened pine tops, a light snow dusting",
+   "buildRequires": []
+  },
+  "stone_wall": {
+   "id": "stone_wall",
+   "name": "Stone wall",
+   "category": "defense",
+   "cost": {
+    "stone": 5
+   },
+   "requiresCastleLevel": 2,
+   "castlePoints": 2,
+   "hp": 150,
+   "effect": "1 cell of wall. Blocks raiders; 2.5x a palisade's HP.",
+   "artPrompt": "a single straight section of crenellated fieldstone castle wall with a timber walkway, frost in the cracks",
+   "buildRequires": []
+  },
+  "gatehouse": {
+   "id": "gatehouse",
+   "name": "Gatehouse",
+   "category": "defense",
+   "cost": {
+    "wood": 8,
+    "stone": 6
+   },
+   "requiresCastleLevel": 1,
+   "castlePoints": 4,
+   "hp": 200,
+   "effect": "The way in. Walls joined to the gatehouse make the courtyard: anything inside is safe from frosting.",
+   "artPrompt": "a small stone gatehouse with a heavy timber portcullis gate, two squat flanking turrets, iron studs",
+   "ruin": true,
+   "buildRequires": []
+  },
+  "watchtower": {
+   "id": "watchtower",
+   "name": "Watchtower",
+   "category": "defense",
+   "cost": {
+    "wood": 6,
+    "stone": 6
+   },
+   "requiresCastleLevel": 1,
+   "castlePoints": 4,
+   "hp": 100,
+   "effect": "Shoots raiders within 6 m for 4 dmg/s; 6 dmg/s when a hero stands on it.",
+   "artPrompt": "a tall square timber watchtower on a stone base with a roofed archer platform and a ladder",
+   "dps": 4,
+   "dpsManned": 6,
+   "rangeM": 6,
+   "buildRequires": []
+  },
+  "ember_brazier": {
+   "id": "ember_brazier",
+   "name": "Ember brazier",
+   "category": "defense",
+   "cost": {
+    "stone": 3,
+    "iron": 1,
+    "ember_shard": 2
+   },
+   "requiresCastleLevel": 3,
+   "castlePoints": 2,
+   "hp": 80,
+   "effect": "At night, burns frost creatures within 3 m for 4 dmg/s. Also a light source.",
+   "artPrompt": "a stone-and-iron brazier on three legs with a glowing bed of orange ember shards and rising sparks",
+   "dps": 4,
+   "rangeM": 3,
+   "buildRequires": []
+  },
+  "woodcutter": {
+   "id": "woodcutter",
+   "name": "Woodcutter's lodge",
+   "category": "producer",
+   "cost": {
+    "wood": 6,
+    "stone": 4
+   },
+   "requiresCastleLevel": 1,
+   "castlePoints": 4,
+   "hp": 80,
+   "effect": "Produces wood while you do anything else.",
+   "artPrompt": "a small log lodge with a chopping block, a stacked woodpile and a big axe in a stump",
+   "produces": {
+    "wood": 6
+   },
+   "levels": [
+    {
+     "level": 2,
+     "cost": {
+      "wood": 16,
+      "stone": 12,
+      "gold": 4
+     },
+     "produces": {
+      "wood": 12
+     },
+     "requiresCastleLevel": 2,
+     "paybackMin": 6.0,
+     "paybackMinWithSmithy": 4.5
+    }
+   ],
+   "buildRequires": [],
+   "paybackMin": 1.7
+  },
+  "quarry": {
+   "id": "quarry",
+   "name": "Quarry",
+   "category": "producer",
+   "cost": {
+    "wood": 10
+   },
+   "requiresCastleLevel": 1,
+   "castlePoints": 4,
+   "hp": 80,
+   "effect": "Produces stone while you do anything else.",
+   "artPrompt": "a small stone quarry cut into a grey rock face with a timber crane, a rope and a pile of cut blocks",
+   "produces": {
+    "stone": 6
+   },
+   "levels": [
+    {
+     "level": 2,
+     "cost": {
+      "wood": 16,
+      "stone": 10,
+      "gold": 4
+     },
+     "produces": {
+      "stone": 12
+     },
+     "requiresCastleLevel": 2,
+     "paybackMin": 5.7,
+     "paybackMinWithSmithy": 4.3
+    }
+   ],
+   "buildRequires": [],
+   "paybackMin": 1.7
+  },
+  "mine": {
+   "id": "mine",
+   "name": "Iron mine",
+   "category": "producer",
+   "cost": {
+    "wood": 10,
+    "stone": 10
+   },
+   "requiresCastleLevel": 2,
+   "castlePoints": 4,
+   "hp": 80,
+   "effect": "Built on the iron outcrop in the Iron Hills (outside the walls). Produces iron.",
+   "artPrompt": "a timber-framed mine entrance in a rusty hillside with a small ore cart on rails and a lantern",
+   "produces": {
+    "iron": 4
+   },
+   "requiresZone": "iron_hills",
+   "outsideWalls": true,
+   "levels": [
+    {
+     "level": 2,
+     "cost": {
+      "wood": 14,
+      "stone": 14,
+      "gold": 6
+     },
+     "produces": {
+      "iron": 8
+     },
+     "requiresCastleLevel": 3,
+     "paybackMin": 7.5,
+     "paybackMinWithSmithy": 6.0
+    }
+   ],
+   "buildRequires": [],
+   "paybackMin": 3.8
+  },
+  "great_hall": {
+   "id": "great_hall",
+   "name": "Great Hall",
+   "category": "producer",
+   "cost": {
+    "wood": 12,
+    "stone": 16
+   },
+   "requiresCastleLevel": 2,
+   "castlePoints": 6,
+   "hp": 250,
+   "effect": "Feasts and taxes: produces gold. A seat at the table: the Emberwright joins once it stands.",
+   "artPrompt": "a long stone great hall with a steep timber roof, carved door posts, warm light in tall windows and a banner",
+   "produces": {
+    "gold": 4
+   },
+   "ruin": true,
+   "levels": [
+    {
+     "level": 2,
+     "cost": {
+      "stone": 20,
+      "iron": 6,
+      "gold": 10
+     },
+     "produces": {
+      "gold": 8
+     },
+     "requiresCastleLevel": 3,
+     "paybackMin": 6.0,
+     "paybackMinWithSmithy": 4.7
+    }
+   ],
+   "buildRequires": [],
+   "paybackMin": 3.5,
+   "paybackMinRestored": 1.8
+  },
+  "chapel": {
+   "id": "chapel",
+   "name": "Hearth chapel",
+   "category": "producer",
+   "cost": {
+    "stone": 10,
+    "gold": 4
+   },
+   "requiresCastleLevel": 3,
+   "castlePoints": 4,
+   "hp": 120,
+   "effect": "A small fire-shrine: produces ember shards (the only steady source besides raids). Heroes wake 3 s faster.",
+   "artPrompt": "a tiny stone chapel with a round window glowing ember orange, a bell in a small timber bellcote, snow on the roof",
+   "produces": {
+    "ember_shard": 1
+   },
+   "buildRequires": [],
+   "paybackMin": 6.8
+  },
+  "storehouse": {
+   "id": "storehouse",
+   "name": "Storehouse",
+   "category": "storage",
+   "cost": {
+    "wood": 20,
+    "stone": 12
+   },
+   "requiresCastleLevel": 2,
+   "castlePoints": 4,
+   "hp": 200,
+   "effect": "Raises every storage cap and guards half of what you hold from raid loot.",
+   "artPrompt": "a sturdy stone storehouse with a timber loft, barrels, sacks and crates under a sloped roof, iron-bound door",
+   "storageCap": {
+    "wood": 100,
+    "stone": 100,
+    "iron": 60,
+    "gold": 60,
+    "ember_shard": 20
+   },
+   "protectsPct": 50,
+   "levels": [
+    {
+     "level": 2,
+     "cost": {
+      "wood": 30,
+      "stone": 30,
+      "iron": 10
+     },
+     "storageCap": {
+      "wood": 250,
+      "stone": 250,
+      "iron": 150,
+      "gold": 150,
+      "ember_shard": 40
+     },
+     "protectsPct": 70,
+     "requiresCastleLevel": 3
+    }
+   ],
+   "buildRequires": []
+  },
+  "smithy": {
+   "id": "smithy",
+   "name": "Smithy",
+   "category": "workshop",
+   "cost": {
+    "wood": 4,
+    "stone": 12,
+    "iron": 6
+   },
+   "requiresCastleLevel": 2,
+   "castlePoints": 6,
+   "hp": 150,
+   "effect": "Forge + anvil. Crafts the Iron sword. Every upgrade costs 25% less once it stands.",
+   "artPrompt": "a stone smithy with an open front, a glowing forge with bellows, an anvil on a stump and tools on the wall",
+   "ruin": true,
+   "station": "tier2",
+   "upgradeDiscountPct": 25,
+   "buildRequires": []
+  },
+  "ember_forge": {
+   "id": "ember_forge",
+   "name": "Ember forge",
+   "category": "workshop",
+   "cost": {
+    "stone": 8,
+    "iron": 6,
+    "ember_shard": 6
+   },
+   "requiresCastleLevel": 4,
+   "castlePoints": 4,
+   "hp": 150,
+   "effect": "Crafts the Ember brand. Kin weapons turn to ember.",
+   "artPrompt": "a black-iron forge with glowing ember-shard inlays, roaring gold-orange fire and floating sparks",
+   "buildRequires": [
+    "smithy"
+   ],
+   "station": "tier3"
+  },
+  "barracks": {
+   "id": "barracks",
+   "name": "Barracks",
+   "category": "room",
+   "cost": {
+    "wood": 14,
+    "stone": 10,
+    "gold": 6
+   },
+   "requiresCastleLevel": 2,
+   "castlePoints": 4,
+   "hp": 200,
+   "effect": "Your kin sleep here: they deal +20% damage at night and wake instantly at dawn. Opens 1 friend-guard slot.",
+   "artPrompt": "a long low timber barracks with bunks visible through an open side, a weapon rack with spears and a shield on the wall",
+   "guardSlots": 1,
+   "levels": [
+    {
+     "level": 2,
+     "cost": {
+      "stone": 20,
+      "iron": 8,
+      "gold": 10
+     },
+     "guardSlots": 2,
+     "requiresCastleLevel": 3
+    }
+   ],
+   "buildRequires": []
+  }
+ },
+ "keepUpgrade": {
+  "id": "heartfire_hearth",
+  "name": "Heartfire hearth",
+  "cost": {
+   "troll_heart": 1,
+   "stone": 6
+  },
+  "requiresCastleLevel": 4,
+  "hearthCap": 5,
+  "effect": "Bind the troll's warm heart into the Keep's hearth. Castle Level can reach 5: the whole map thaws.",
+  "artPrompt": "a fieldstone hearth banded with riveted iron straps, a pulsing red-gold heart-shaped ember set in the keystone, warm light pouring out"
+ },
+ "upgradeRules": {
+  "levels": "producers, Storehouse and Barracks have a Level 2. Nothing else levels in v1.",
+  "smithyDiscount": "with a Smithy, every Level 2 upgrade costs 25% less (rounded up per resource)",
+  "upgradeTime": "instant (no build timers in v1: timers are friction)",
+  "points": "upgrades add no castle points; they are pure economy"
+ },
+ "paybackRule": {
+  "formula": "paybackMin = sum(cost x valueSec) / sum(production per min x valueSec)",
+  "shownAs": "the Build card says, e.g., '+6 wood/min. Pays for itself in 1.7 min.'",
+  "storehouseShownAs": "'+100 storage. Guards half your stores from raids.'",
+  "liveGameNote": "demo rates are tuned for a 15-minute session. A persistent v2 castle runs the same table per 10 minutes instead of per minute, so offline production fills the caps in hours, not minutes."
+ },
+ "ruinRules": {
+  "repairCostFraction": 0.5,
+  "repairRounding": "ceil per resource, minimum 1",
+  "repairClick": "click a broken piece: it shows the repair cost; a second click repairs it with a pop and a puff of snow",
+  "restoredTick": "a restored ruin ticks the Hearthbook and its snow cap slides off"
+ },
+ "ruins": [
+  {
+   "id": "keep",
+   "distanceM": 0,
+   "repairCost": {},
+   "note": "restored by lighting its hearth"
+  },
+  {
+   "id": "gatehouse",
+   "distanceM": 5
+  },
+  {
+   "id": "great_hall",
+   "distanceM": 8
+  },
+  {
+   "id": "smithy",
+   "distanceM": 11
+  }
+ ],
+ "castleLevel": {
+  "score": "sum(castlePoints of each DISTINCT piece type you have built or restored inside the glow)",
+  "thresholds": {
+   "1": 0,
+   "2": 8,
+   "3": 20,
+   "4": 34,
+   "5": 34
+  },
+  "rule": "CL = min(highest threshold reached, hearthCap). Unlit Keep = CL 0. CL5 needs the Heartfire hearth.",
+  "glowRule": "you can build only inside the glow (except the Iron mine on its outcrop); the glow edge melts snow as it grows",
+  "capMessage": "The hearth burns as bright as it can. Something warmer waits at the bridge.",
+  "table": [
+   {
+    "CL": 1,
+    "heroMaxHP": 50,
+    "heroAtkBonus": 0,
+    "gatherBonus": 0,
+    "glowRadiusM": 6,
+    "thawDps": 1,
+    "keepHP": 300,
+    "unlocks": [
+     "palisade",
+     "gatehouse",
+     "watchtower",
+     "woodcutter",
+     "quarry"
+    ]
+   },
+   {
+    "CL": 2,
+    "heroMaxHP": 70,
+    "heroAtkBonus": 1,
+    "gatherBonus": 1,
+    "glowRadiusM": 9,
+    "thawDps": 2,
+    "keepHP": 400,
+    "unlocks": [
+     "stone_wall",
+     "mine",
+     "great_hall",
+     "storehouse",
+     "smithy",
+     "barracks"
+    ]
+   },
+   {
+    "CL": 3,
+    "heroMaxHP": 90,
+    "heroAtkBonus": 2,
+    "gatherBonus": 2,
+    "glowRadiusM": 12,
+    "thawDps": 3,
+    "keepHP": 500,
+    "unlocks": [
+     "ember_brazier",
+     "chapel"
+    ]
+   },
+   {
+    "CL": 4,
+    "heroMaxHP": 110,
+    "heroAtkBonus": 3,
+    "gatherBonus": 3,
+    "glowRadiusM": 15,
+    "thawDps": 4,
+    "keepHP": 600,
+    "unlocks": [
+     "ember_forge",
+     "heartfire_hearth"
+    ]
+   },
+   {
+    "CL": 5,
+    "heroMaxHP": 140,
+    "heroAtkBonus": 4,
+    "gatherBonus": 4,
+    "glowRadiusM": 60,
+    "thawDps": 6,
+    "keepHP": 800,
+    "unlocks": [
+     "the whole map thaws (demo ending)"
+    ]
+   }
+  ]
+ },
+ "heroes": {
+  "growth": "Secondary by design. A hero's level IS your Castle Level (HP + attack bonus from the table) plus its best weapon. No XP, no skill tree.",
+  "heroPower": "heroPower = heroMaxHP / 10 + weapon attack + heroAtkBonus",
+  "why": "Hero power exists so a friend's hero is worth borrowing: a CL4 hero with an Iron sword (power 26) is a real defender for a CL2 friend.",
+  "roster": [
+   {
+    "id": "hearthguard",
+    "name": "Hearthguard",
+    "role": "you (sword)",
+    "found": "you start as the Hearthguard"
+   },
+   {
+    "id": "pinewarden",
+    "name": "Pinewarden",
+    "role": "ranger",
+    "found": "frozen in rime at the pine stand, 8.5 m out",
+    "joinsWhen": "the glow reaches her (CL2)",
+    "perk": "stands on a watchtower at dusk (tower does 6 dmg/s); +1 wood per gather",
+    "weaponByTier": {
+     "1": "Pine bow",
+     "2": "Iron-tipped bow",
+     "3": "Ember bow"
+    }
+   },
+   {
+    "id": "emberwright",
+    "name": "Emberwright",
+    "role": "mage",
+    "found": "frozen at a cold shrine in the Iron Hills",
+    "joinsWhen": "you touch her with the ember lantern AND the Great Hall stands (a seat at the table)",
+    "perk": "+1 ember shard from every frost creature; lights braziers at dusk",
+    "weaponByTier": {
+     "1": "Ashwood staff",
+     "2": "Iron-bound staff",
+     "3": "Ember staff"
+    }
+   },
+   {
+    "id": "rime_brute",
+    "name": "Rime Brute",
+    "role": "frost troll",
+    "found": "walks out of the frost at dawn after Night 2",
+    "joinsWhen": "dawn after Night 2 at CL4",
+    "perk": "walls +50% HP; +1 stone per gather; fights the Rime Troll beside you",
+    "weaponByTier": {
+     "1": "Stone maul",
+     "2": "Iron maul",
+     "3": "Ember maul"
+    }
+   }
+  ],
+  "kinWeapons": "kin don't craft: their weapons follow your best workshop (Smithy = iron, Ember forge = ember)",
+  "switching": "hero switching is a later feature; v1 plays the Hearthguard"
+ },
+ "items": {
+  "ember_lantern": {
+   "id": "ember_lantern",
+   "name": "Ember lantern",
+   "kind": "key",
+   "tier": 0,
+   "note": "lights the Keep's hearth"
+  },
+  "stoneblade": {
+   "id": "stoneblade",
+   "name": "Stoneblade",
+   "kind": "weapon",
+   "tier": 1,
+   "atk": 6,
+   "existingIds": [
+    "rusted_sword"
+   ]
+  },
+  "iron_sword": {
+   "id": "iron_sword",
+   "name": "Iron sword",
+   "kind": "weapon",
+   "tier": 2,
+   "atk": 12,
+   "existingIds": [
+    "sword",
+    "iron_sword"
+   ]
+  },
+  "ember_brand": {
+   "id": "ember_brand",
+   "name": "Ember brand",
+   "kind": "weapon",
+   "tier": 3,
+   "atk": 20,
+   "burn": "frost creatures burn 3 dmg/s for 3 s"
+  }
+ },
+ "recipes": [
+  {
+   "id": "craft_stoneblade",
+   "station": "keep",
+   "inputs": {
+    "wood": 3,
+    "stone": 4
+   },
+   "outputs": {
+    "stoneblade": 1
+   }
+  },
+  {
+   "id": "craft_iron_sword",
+   "station": "smithy",
+   "inputs": {
+    "wood": 2,
+    "iron": 6,
+    "gold": 4
+   },
+   "outputs": {
+    "iron_sword": 1
+   }
+  },
+  {
+   "id": "craft_ember_brand",
+   "station": "ember_forge",
+   "inputs": {
+    "iron": 4,
+    "ember_shard": 6,
+    "gold": 6
+   },
+   "outputs": {
+    "ember_brand": 1
+   }
+  }
+ ],
+ "combat": {
+  "swingSec": 1.2,
+  "bareHandsAtk": 2,
+  "damage": "max(1, atk - defense) per hit; no armour in v1",
+  "heroDown": "at 0 HP a hero wakes by the Keep after 5 s (2 s with a Chapel). Nothing is lost."
+ },
+ "dayNight": {
+  "phases": [
+   {
+    "id": "day1",
+    "kind": "day",
+    "sec": 270,
+    "zonesOpen": [
+     "castle_hill"
+    ]
+   },
+   {
+    "id": "night1",
+    "kind": "night",
+    "sec": 60,
+    "raid": "raid1"
+   },
+   {
+    "id": "day2",
+    "kind": "day",
+    "sec": 240,
+    "zonesOpen": [
+     "castle_hill",
+     "iron_hills"
+    ]
+   },
+   {
+    "id": "night2",
+    "kind": "night",
+    "sec": 75,
+    "raid": "raid2"
+   },
+   {
+    "id": "day3",
+    "kind": "day",
+    "sec": null,
+    "simSec": 180,
+    "zonesOpen": [
+     "castle_hill",
+     "iron_hills",
+     "troll_bridge"
+    ],
+    "note": "no timer; no more raids in the demo"
+   }
+  ],
+  "bell": "ring the Keep bell to start dusk early",
+  "duskWarning": "30 s before dusk: horn, amber sky, goal line 'Dusk soon: man the walls'",
+  "productionAtNight": "producers keep producing at night unless frosted"
+ },
+ "zones": [
+  {
+   "id": "castle_hill",
+   "name": "Castle hill",
+   "opensAfter": null
+  },
+  {
+   "id": "iron_hills",
+   "name": "Iron Hills",
+   "opensAfter": "night1"
+  },
+  {
+   "id": "troll_bridge",
+   "name": "Troll's bridge",
+   "opensAfter": "night2"
+  }
+ ],
+ "aiRaids": {
+  "rules": [
+   "Raiders walk in a straight line from the frost edge toward the Keep (no pathfinding); whatever blocks them, they attack.",
+   "Inside the glow, frost creatures take thawDps(CL) every second: a bigger castle burns them faster.",
+   "Towers, braziers, your hero and your kin fight automatically; click a raider to send the hero after it.",
+   "A raider that touches a producer outside the courtyard FROSTS it: it makes nothing for the rest of the night and the first 60 s of the next day. Walls protect income.",
+   "Win (timer runs out): dawn, the frost recedes and opens the next zone; broken walls rebuild for free.",
+   "Lose (Keep HP hits 0): the fire gutters but never goes out. The frost takes 10% of your UNPROTECTED stores (a Storehouse guards half). No building is ever destroyed. The next day is 90 s long so you can try again."
+  ],
+  "lossPctOfUnprotected": 10,
+  "raid1": {
+   "spawns": {
+    "frostling": 6,
+    "frost_wolf": 2
+   },
+   "sides": 1,
+   "spawnWindowSec": 30
+  },
+  "raid2": {
+   "spawns": {
+    "frostling": 8,
+    "frost_wolf": 3,
+    "rime_ghoul": 3
+   },
+   "sides": 2,
+   "spawnWindowSec": 45
+  },
+  "thawTargets": 3,
+  "thawTargetsNote": "the glow damages at most 3 raiders at once in the validator's model (raiders arrive in a stream)"
+ },
+ "enemies": [
+  {
+   "id": "frostling",
+   "name": "Frostling",
+   "hostile": true,
+   "hp": 16,
+   "atk": 3,
+   "defense": 0,
+   "drops": [
+    [
+     "ember_shard",
+     1,
+     1,
+     1.0
+    ]
+   ],
+   "where": "dusk raids"
+  },
+  {
+   "id": "frost_wolf",
+   "name": "Frost wolf",
+   "hostile": true,
+   "hp": 30,
+   "atk": 5,
+   "defense": 0,
+   "drops": [
+    [
+     "gold",
+     2,
+     2,
+     1.0
+    ],
+    [
+     "ember_shard",
+     1,
+     1,
+     0.5
+    ]
+   ],
+   "where": "dusk raids"
+  },
+  {
+   "id": "rime_ghoul",
+   "name": "Rime ghoul",
+   "hostile": true,
+   "hp": 50,
+   "atk": 8,
+   "defense": 0,
+   "drops": [
+    [
+     "ember_shard",
+     2,
+     2,
+     1.0
+    ],
+    [
+     "iron",
+     1,
+     1,
+     1.0
+    ],
+    [
+     "gold",
+     2,
+     2,
+     1.0
+    ]
+   ],
+   "where": "dusk raids (night 2)"
+  },
+  {
+   "id": "rime_troll",
+   "name": "Rime Troll",
+   "hostile": true,
+   "hp": 300,
+   "atk": 15,
+   "defense": 0,
+   "drops": [
+    [
+     "troll_heart",
+     1,
+     1,
+     1.0
+    ],
+    [
+     "iron",
+     4,
+     4,
+     1.0
+    ],
+    [
+     "gold",
+     10,
+     10,
+     1.0
+    ]
+   ],
+   "where": "the bridge (boss)",
+   "boss": true,
+   "pattern": "slow club swing every 2 s; every third swing a ground slam with a 1 s glowing ring telegraph (step out); at half HP it roars and frost wisps fall off"
+  }
+ ],
+ "enemyNotes": {
+  "dropFormat": "[resourceId, min, max, chance]"
+ },
+ "pvp": {
+  "phase": "v2 (after the hackathon). Not in the demo.",
+  "model": "Async, Clash-of-Clans style: you attack another player's SAVED castle. They are not online and never see it live.",
+  "attackerInput": [
+   "pick an entry side (N, E, S or W)",
+   "pick up to 3 of your heroes",
+   "press Raid"
+  ],
+  "battle": {
+   "sec": 90,
+   "kind": "auto-battle: the raid plays itself from a seed. Defender's layout, towers, braziers, walls and guards (including lent friend heroes) fight back with the same rules as AI raids.",
+   "authority": "the Worker runs the deterministic sim from (seed, attacker snapshot, defender snapshot, choices); the client replays the same seed for the animation. The client never reports the result."
+  },
+  "outcome": {
+   "frostedPct": "share of the defender's pieces (by castle points) your heroes frost before time runs out",
+   "win": "your heroes reach the Keep's hearth (frostedPct = 100 for loot purposes)",
+   "lootMultiplier": "win = 1.0; otherwise frostedPct / 100 x 0.5"
+  },
+  "loot": {
+   "lootable": [
+    "wood",
+    "stone",
+    "iron",
+    "gold"
+   ],
+   "notLootable": [
+    "ember_shard",
+    "troll_heart",
+    "buildings",
+    "weapons",
+    "heroes"
+   ],
+   "maxPctOfUnprotected": 20,
+   "alwaysSafePerResource": 30,
+   "perRaidCapEach": 150,
+   "protected": "the first 30 of each resource is always safe; a Storehouse guards 50% of the rest (70% at Level 2)",
+   "formula": "loot[r] = min(perRaidCapEach, floor((stores[r] - safe[r]) x maxPct/100 x lootMultiplier x levelMultiplier)), where safe[r] = 30 + protectedPct x (stores[r] - 30)",
+   "levelMultiplier": {
+    "same or higher CL": 1.0,
+    "defender 1 CL lower": 0.5
+   },
+   "lootCreated": "loot moves from defender to attacker in one transaction; nothing is created or destroyed"
+  },
+  "antiGrief": {
+   "noDestruction": "buildings are never destroyed or damaged in the defender's real castle; 'frosted' exists only in the replay",
+   "shieldAfterLootH": 12,
+   "shieldAfterFailedRaidH": 4,
+   "newPlayerShieldH": 72,
+   "attackingDropsYourShield": true,
+   "matchmakingClRange": 1,
+   "sameTargetCooldownH": 24,
+   "lootRaidsPerDay": 5,
+   "noFriendRaids": "you can't raid friends (you guard them instead)",
+   "raidLockSec": 180,
+   "raidLockNote": "a castle being raided can't be matched by anyone else for 3 minutes",
+   "defenderReward": "a defense that holds (attacker frosts < 50%) pays the defender 10 gold from the game (not from the attacker)",
+   "revengeLater": "a revenge button is a later idea, not v2"
+  }
+ },
+ "friendGuard": {
+  "phase": "hackathon stretch (cloud save) for lending; v2 for PvP use",
+  "slots": "a Barracks opens 1 guard slot (2 at Level 2): that many friend heroes can guard your castle",
+  "lending": "you lend up to 2 of your heroes; each guards 1 friend's castle at a time. The hero also stays playable at home: lending costs you nothing.",
+  "loanHours": 24,
+  "recall": "any time; takes effect from the friend's next raid",
+  "fightsAs": "a snapshot of the hero at loan time: owner's CL stats + best weapon (heroPower)",
+  "defends": "AI dusk raids and v2 player raids on the friend's castle",
+  "credit": {
+   "goldPerHeldDefense": 15,
+   "dailyCap": 3,
+   "paidBy": "the game (no one loses anything)",
+   "hostSees": "'Held by Jonathon's Pinewarden' on the raid log",
+   "lenderSees": "a thank-you card with the gold and a Hearthbook 'Shield-friend' tick"
+  },
+  "friends": "add friends with a 6-letter friend code; no accounts, no email"
+ },
+ "cloud": {
+  "stack": "Cloudflare Pages (the static game) + 1 Worker (TypeScript API) + 1 D1 database. No KV, R2, Durable Objects, queues or websockets.",
+  "why": {
+   "d1": "loot moves between two castles: that needs a transaction (D1 batch) and SQL for matchmaking. KV's eventual consistency could pay the same loot twice.",
+   "noR2": "a castle snapshot is a few KB of JSON: it fits in a D1 row. R2 only if replays get big later.",
+   "noDurableObjects": "no realtime: the raid lock is a conditional UPDATE, and the Worker sims a raid in milliseconds.",
+   "sharedSim": "one TypeScript sim module runs in the browser (replay, AI raids) and in the Worker (authoritative PvP)"
+  },
+  "auth": "anonymous: first launch POSTs /v1/player and gets a random token kept in localStorage (the server stores only its SHA-256). Play starts before the call returns. Optional friend code to link a second device later.",
+  "tables": [
+   {
+    "name": "players",
+    "columns": "id TEXT PK, token_hash TEXT UNIQUE, display_name TEXT, friend_code TEXT UNIQUE, created_at INT"
+   },
+   {
+    "name": "castles",
+    "columns": "player_id TEXT PK, castle_level INT, castle_points INT, snapshot_json TEXT, stores_json TEXT, shield_until INT, raid_lock_until INT, raids_today INT, raids_day TEXT, updated_at INT",
+    "index": "(castle_level, shield_until)"
+   },
+   {
+    "name": "friends",
+    "columns": "a TEXT, b TEXT, created_at INT, PK(a, b)",
+    "note": "stored both ways"
+   },
+   {
+    "name": "guard_loans",
+    "columns": "lender_id TEXT, hero_id TEXT, host_id TEXT, hero_snapshot_json TEXT, until INT, credits_today INT, PK(lender_id, hero_id)"
+   },
+   {
+    "name": "raids",
+    "columns": "id TEXT PK, attacker_id TEXT, defender_id TEXT, seed INT, choices_json TEXT, status TEXT, result_json TEXT, loot_json TEXT, created_at INT, resolved_at INT",
+    "index": "(defender_id, created_at)"
+   }
+  ],
+  "snapshot": "{ v, castleLevel, pieces: [{id, level, x, y, rot}], heroes: [{id, weaponId}], stores: {wood, stone, iron, gold, ember_shard}, hearthbook: [ids], savedAt }",
+  "endpoints": [
+   {
+    "method": "POST",
+    "path": "/v1/player",
+    "does": "create an anonymous player; returns token + friend code",
+    "phase": "stretch"
+   },
+   {
+    "method": "PUT",
+    "path": "/v1/castle",
+    "does": "save the castle snapshot (every dawn and on tab close). The Worker re-checks costs, CL gates and caps against game-data and recomputes castle_level.",
+    "phase": "stretch"
+   },
+   {
+    "method": "GET",
+    "path": "/v1/castle",
+    "does": "load your castle (adds offline production up to the caps)",
+    "phase": "stretch"
+   },
+   {
+    "method": "GET",
+    "path": "/v1/castle/:friendCode",
+    "does": "visit a friend's castle read-only",
+    "phase": "stretch"
+   },
+   {
+    "method": "POST",
+    "path": "/v1/friends",
+    "does": "add a friend by code",
+    "phase": "stretch"
+   },
+   {
+    "method": "PUT",
+    "path": "/v1/guard",
+    "does": "lend a hero {heroId, friendCode}; DELETE to recall",
+    "phase": "stretch"
+   },
+   {
+    "method": "POST",
+    "path": "/v1/raid/find",
+    "does": "matchmake: CL +/-1, not shielded, not locked, not a friend, not raided by you in 24 h, you under 5 loot raids today. Sets raid_lock_until with a conditional UPDATE; returns the defender snapshot + raid id + seed",
+    "phase": "v2"
+   },
+   {
+    "method": "POST",
+    "path": "/v1/raid/:id/resolve",
+    "does": "body {side, heroIds}. The Worker runs the sim, computes loot with the rules, and in one D1 batch moves loot, sets the shield, clears the lock and writes the raid row. Returns the result + seed for replay",
+    "phase": "v2"
+   },
+   {
+    "method": "GET",
+    "path": "/v1/raids",
+    "does": "your raid log (attacks and defenses) with replay seeds and who guarded",
+    "phase": "v2"
+   }
+  ],
+  "limits": "rate limit per token in the Worker; snapshot size capped at 64 KB; a raid id expires after 180 s"
+ },
+ "demoScript": [
+  {
+   "phase": "day1",
+   "t": "0:00-4:30",
+   "builds": [
+    "light:keep",
+    "repair:gatehouse",
+    "woodcutter",
+    "quarry",
+    "craft:craft_stoneblade",
+    "palisade",
+    "palisade",
+    "watchtower"
+   ],
+   "beats": [
+    "0:08 hearth lit: Keep restored, CL1",
+    "~1:00 first producer: '+6 wood/min, pays for itself in 1.7 min'",
+    "~1:30 CL2, Pinewarden thaws",
+    "Stoneblade, palisade, watchtower"
+   ]
+  },
+  {
+   "phase": "night1",
+   "t": "4:30-5:30",
+   "beats": [
+    "6 frostlings + 2 wolves from the north",
+    "dawn: frost recedes, Iron Hills open"
+   ]
+  },
+  {
+   "phase": "day2",
+   "t": "5:30-9:30",
+   "builds": [
+    "mine",
+    "repair:great_hall",
+    "storehouse",
+    "repair:smithy",
+    "upgrade:woodcutter",
+    "craft:craft_iron_sword",
+    "stone_wall",
+    "stone_wall",
+    "ember_brazier"
+   ],
+   "beats": [
+    "Iron mine: CL3",
+    "Great Hall: gold starts, Emberwright joins",
+    "Storehouse: caps up",
+    "Smithy: CL4 + cap message; upgrades now 25% off",
+    "Lodge Level 2",
+    "Iron sword"
+   ]
+  },
+  {
+   "phase": "night2",
+   "t": "9:30-10:45",
+   "beats": [
+    "bigger raid from two sides",
+    "dawn: bridge opens; Rime Brute joins"
+   ]
+  },
+  {
+   "phase": "day3",
+   "t": "10:45-14:30",
+   "builds": [
+    "barracks",
+    "ember_forge",
+    "craft:craft_ember_brand",
+    "boss:rime_troll",
+    "heartfire_hearth"
+   ],
+   "beats": [
+    "Barracks: kin bunk in; friend-guard slot opens",
+    "Ember forge + Ember brand",
+    "the Rime Troll at the bridge",
+    "bind the heart: CL5, the whole map thaws, end card"
+   ]
+  }
+ ],
+ "objectives": [
+  {
+   "id": "o1",
+   "goal": "Light the Keep's hearth",
+   "doneWhen": "lit keep"
+  },
+  {
+   "id": "o2",
+   "goal": "Restore the Gatehouse",
+   "doneWhen": "built gatehouse"
+  },
+  {
+   "id": "o3",
+   "goal": "Build a Woodcutter's lodge",
+   "doneWhen": "built woodcutter"
+  },
+  {
+   "id": "o4",
+   "goal": "Forge a Stoneblade",
+   "doneWhen": "crafted stoneblade"
+  },
+  {
+   "id": "o5",
+   "goal": "Hold the castle through the night",
+   "doneWhen": "survived night1"
+  },
+  {
+   "id": "o6",
+   "goal": "Open an Iron mine",
+   "doneWhen": "built mine"
+  },
+  {
+   "id": "o7",
+   "goal": "Restore the Great Hall",
+   "doneWhen": "built great_hall"
+  },
+  {
+   "id": "o8",
+   "goal": "Restore the Smithy",
+   "doneWhen": "built smithy"
+  },
+  {
+   "id": "o9",
+   "goal": "Forge an Iron sword",
+   "doneWhen": "crafted iron_sword"
+  },
+  {
+   "id": "o10",
+   "goal": "Hold the castle through the second night",
+   "doneWhen": "survived night2"
+  },
+  {
+   "id": "o11",
+   "goal": "Break the troll at the bridge",
+   "doneWhen": "killed rime_troll"
+  },
+  {
+   "id": "o12",
+   "goal": "Bind the troll's heart into the hearth",
+   "doneWhen": "built heartfire_hearth"
+  }
+ ],
+ "objectiveRules": {
+  "shown": "always 3 goals on screen, the current one glowing",
+  "optional": "upgrades, Chapel, braziers and the full Hearthbook are optional; the Build radial marks the best-payback build with a gold coin"
+ },
+ "hearthbook": {
+  "description": "The completion layer: a book in the Keep; every entry is a tick box; % complete on the cover and HUD.",
+  "sections": {
+   "Castle": [
+    "keep",
+    "palisade",
+    "stone_wall",
+    "gatehouse",
+    "watchtower",
+    "ember_brazier",
+    "woodcutter",
+    "quarry",
+    "mine",
+    "great_hall",
+    "chapel",
+    "storehouse",
+    "smithy",
+    "ember_forge",
+    "barracks",
+    "heartfire_hearth"
+   ],
+   "Upgrades": [
+    "woodcutter_lv2",
+    "quarry_lv2",
+    "mine_lv2",
+    "great_hall_lv2",
+    "storehouse_lv2",
+    "barracks_lv2"
+   ],
+   "Ruins restored": [
+    "keep",
+    "gatehouse",
+    "great_hall",
+    "smithy"
+   ],
+   "Kin": [
+    "pinewarden",
+    "emberwright",
+    "rime_brute"
+   ],
+   "Arms": [
+    "stoneblade",
+    "iron_sword",
+    "ember_brand"
+   ],
+   "Frost pushed back": [
+    "night1",
+    "night2",
+    "rime_troll"
+   ]
+  },
+  "laterSections": {
+   "Shield-friend": "held a friend's castle with a lent hero (stretch)",
+   "Raids": "first raid won, first raid held (v2)"
+  }
+ },
+ "grokArt": {
+  "stylePrefix": "HD voxel miniature, single object centered, three-quarter isometric view from slightly above, plain light-grey seamless studio background, soft key light from upper left with a warm rim light, crisp cube voxels with subtle bevels and gentle ambient occlusion, cozy frost-frontier palette (pine green, slate grey, weathered wood, rust iron, warm ember orange accents, light snow dusting), no text, no people, no ground clutter, whole object in frame, game asset render",
+  "promptTemplate": "{stylePrefix}. Subject: {subject}.",
+  "count": 25,
+  "charactersElsewhere": "heroes and enemies are true 3D voxel models made separately",
+  "list": [
+   {
+    "id": "keep",
+    "type": "castle piece",
+    "subject": "a squat ruined stone keep tower with a timber hoarding, an arched doorway glowing with a bright orange hearth fire inside, frost on the upper stones"
+   },
+   {
+    "id": "palisade",
+    "type": "castle piece",
+    "subject": "a single straight section of log palisade wall, sharpened pine tops, a light snow dusting"
+   },
+   {
+    "id": "stone_wall",
+    "type": "castle piece",
+    "subject": "a single straight section of crenellated fieldstone castle wall with a timber walkway, frost in the cracks"
+   },
+   {
+    "id": "gatehouse",
+    "type": "castle piece",
+    "subject": "a small stone gatehouse with a heavy timber portcullis gate, two squat flanking turrets, iron studs"
+   },
+   {
+    "id": "watchtower",
+    "type": "castle piece",
+    "subject": "a tall square timber watchtower on a stone base with a roofed archer platform and a ladder"
+   },
+   {
+    "id": "ember_brazier",
+    "type": "castle piece",
+    "subject": "a stone-and-iron brazier on three legs with a glowing bed of orange ember shards and rising sparks"
+   },
+   {
+    "id": "woodcutter",
+    "type": "castle piece",
+    "subject": "a small log lodge with a chopping block, a stacked woodpile and a big axe in a stump"
+   },
+   {
+    "id": "quarry",
+    "type": "castle piece",
+    "subject": "a small stone quarry cut into a grey rock face with a timber crane, a rope and a pile of cut blocks"
+   },
+   {
+    "id": "mine",
+    "type": "castle piece",
+    "subject": "a timber-framed mine entrance in a rusty hillside with a small ore cart on rails and a lantern"
+   },
+   {
+    "id": "great_hall",
+    "type": "castle piece",
+    "subject": "a long stone great hall with a steep timber roof, carved door posts, warm light in tall windows and a banner"
+   },
+   {
+    "id": "chapel",
+    "type": "castle piece",
+    "subject": "a tiny stone chapel with a round window glowing ember orange, a bell in a small timber bellcote, snow on the roof"
+   },
+   {
+    "id": "storehouse",
+    "type": "castle piece",
+    "subject": "a sturdy stone storehouse with a timber loft, barrels, sacks and crates under a sloped roof, iron-bound door"
+   },
+   {
+    "id": "smithy",
+    "type": "castle piece",
+    "subject": "a stone smithy with an open front, a glowing forge with bellows, an anvil on a stump and tools on the wall"
+   },
+   {
+    "id": "ember_forge",
+    "type": "castle piece",
+    "subject": "a black-iron forge with glowing ember-shard inlays, roaring gold-orange fire and floating sparks"
+   },
+   {
+    "id": "barracks",
+    "type": "castle piece",
+    "subject": "a long low timber barracks with bunks visible through an open side, a weapon rack with spears and a shield on the wall"
+   },
+   {
+    "id": "heartfire_hearth",
+    "type": "keep upgrade",
+    "subject": "a fieldstone hearth banded with riveted iron straps, a pulsing red-gold heart-shaped ember set in the keystone, warm light pouring out"
+   },
+   {
+    "id": "stoneblade",
+    "type": "weapon icon",
+    "subject": "a short broad sword with a knapped grey stone blade lashed to a pine hilt with leather cord"
+   },
+   {
+    "id": "iron_sword",
+    "type": "weapon icon",
+    "subject": "a plain straight iron arming sword with a fur-wrapped grip and a round iron pommel"
+   },
+   {
+    "id": "ember_brand",
+    "type": "weapon icon",
+    "subject": "an iron longsword whose fuller glows with molten ember-orange light, a small flame sigil on the crossguard"
+   },
+   {
+    "id": "wood",
+    "type": "resource icon",
+    "subject": "a small stack of three split pine logs with snow on top"
+   },
+   {
+    "id": "stone",
+    "type": "resource icon",
+    "subject": "a small pile of grey fieldstones"
+   },
+   {
+    "id": "iron",
+    "type": "resource icon",
+    "subject": "two lumps of rusty dark iron ore with metallic glints"
+   },
+   {
+    "id": "gold",
+    "type": "resource icon",
+    "subject": "a small heap of thick old gold coins stamped with a flame, one standing on its edge"
+   },
+   {
+    "id": "ember_shard",
+    "type": "resource icon",
+    "subject": "a single jagged crystal shard glowing warm orange from inside"
+   },
+   {
+    "id": "troll_heart",
+    "type": "resource icon",
+    "subject": "a large heart-shaped stone of frost-blue rock cracked open with warm red-gold light inside"
+   }
+  ]
+ }
+}

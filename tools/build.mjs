@@ -21,8 +21,12 @@ class EngineManifest {
   static MAIN = [
     '12-sprites.js', '14-post.js', '30-render.js',
     '70-building-tex.js', '71-building-data.js', '72-voxkit.js', '73-furniture.js', '74-recipes.js', '75-building-mesh.js', '76-interactions.js', '77-building-edit.js',
+    '@castle-data', '80-castle-rules.js',
     '50-gen.js', '55-store.js', '56-items.js', '57-actors.js', '58-nav.js', '59-interact.js', '78-building-game.js', '62-playui.js', '63-play.js', '60-app.js', '79-building-ui.js',
+    '81-castle-world.js', '82-castle-mesh.js', '83-castle-game.js', '84-castle-ui.js',
   ];
+  /* game data inlined as K.CASTLE_DATA (src/data is the single source; tests read the same file) */
+  static DATA = { '@castle-data': ['data/game-data-castle.json', 'CASTLE_DATA'] };
   static APP = ['settings.js', 'router.js', 'catalog.js', 'title-scene.js', 'menu.js', 'pages.js'];
 }
 
@@ -34,7 +38,11 @@ class SiteBuilder {
   read(rel) { return fs.readFileSync(path.join(this.src, rel), 'utf8'); }
 
   engineSource() {
-    const part = (f) => `/* ---- ${f} ---- */\n` + this.read('engine/' + f);
+    const part = (f) => {
+      const d = EngineManifest.DATA[f];
+      if (d) return `/* ---- ${d[0]} ---- */\n(function (G) { (G.K = G.K || {}).${d[1]} = ${JSON.stringify(JSON.parse(this.read(d[0])))}; })(typeof window !== 'undefined' ? window : globalThis);`;
+      return `/* ---- ${f} ---- */\n` + this.read('engine/' + f);
+    };
     return [
       '/* Ground-painting modules: run here and, from this same source text, inside the paint workers. */',
       'function KPaintModules() {', ...EngineManifest.PAINT.map(part), '}', 'KPaintModules();',
