@@ -475,6 +475,15 @@
     onHit(a, b) { if (a === this.play.me) this.sound.play('hit'); if (b.raider && b.brain && this.castle.weapons.has('ember_brand') && a === this.play.me) b.brain.burnT = 3; }
     wakeSec() { return this.castle.has('chapel') ? 2 : 5; }
     nearestEnemy(a, range) { let best = null, bd = range; for (const e of this.play.actors) if (e.alive && (e.raider || (e.boss && this.castle.zoneOpen('troll_bridge')))) { const d = Math.hypot(e.x - a.x, e.z - a.z); if (d < bd) { bd = d; best = e; } } return best; }
+    /* the watchtower the Pinewarden climbs at dusk: the nearest one still standing and not frosted */
+    towerFor(a) {
+      let best = null, bd = Infinity;
+      for (const p of this.castle.pieces) {
+        if (p.type !== 'watchtower' || p.hp <= 0 || this.castle.isFrosted(p)) continue;
+        const d = Math.hypot(p.x - a.x, p.z - a.z); if (d < bd) { bd = d; best = p; }
+      }
+      return best;
+    }
     nearestAlly(a, range) {
       let best = null, bd = range; const me = this.play.me;
       if (me.alive) { const d = Math.hypot(me.x - a.x, me.z - a.z); if (d < bd) { bd = d; best = me; } }

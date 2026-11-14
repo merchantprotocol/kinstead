@@ -120,7 +120,7 @@
     banner(title, text, icon) { this.bannerQ.push({ title, text, icon }); if (!(this.bannerT > 0)) this.nextBanner(); }
     nextBanner() {
       const b = this.bannerQ.shift(); if (!b) return; const e = this.$('cBanner');
-      const ic = { fire: 'ember', cl: 'crown', kin: 'bubble', heart: 'heart' }[b.icon] || ICON[b.icon] || 'crown';
+      const ic = { fire: 'ember', cl: 'crown', kin: 'bubble', heart: 'heart' }[b.icon] || ICON[b.icon] || (Icons.DRAW[b.icon] ? b.icon : 'crown');
       e.innerHTML = `<div class="bn">${Icons.img(ic, 3)}<div><h2>${esc(b.title)}</h2><p>${esc(b.text)}</p></div></div>`; e.hidden = false; e.classList.remove('in'); void e.offsetWidth; e.classList.add('in');
       this.bannerT = 3.6;
     }
