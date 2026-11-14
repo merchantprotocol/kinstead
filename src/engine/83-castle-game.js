@@ -452,7 +452,11 @@
     }
     autoRot(x, z) { return Math.atan2(-(x - this.L.keep.x), -(z - this.L.keep.z)) + (this.rotExtra || 0); }
     /* dirt goes on free ground, one cube per press; it stacks */
-    dirtOk(x, z) { const [i, j] = this.play.doc.tileOf(x, z); return this.tools.editor.canRaise(i, j) ? null : 'the ground cannot take dirt here'; }
+    dirtOk(x, z) {
+      const [i, j] = this.play.doc.tileOf(x, z), T2 = TILE, cx = (i + 0.5) * T2, cz = (j + 0.5) * T2;
+      for (const a of this.play.actors) { if (!a.alive && a !== this.play.me) continue; if (Math.abs(a.x - cx) < T2 / 2 + (a.r || 0.3) && Math.abs(a.z - cz) < T2 / 2 + (a.r || 0.3)) return a === this.play.me ? 'you are standing there' : 'something is standing there'; }   // never bury anyone
+      return this.tools.editor.canRaise(i, j) ? null : 'the ground cannot take dirt here';
+    }
     placeDirt(x, z, quiet) {
       const why = this.dirtOk(x, z), c = this.castle; if (why) { if (!quiet) { this.cui.toast(why[0].toUpperCase() + why.slice(1) + '.'); this.sound.play('clank'); } return false; }
       if (c.amount('dirt') < 1) { if (!quiet) this.cui.toast('You need dirt. Dig some with the shovel.'); return false; }
