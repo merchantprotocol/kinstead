@@ -19,10 +19,16 @@
     static of(spriteId) { return VoxelRoles.ROLE_OF[spriteId] || null; }
   }
 
-  /* one shared, lazily built model per role (geometry is shared by every actor wearing it) */
+  /* one shared, lazily built model per role (geometry is shared by every actor wearing it). The Asset Lab
+     registry (K.Models, id hero_<role>) wins when it has a model for the role; otherwise the sculptor's.
+     registry: the registry or a function returning it (K.Models is defined after this module loads). */
   class VoxelModelCache {
-    constructor(sculptor) { this.sculptor = sculptor; this.models = new Map(); }
-    get(role) { if (!this.models.has(role)) this.models.set(role, this.sculptor.build(role)); return this.models.get(role); }
+    constructor(sculptor, registry) { this.sculptor = sculptor; this.registry = registry || null; this.models = new Map(); }
+    get(role) {
+      if (!this.models.has(role)) { const reg = typeof this.registry === 'function' ? this.registry() : this.registry, hd = reg ? reg.rigFor(role) : null; this.models.set(role, hd || this.sculptor.build(role)); }
+      return this.models.get(role);
+    }
+    restOf(role) { const m = this.get(role); return (m && m.rest) || this.sculptor.REST[role]; }
   }
 
   /* soft round contact shadow under the feet (the sun shadow does the rest) */
@@ -88,7 +94,7 @@
   class VoxelActorViews {
     constructor(win) {
       this.win = win; this.enabled = true; this.View = null; this.live = new Set();
-      this.cache = new VoxelModelCache(KV.CharacterSculptor);
+      this.cache = new VoxelModelCache(KV.CharacterSculptor, () => K.Models);
       this.orbit = new OrbitDemo(win); this.button = new OrbitButton(this.orbit);
       this.shadowProxy = true;   // low-res shadow-only copy of each body (see VoxelModel.buildShadow)
     }
@@ -109,7 +115,7 @@
           if (!role) { this.rig = null; super.build(spriteId); return; }
           this.spriteId = spriteId; this.native = 1; this.role = role;
           const model = kit.cache.get(role);
-          this.rig = new KV.VoxelRig(model, { rest: KV.CharacterSculptor.REST[role], shadowProxy: kit.shadowProxy });
+          this.rig = new KV.VoxelRig(model, { rest: kit.cache.restOf(role), shadowProxy: kit.shadowProxy });
           this.anim = new KV.VoxelAnimator(this.rig, { phase: this.phase });
           this.h = model.height * this.scale; this.w = (role === 'troll' ? 2.1 : 0.85) * this.scale;
           this.rig.group.scale.setScalar(this.scale); this.applyTint();

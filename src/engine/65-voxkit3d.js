@@ -173,6 +173,7 @@
       g.putImageData(im, 0, 0);
       const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.NoColorSpace; t.magFilter = THREE.LinearFilter;
       t.minFilter = THREE.LinearMipmapLinearFilter; t.anisotropy = 4; t.generateMipmaps = true;
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;   // greedy-meshed quads span several voxels: uv runs 0..w, one bevel per voxel
       return (VoxelMesher._bevel = t);
     }
   }
@@ -182,6 +183,8 @@
     constructor(id, opts) {
       this.id = id; this.size = opts.size; this.style = opts.style || 'swing'; this.parts = new Map();
       this.height = opts.height; this.glowColor = opts.glowColor || null; this.geo = null;
+      this.mesher = opts.mesher || null;   // e.g. KV.GreedyMesher for the high-res registry models (68-modelkit.js)
+      this.rest = opts.rest || null;       // rest pose (bone -> [rx, ry, rz]); falls back to CharacterSculptor.REST
     }
     part(name, pivot, parent = null, opts) { const p = new VoxelPart(name, pivot, parent, opts); this.parts.set(name, p); return p; }
     get voxelCount() { let n = 0; for (const p of this.parts.values()) n += p.count; return n; }
@@ -192,7 +195,7 @@
        (each vertex rigidly bound to its part's bone), plus unlit meshes for glowing parts */
     build() {
       if (this.geo) return this.geo;
-      const m = new VoxelMesher(), names = this.boneNames, body = [], glow = new Map();
+      const m = this.mesher || new VoxelMesher(), names = this.boneNames, body = [], glow = new Map();
       names.forEach((name, i) => {
         const p = this.parts.get(name);
         if (p.glow) glow.set(name, m.mesh(p, this.size, p.pivot));
@@ -222,7 +225,7 @@
        about 1/f^2 the triangles), same bone order so it rides the same skeleton as the full mesh */
     buildShadow(f = VoxelModel.SHADOW_RESAMPLE) {
       if (this.shadowGeo) return this.shadowGeo;
-      const m = new VoxelMesher(), list = [];
+      const m = this.mesher || new VoxelMesher(), list = [];
       this.boneNames.forEach((name, i) => {
         const p = this.parts.get(name); if (p.glow) return;
         list.push(VoxelModel.skin(m.mesh(p.resampled(f), this.size * f, [0, 0, 0]), i));
