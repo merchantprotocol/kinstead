@@ -353,6 +353,7 @@
         const got = Math.round(this.castle.gather(r, base));
         if (got > 0) { play.float(play.me, `+${got}`, 'loot', K.CastleUI.ICON[r]); this.cui.bump(r); this.sound.play('gather'); }
         st.charges--;
+        if (e.type === 'c_tree' && st.charges > 0) this.R.setPropState(e.id, 'cut' + Math.min(4, st.max - st.charges));   // the tree visibly shrinks with every swing
         if (st.charges <= 0) { st.respawnAt = n.respawnSec ? play.t + n.respawnSec : Infinity; this.R.setPropState(e.id, 'depleted'); play.me.view.setState('idle'); }
         else if (this.castle.amount(r) < this.castle.caps()[r]) this.gather(e); else { play.me.view.setState('idle'); this.cui.toast(`${K.CastleData.resName(r)[0].toUpperCase() + K.CastleData.resName(r).slice(1)} is full.`); this.cui.flashRes(r); }
         this.changed();

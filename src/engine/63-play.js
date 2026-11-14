@@ -37,6 +37,7 @@
     circle(x, z, r, n = 28) { const out = []; for (let k = 0; k < n; k++) { const a = (k / n) * Math.PI * 2, px = x + Math.cos(a) * r, pz = z + Math.sin(a) * r; out.push(px, this.g.nav.y(px, pz) + 0.05, pz); } return out; }
     set(o, pts) { o.geometry.dispose(); o.geometry = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)); o.visible = pts.length > 0; }
     path(from, pts) {
+      if (!this.showPath) { if (this.dots.visible) { this.dots.visible = false; this.dotsBg.visible = false; } return; }   // no breadcrumb line: the click ring is the only marker
       const out = []; let [ax, az] = from;
       for (const [bx, bz] of pts || []) { const L = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.floor(L / 0.3)); for (let k = 1; k <= n; k++) { const x = ax + (bx - ax) * k / n, z = az + (bz - az) * k / n; out.push(x, this.g.nav.y(x, z) + 0.06, z); } ax = bx; az = bz; }
       this.set(this.dots, out); this.dotsBg.geometry.dispose(); this.dotsBg.geometry = this.dots.geometry.clone(); this.dotsBg.visible = this.dots.visible;
