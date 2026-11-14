@@ -12,7 +12,7 @@
       this.size = { w: 128, h: 96 };                       // tiles -> 64 x 48 m
       this.keep = { x: 26, z: 24, r: 2.3 };
       this.hearth = { x: 26, z: 26.6 };                    // the hearth door on the Keep's south face
-      this.start = { x: 27.6, z: 28.2 };
+      this.start = { x: 29.8, z: 29.6 };                   // beside the Gatehouse ruin: the opening camera sees the hero and the Keep
       this.ruins = {                                       // distances from the Keep per the data: 5, 8, 11 m
         gatehouse: { x: 26, z: 29, rot: 0 },
         great_hall: { x: 18.6, z: 26.9, rot: Math.PI / 2 },
