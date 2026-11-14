@@ -310,3 +310,16 @@ body.castle #voxOrbit{display:none!important}
 /* the little world map, bottom-left */
 #cMap{left:12px;bottom:12px;padding:5px;width:212px;pointer-events:none}
 #cMap canvas{display:block;width:200px;height:auto;image-rendering:pixelated;border-radius:6px;background:#0d1320}
+
+/* the weapon drawer: same look as the build drawer, on the left */
+#cArms:not(.open){display:none}
+#cArms{display:flex;flex-direction:column;gap:6px;padding:8px;flex:0 1 auto;min-height:0}
+#cArms h3{margin:0 2px 2px;font:700 11px system-ui;letter-spacing:.06em;text-transform:uppercase;color:#9fb0c8}
+#cArms .dw-list{overflow-y:auto;min-height:0}
+#cArms .dw-row{display:flex;gap:8px;align-items:center;width:100%;text-align:left;background:#101826;border:1px solid #2f3b54;border-radius:10px;padding:6px;margin:0 0 6px;color:#eef3fa;cursor:pointer}
+#cArms .dw-row:hover{border-color:#ffd27a;background:#162036}
+#cArms .dw-row.equipped{border-color:#ffd27a;box-shadow:0 0 0 1px #7a4a12 inset}
+#cArms .dw-t{display:flex;flex-direction:column;gap:2px;min-width:0}
+#cArms .dw-t b{font-size:13px;color:#fff4dc}#cArms .dw-t b em{font:700 10px system-ui;color:#0a1020;background:#ffd27a;border-radius:4px;padding:1px 5px;margin-left:4px;font-style:normal}
+#cArms .dw-t small{font-size:10.5px;color:#8c9bb4;line-height:1.25}
+#cArms .dw-t .cost{display:flex;flex-wrap:wrap;gap:3px}

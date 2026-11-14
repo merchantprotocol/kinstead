@@ -552,12 +552,12 @@
    "name": "Gate",
    "category": "defense",
    "cost": {
-    "wood": 3
+    "wood": 6
    },
    "requiresCastleLevel": 1,
    "castlePoints": 0,
    "hp": 40,
-   "effect": "You walk through; wolves cannot. Put it in your fence.",
+   "effect": "A solid gate, four squares wide, with an arch. You walk through; creatures do not. Press R to turn it.",
    "artPrompt": "a small wooden fort gate with sharpened posts",
    "buildRequires": []
   }

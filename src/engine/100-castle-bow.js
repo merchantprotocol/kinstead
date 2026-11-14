@@ -14,6 +14,9 @@
     constructor() { super('bow', '6', 'Bow', 'Bow out. Click a foe to shoot it. Hold Shift and click to shoot anywhere. Arrows fly over walls.'); }
     accepts() { return false; }
     get verb() { return 'shoot'; }
+    get kind() { return 'weapon'; }
+    get ranged() { return true; }
+    get blurb() { return 'Click a foe to shoot it. Hold Shift and click to shoot anywhere. Arrows fly over walls.'; }
     get combat() { return { scale: 0.3, gap: 0.3, radius: 1.8, arc: Math.PI * 0.45 }; }   // in melee a bow is a poor club
   }
 

@@ -18,6 +18,10 @@
     /** a reason a click on this tile is refused (shown as a toast), or null */
     denyGround(i, j, ctx) { return null; }
     get verb() { return 'work'; }
+    /** 'weapon' tools live in the weapon slot (and the weapon drawer); everything else is a work tool with its own slot */
+    get kind() { return 'work'; }
+    get ranged() { return false; }
+    get blurb() { return ''; }
     /** how this tool fights when you are attacked: damage scale, seconds between swings, reach, arc. Only the sword is a real weapon. */
     get combat() { return { scale: 0.4, gap: 0.25, radius: 2.0, arc: Math.PI * 0.5 }; }
   }
@@ -25,6 +29,8 @@
     constructor() { super('sword', '1', 'Sword', 'Sword out: ready to fight.'); }
     accepts() { return false; }                      // fighting mode never touches the land
     get verb() { return 'fight'; }
+    get kind() { return 'weapon'; }
+    get blurb() { return 'A wide sweep hits everything in front of you.'; }
     get combat() { return { scale: 1, gap: 0.16, radius: 2.7, arc: Math.PI * 0.85 }; }
   }
   class AxeTool extends Tool {
@@ -53,19 +59,32 @@
   /** The hotbar plus the "which tool is out" state. Calls onSelect(tool) whenever the tool changes. */
   class Toolbelt {
     constructor(tools, onSelect, parent = document.body) {
-      this.tools = tools; this.current = tools[0]; this.onSelect = onSelect || (() => {});
+      this.tools = tools; this.weapons = tools.filter((x) => x.kind === 'weapon'); this.current = tools[0]; this.onSelect = onSelect || (() => {}); this.onWeaponSlot = null; this.onWeaponsChanged = null;
       this.bar = document.createElement('div'); this.bar.id = 'cTools'; this.bar.className = 'cp';
       this.render();
-      this.bar.addEventListener('click', (e) => { const b = e.target.closest('[data-t]'); if (b) this.select(b.dataset.t); });
+      this.bar.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-t]'); if (!b) return; const was = this.current && this.current.id === b.dataset.t; this.select(b.dataset.t);
+        const t = this.byId(b.dataset.t); if (t && t.kind === 'weapon' && this.onWeaponSlot) this.onWeaponSlot(was);   // clicking the weapon slot opens the weapon drawer
+      });
       this.bar.addEventListener('pointerdown', (e) => e.stopPropagation());
       parent.appendChild(this.bar); this.paint();
     }
     /** (re)draw the hotbar buttons */
     render() {
+      this.tools.forEach((x, i) => { x.key = String(i + 1); });   // keys follow the slots, so a weapon takes the weapon slot's key
       this.bar.innerHTML = this.tools.map((t) => `<button class="tl" data-t="${t.id}" title="${t.name} (${t.key})"><img src="${Toolbelt.artUrl(t.id)}" width="40" height="40" alt=""><kbd>${t.key}</kbd><span>${t.name}</span></button>`).join(''); this.paint();
     }
-    add(tool) { if (!this.byId(tool.id)) { this.tools.push(tool); this.render(); } }
-    remove(id) { const t = this.byId(id); if (!t) return; if (this.current === t) this.select('sword'); this.tools = this.tools.filter((x) => x !== t); this.render(); }
+    /** you now own this weapon (it is offered in the weapon drawer; it is not equipped until you pick it) */
+    addWeapon(w) { if (!this.weapons.some((x) => x.id === w.id)) { this.weapons.push(w); this.changed(); } }
+    changed() { if (this.onWeaponsChanged) this.onWeaponsChanged(); }
+    removeWeapon(id) { const w = this.weapons.find((x) => x.id === id); if (!w) return; this.weapons = this.weapons.filter((x) => x !== w); if (this.tools.includes(w)) this.equip(this.weapons[0]); this.changed(); }
+    /** put this weapon in the weapon slot, replacing the one there, and take it in hand */
+    equip(w) {
+      if (!this.weapons.includes(w)) return; const i = this.tools.findIndex((x) => x.kind === 'weapon'); if (i < 0 || this.tools[i] === w) { this.select(w.id); return; }
+      const wasInHand = this.current === this.tools[i]; this.tools[i] = w; this.render();
+      if (wasInHand || this.current !== w) { this.current = w; this.paint(); this.onSelect(w); }
+      this.changed();
+    }
     static artUrl(id) { return 'data:image/svg+xml,' + encodeURIComponent(K.CursorArt.svg(id)); }
     byId(id) { return this.tools.find((t) => t.id === id) || null; }
     byKey(key) { return this.tools.find((t) => t.key === key) || null; }

@@ -146,7 +146,8 @@
     siege(dt) {
       const g = this.g, a = this.a; let s = this.struct;
       if (!s || (s.piece && !g.castle.pieces.includes(s.piece)) || (s.door && (s.door.broken || s.door.open))) { s = this.struct = this.nearestStructure(); if (!s) { this.mode = 'seek'; this.target = null; this.repath = 0; return; } }
-      if (Math.hypot(s.x - a.x, s.z - a.z) > 1.0) { this.goTo(s.x, s.z, a.speed, 0.9, dt); return; }
+      const rg = s.piece && s.piece.type === 'gate' ? 1.55 : 1.0;   // a gate is two metres wide: he stands at its face, not its middle
+      if (Math.hypot(s.x - a.x, s.z - a.z) > rg) { this.goTo(s.x, s.z, a.speed, rg - 0.1, dt); return; }
       this.face(s); a.path = null; if (this.cd <= 0) { this.cd = 0.9; a.view.setState('attack'); g.hurtStructure(s, a.atk); if (s.piece && !g.castle.pieces.includes(s.piece)) { this.struct = null; this.mode = 'seek'; this.repath = 0; } if (s.door && s.door.broken) { this.struct = null; this.mode = 'seek'; this.repath = 0; } }
     }
     stillThere(t) { return t.kind === 'store' ? t.store.amount >= 1 : t.slot.present; }

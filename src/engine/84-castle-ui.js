@@ -256,15 +256,15 @@
     moveGhost(sx, sy) {
       const P = this.placing, g = this.g, p = g.app.pickGround(sx, sy); this.lastP = { sx, sy };
       if (!p) { P.ghost.visible = false; return; }
-      const wall = g.walls.handles(P.type), e = wall ? g.walls.edgeAt(P.type, p) : null;
-      const x = wall ? e.x : Math.round(p.x * 4) / 4, z = wall ? e.z : Math.round(p.z * 4) / 4, rot = wall ? e.rot : g.autoRot(x, z), why = g.placementOk(P.type, x, z, rot);
-      P.ghost.visible = true; P.ghost.position.set(x, g.play.nav.y(x, z), z); P.ghost.rotation.y = rot; CastleArt.tintGhost(P.ghost, !why); P.at = { x, z, why };
+      const e = g.walls.handles(P.type) ? g.walls.edgeAt(P.type, p) : P.type === 'gate' ? g.gateSpot(p) : null;
+      const x = e ? e.x : Math.round(p.x * 4) / 4, z = e ? e.z : Math.round(p.z * 4) / 4, rot = e ? e.rot : g.autoRot(x, z), why = g.placementOk(P.type, x, z, rot);
+      P.ghost.visible = true; P.ghost.position.set(x, g.play.nav.y(x, z), z); P.ghost.rotation.y = rot; CastleArt.tintGhost(P.ghost, !why); P.at = { x, z, rot, why };
       g.play.ui.tip(why ? `<b>Can’t build here</b> · ${esc(why)}` : `<b>${esc(this.c.data.piece(P.type).name)}</b> · click to build, or drag to draw a wall (${esc(Object.entries(this.c.buildCost(P.type)).map(([r, n]) => n + ' ' + K.CastleData.resName(r)).join(', '))})`, sx, sy);
     }
     click(sx, sy) {
       if (!this.placing) return false;
       this.moveGhost(sx, sy); const P = this.placing; if (!P.at) return true;
-      if (this.g.buildAt(P.type, P.at.x, P.at.z)) {
+      if (this.g.buildAt(P.type, P.at.x, P.at.z, P.at.rot)) {
         const again = ['palisade', 'stone_wall'].includes(P.type) && !this.c.blocker(P.type);
         if (!again) this.stopPlacing(); else this.moveGhost(sx, sy);
       }

@@ -27,7 +27,9 @@
       this.ctx = { game, play, effects: this.effects, editor: this.editor, ledger: this.ledger };
       this.belt = new K.Toolbelt([new K.SwordTool(), new K.AxeTool(), new K.PickaxeTool(), new K.ShovelTool(), new K.HammerTool()], (tool) => this.onSelect(tool), game.cui.root);   // inside #castleui so the panel styles apply
       this.drawer = new K.BuildDrawer(game.cui);
-      this.archery = new K.Archery(game); this.worker = new K.Worker(this.ctx, this.belt); this.hl = new TileHighlight(play.ov); this.fullAt = -9;
+      this.archery = new K.Archery(game);
+      this.arms = new K.WeaponDrawer(game.cui, this.belt); this.belt.onWeaponsChanged = () => this.arms.update(); this.belt.onWeaponSlot = (was) => { if (was) this.arms.toggle(); else this.arms.show(); };   // clicking the weapon slot opens the weapon drawer
+      this.worker = new K.Worker(this.ctx, this.belt); this.hl = new TileHighlight(play.ov); this.fullAt = -9;
     }
     get play() { return this.g.play; }
     get tool() { return this.belt.current; }
@@ -48,7 +50,7 @@
       };
     }
     onSelect(tool) {
-      const hammer = tool.id === 'hammer'; this.drawer.setOpen(hammer);
+      const hammer = tool.id === 'hammer'; this.drawer.setOpen(hammer); if (tool.kind !== 'weapon') this.arms.close();
       if (!hammer) { this.g.cui.stopPlacing(); if (this.g.demolisher) this.g.demolisher.hide(); }
       this.worker.cancel(); this.hl.hide(); this.g.sound.play('clank'); this.g.cui.toast(tool.hint);
       this.play.app.renderer3.domElement.style.cursor = '';
@@ -60,6 +62,7 @@
       if (e.ctrlKey || e.metaKey || e.altKey) return false;
       const P = this.play; if (P.ui.isOpen('ctx') || P.ui.isOpen('dlg')) return false;      // digits pick menu entries then
       const t = this.belt.byKey(e.key); if (!t) return false;
+      if (t.kind === 'weapon' && this.tool === t) { this.arms.toggle(); return true; }   // press the weapon key again: the weapon drawer
       this.belt.select(t.id); return true;
     }
     /** may the mouse hit this entity with the tool in hand? Resources are invisible to the wrong tool, so a click just walks. */
@@ -109,8 +112,8 @@
       return t ? Ic.cursor(this.tool.id, 'pointer') : null;
     }
 
-    update(dt) { this.worker.update(dt); this.archery.update(dt); this.effects.update(dt); }
-    dispose() { this.worker.cancel(); this.hl.hide(); this.archery.dispose(); this.effects.dispose(); this.drawer.dispose(); this.belt.dispose(); }
+    update(dt) { this.worker.update(dt); this.archery.update(dt); this.effects.update(dt); this.arms.update(); }
+    dispose() { this.worker.cancel(); this.hl.hide(); this.arms.dispose(); this.archery.dispose(); this.effects.dispose(); this.drawer.dispose(); this.belt.dispose(); }
   }
 
   K.CastleTools = CastleTools;

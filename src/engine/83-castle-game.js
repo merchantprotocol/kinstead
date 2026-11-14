@@ -285,9 +285,18 @@
     }
     /* a piece's footprint blocks the ground (walls a hair longer so a run of them has no gaps) */
     /* tiles wolves may never step on: the house, and every gate (you walk through a gate; a wolf does not) */
+    /* where a gate goes for the pointer at p: it lines up with a fence run next to it, else follows R. Returns { x, z, rot }. */
+    gateSpot(p) {
+      const i = Math.floor(p.x / TILE), j = Math.floor(p.z / TILE), turned = Math.round((this.rotExtra || 0) / (Math.PI / 2)) % 2 === 1;
+      const spotX = { x: (i + 1) * TILE, z: (j + 0.5) * TILE, rot: 0 }, spotZ = { x: (i + 0.5) * TILE, z: (j + 1) * TILE, rot: Math.PI / 2 };
+      const wallAt = (x, z) => { const q = this.pieceAt(x, z, 0.05); return q && q.type !== 'gate'; };
+      if (!turned) { if (wallAt(spotX.x - 1.25, spotX.z) || wallAt(spotX.x + 1.25, spotX.z)) return spotX; if (wallAt(spotZ.x, spotZ.z - 1.25) || wallAt(spotZ.x, spotZ.z + 1.25)) return spotZ; return spotX; }
+      return spotZ;
+    }
+    gateTilesOf(p) { const nav = this.play.nav, out = []; this.rectTiles(p.x, p.z, 2, 0.5, p.rot, (i, j) => out.push(i + ',' + j)); return out; }
     isSanctuary(x, z) { return this.home.inside(x, z) || this.gateTiles.has(Math.floor(x / TILE) + ',' + Math.floor(z / TILE)); }
     blockPiece(p) {
-      if (p.type === 'gate') { const nav = this.play.nav, [i, j] = nav.tile(p.x, p.z); this.occ[j * nav.w + i] = 1; this.gateTiles.add(i + ',' + j); return; }   // occupied for building, but walkable
+      if (p.type === 'gate') { const nav = this.play.nav; this.rectTiles(p.x, p.z, 2, 0.5, p.rot, (i, j) => { this.occ[j * nav.w + i] = 1; this.gateTiles.add(i + ',' + j); }); return; }   // occupied for building, but you can walk through
       const [w, d] = CastleArt.size(p.type); this.blockRect(p.x, p.z, this.walls.handles(p.type) ? w + 0.04 : w, d, p.rot, p.type === 'gatehouse'); }
     /* the piece standing on this ground point, or null */
     pieceAt(x, z, pad = 0.2) {
@@ -302,7 +311,7 @@
       const c = this.castle; if (!c.canDemolish(p)) { this.cui.toast('Restored ruins stay standing.'); return false; }
       const r = c.demolish(p), m = this.meshes.get('p' + p.uid), [w, d] = CastleArt.size(p.type), fx = this.tools.effects, y = this.play.nav.y(p.x, p.z);
       if (m) { this.group.remove(m); this.meshes.delete('p' + p.uid); }
-      this.unblockRect(p.x, p.z, this.walls.handles(p.type) ? w + 0.04 : w, d, p.rot); this.gateTiles.delete(Math.floor(p.x / TILE) + ',' + Math.floor(p.z / TILE));
+      this.unblockRect(p.x, p.z, this.walls.handles(p.type) ? w + 0.04 : w, d, p.rot); if (p.type === 'gate') this.gateTilesOf(p).forEach((k) => this.gateTiles.delete(k));
       for (const q of c.pieces) if (Math.hypot(q.x - p.x, q.z - p.z) < Math.max(w, d) + 6) this.blockPiece(q);   // a neighbour sharing a corner tile keeps it blocked
       this.sound.play('crack'); this.shake(0.12); this.puff(p.x, p.z); fx.burst(p.type === 'stone_wall' ? 'stone' : 'wood', p.x, y + 0.6, p.z, 12, 3.2);
       if (opts.refund !== false) for (const [res, n] of Object.entries(r.refund)) { const k = Math.min(n, 6); for (let i = 0; i < k; i++) fx.spawnPickup(res, Math.floor(n / k) + (i < n % k ? 1 : 0), p.x + (Math.random() - 0.5) * w * 0.5, y + 0.6, p.z + (Math.random() - 0.5) * d, 2.6, true); }
@@ -422,7 +431,7 @@
       if (type === 'dirt') return this.dirtOk(x, z);
       this.rectTiles(x, z, w + 0.2, d + 0.2, rot, (i, j) => { const k = j * nav.w + i; if (this.occ[k]) bad = 'something is in the way'; else if (!nav.walk[k] || nav.deck[k]) bad = bad || 'the ground is not clear'; });
       const me = this.play.me; if (!bad && Math.hypot(me.x - x, me.z - z) < Math.min(w, d) / 2 + 0.2) bad = 'you are standing there';
-      if (!bad && this.wouldWallOffKeep(type, x, z, rot)) bad = 'that would wall off the Keep';
+      if (!bad && type !== 'gate' && this.wouldWallOffKeep(type, x, z, rot)) bad = 'that would wall off the Keep';
       return bad;
     }
     /* a piece may never seal the Keep in: its approach must still reach the wilds (walls need the Gatehouse as the way in) */
@@ -842,6 +851,7 @@
       if (cui.bookOpen) { cui.toggleBook(false); return true; }
       if (ui.isOpen('ctx') || ui.isOpen('dlg') || ui.isOpen('card') || ui.isOpen('trade')) { ui.closeTop(); return true; }
       if (!cui.$('cModal').hidden) { cui.$('cModal').hidden = true; return true; }
+      if (this.tools.arms.isOpen) { this.tools.arms.close(); return true; }
       if (this.tools.tool.id === 'hammer') { this.tools.belt.select('sword'); return true; }
       return false;
     }

@@ -64,7 +64,7 @@
     }
     cancel() { this.stroke = null; }
   }
-  WallDrawer.TYPES = new Set(['palisade', 'gate', 'stone_wall', 'dirt']);
+  WallDrawer.TYPES = new Set(['palisade', 'stone_wall', 'dirt']);   // drawn square by square (the gate is one piece)
 
   K.WallDrawer = WallDrawer; K.BuildStroke = Stroke;
 })(typeof window !== 'undefined' ? window : globalThis);

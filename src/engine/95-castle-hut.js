@@ -82,8 +82,8 @@
       this.owned = false;
     }
     /** take the bow off the wall: it joins your hotbar */
-    take() { const g = this.home.g; if (this.owned) return; this.owned = true; this.bow.visible = false; g.tools.belt.add(new K.BowTool()); g.cui.toast('You take the bow. Press 6 to draw it. Arrows fly over walls.'); g.sound.play('clank'); }
-    putBack() { const g = this.home.g; if (!this.owned) return; this.owned = false; this.bow.visible = true; g.tools.belt.remove('bow'); g.cui.toast('Bow back on the wall.'); g.sound.play('thunk'); }
+    take() { const g = this.home.g; if (this.owned) return; this.owned = true; this.bow.visible = false; g.tools.belt.addWeapon(new K.BowTool()); g.cui.toast('You take the bow. Click your weapon slot to swap to it.'); g.sound.play('clank'); }
+    putBack() { const g = this.home.g; if (!this.owned) return; this.owned = false; this.bow.visible = true; g.tools.belt.removeWeapon('bow'); g.cui.toast('Bow back on the wall.'); g.sound.play('thunk'); }
     dispose() { this.home.g.group.remove(this.mesh); }
   }
 

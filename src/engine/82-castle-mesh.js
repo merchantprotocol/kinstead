@@ -28,7 +28,7 @@
 
   /* piece footprints (m): w along the piece's local x, d along local z; used for nav blocking, raider collision and placement */
   const SIZE = {
-    keep: [4.2, 4.2], palisade: [0.5, 0.5], stone_wall: [0.5, 0.5], dirt: [0.5, 0.5], gate: [0.5, 0.5], gatehouse: [3.6, 1.6], watchtower: [1.5, 1.5], ember_brazier: [0.8, 0.8],
+    keep: [4.2, 4.2], palisade: [0.5, 0.5], stone_wall: [0.5, 0.5], dirt: [0.5, 0.5], gate: [2, 0.5], gatehouse: [3.6, 1.6], watchtower: [1.5, 1.5], ember_brazier: [0.8, 0.8],
     woodcutter: [2.6, 2.2], quarry: [2.6, 2.2], mine: [2.6, 2.4], great_hall: [5.2, 3.2], chapel: [2.2, 2.6], storehouse: [2.8, 2.2],
     smithy: [3.2, 2.6], ember_forge: [1.8, 1.6], barracks: [4.2, 2.2],
   };
@@ -96,9 +96,12 @@
           k.box('timber', 0, 0.28, -0.2, 0.5, 0.07, 0.05); k.box('timber', 0, 0.7, -0.2, 0.5, 0.07, 0.05);
           break;
         }
-        case 'gate': {       // two posts with spiked tops and a cross-bar: you walk through, wolves do not
-          for (const x of [-0.19, 0.19]) { k.geo('bark', CYL8, x, 0.6, 0, 0, 0, 0, 0.14, 1.2, 0.14, 0.5, 1); k.geo('wood', CONE6, x, 1.3, 0, 0, 0, 0, 0.14, 0.26, 0.14, 0.5, 1); }
-          k.box('planks', 0, 0.9, -0.03, 0.5, 0.09, 0.07); k.box('planks', 0, 0.35, -0.03, 0.5, 0.09, 0.07); k.box('iron', 0, 0.62, 0.03, 0.05, 0.05, 0.05);
+        case 'gate': {       // 4 squares wide, solid planked leaves two cubes high, spiked end posts, an arch over the top
+          for (const x of [-0.9, 0.9]) { k.geo('bark', CYL8, x, 0.78, 0, 0, 0, 0, 0.2, 1.56, 0.2, 0.5, 1); k.geo('wood', CONE6, x, 1.66, 0, 0, 0, 0, 0.2, 0.32, 0.2, 0.5, 1); }
+          for (const s of [-1, 1]) { k.box('planks', s * 0.4, 0.02, 0, 0.74, 0.98, 0.12); k.box('timber', s * 0.4, 0.22, 0.07, 0.74, 0.09, 0.04); k.box('timber', s * 0.4, 0.7, 0.07, 0.74, 0.09, 0.04); }
+          k.box('iron', -0.06, 0.45, 0.08, 0.05, 0.12, 0.04); k.box('iron', 0.06, 0.45, 0.08, 0.05, 0.12, 0.04);
+          for (let i = -4; i <= 4; i++) { const x = i * 0.215, y = 1.22 + 0.34 * (1 - (x / 0.95) * (x / 0.95)), slope = Math.atan(-0.34 * 2 * x / (0.95 * 0.95)); k.box('timber', x, y - 0.05, 0, 0.26, 0.11, 0.16, 0, 0, slope); }   // the arch
+          k.box('wood', 0, 1.46, 0, 0.1, 0.16, 0.2);
           break;
         }
         case 'stone_wall': {   // one tile, one cube high
