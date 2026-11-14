@@ -49,7 +49,7 @@
     goTo(x, z, speed, range, dt) {
       const a = this.a, P = this.P; this.repath -= dt;
       if (this.repath <= 0 || !a.path) { this.repath = 0.5; a.path = P.nav.find(a.x, a.z, x, z, { range, maxNodes: 4000 }) || null; }
-      const moved = a.path ? P.move(a, dt, speed) : false; this.anim(moved, speed); return moved;
+      this.noWay = !a.path; const moved = a.path ? P.move(a, dt, speed) : false; this.anim(moved, speed); return moved;   // noWay: the ground does not connect (a shut door)
     }
     face(t) { this.a.view.setFacing(t.x - this.a.x, t.z - this.a.z); }
     anim(moving, speed = 3) {
@@ -65,12 +65,12 @@
     retreat() { this.mode = 'retreat'; this.leave = this.g.L.outside.slice().sort((p, q) => dist(q, this.a) - dist(p, this.a))[0]; this.a.path = null; }
     update(dt) {
       const g = this.g, P = this.P, a = this.a, me = P.me; if (!this.tickDead(dt)) return;
-      this.cd -= dt; const px = a.x, pz = a.z, d = dist(a, me);
+      this.cd -= dt; const d = dist(a, me);
       if (d > 80 && this.mode !== 'retreat') { g.removeActor(a); return; }
-      if (this.mode === 'retreat') { if (dist(a, this.leave) < 4) { g.removeActor(a); return; } this.goTo(this.leave.x, this.leave.z, a.speed, 1.5, dt); }
-      else if (!me.alive || g.home.inside(me.x, me.z)) this.prowl(dt);          // you are in your house: they can only circle outside
-      else this.hunt(dt, d);
-      if (g.home.inside(a.x, a.z)) { a.x = px; a.z = pz; a.path = null; this.repath = 0; }   // wolves never go through the door
+      if (this.mode === 'retreat') { if (dist(a, this.leave) < 4) { g.removeActor(a); return; } this.goTo(this.leave.x, this.leave.z, a.speed, 1.5, dt); return; }
+      if (!me.alive || (g.home.inside(me.x, me.z) && !g.home.door.open)) { this.prowl(dt); return; }   // you are inside with the door shut: they can only circle outside
+      this.hunt(dt, d);
+      if (this.noWay) this.prowl(dt);          // no way to you (the door is shut): they can only circle outside
     }
     hunt(dt, d) {
       const a = this.a, me = this.P.me, reach = a.reach + (me.r || 0.3) + 0.35; this.spot = null;
@@ -93,11 +93,11 @@
 
   class ThiefBrain extends Brain {
     constructor(game, actor) { super(game, actor); this.mode = 'seek'; this.target = null; this.carry = null; this.steal = 0; this.loot = null; this.told = false; this.fleeTo = null; }
-    /** furniture is worth more to him than a barrel */
+    /** with the door open he goes for furniture; otherwise (or by choice) he raids the stores by the door */
     choose() {
-      const home = this.g.home, pieces = home.stealable, barrels = home.barrels.filter((b) => b.amount >= 3);
-      if (pieces.length && (!barrels.length || Math.random() < 0.7)) { const s = pieces[Math.floor(Math.random() * pieces.length)]; return { kind: 'slot', slot: s, x: s.ent.x, z: s.ent.z, name: s.def.name.toLowerCase() }; }
-      if (barrels.length) { const b = barrels[Math.floor(Math.random() * barrels.length)]; return { kind: 'barrel', barrel: b, x: b.ent.x, z: b.ent.z, name: b.name.toLowerCase() }; }
+      const home = this.g.home, pieces = home.stealable, stores = home.stores.filter((b) => b.amount >= 1);
+      if (pieces.length && (!stores.length || Math.random() < 0.55)) { const s = pieces[Math.floor(Math.random() * pieces.length)]; return { kind: 'slot', slot: s, x: s.ent.x, z: s.ent.z, name: s.def.name.toLowerCase() }; }
+      if (stores.length) { const b = stores[Math.floor(Math.random() * stores.length)]; return { kind: 'store', store: b, x: b.ent.x, z: b.ent.z, name: b.name.toLowerCase() }; }
       return null;
     }
     update(dt) {
@@ -107,25 +107,39 @@
       if (this.mode === 'seek') {
         if (!this.target || !this.stillThere(this.target)) { this.target = this.choose(); if (!this.target) { this.mode = 'flee'; return; } }
         if (!this.told && dist(a, g.home.doorPoint) < 16) { this.told = true; g.cui.toast('A raider is sneaking toward your house!'); }
-        if (dist(a, this.target) <= 0.9) { this.mode = 'taking'; this.steal = 0; a.path = null; this.face(this.target); a.view.setState('action'); return; }
-        this.goTo(this.target.x, this.target.z, a.speed, 0.7, dt);
+        const store = this.target.kind === 'store', near = store ? 1.4 : 0.9;   // a store blocks a few tiles, so he stands a little further off
+        if (dist(a, this.target) <= near) { this.mode = store ? 'raiding' : 'taking'; this.steal = 0; this.swings = 0; a.path = null; this.face(this.target); a.view.setState('action'); return; }
+        this.goTo(this.target.x, this.target.z, a.speed, store ? 1.2 : 0.7, dt);
+        if (this.noWay) { this.target = null; this.repath = 0; }   // the way is shut: pick something else
       } else if (this.mode === 'taking') {
         this.steal += dt; if (a.view.state !== 'action') a.view.setState('action');
         if (this.steal >= 1.6) this.take();
+      } else if (this.mode === 'raiding') {
+        this.raid(dt);
       } else {
         if (!this.fleeTo) this.fleeTo = this.edgeFar();
         if (dist(a, this.fleeTo) < 3 || dist(a, g.home.center) > 60) { this.escape(); return; }
         this.goTo(this.fleeTo.x, this.fleeTo.z, a.speed * 1.2, 1.5, dt);
       }
     }
-    stillThere(t) { return t.kind === 'barrel' ? t.barrel.amount >= 1 : t.slot.present; }
+    stillThere(t) { return t.kind === 'store' ? t.store.amount >= 1 : t.slot.present; }
+    /** mine a store: every swing knocks one unit out, a little cube of it flies to him and he pockets it */
+    raid(dt) {
+      const g = this.g, a = this.a, st = this.target.store; this.steal += dt; this.face(this.target); if (a.view.state !== 'action') a.view.setState('action');
+      if (this.steal < 0.55) return; this.steal = 0;
+      if (this.swings >= 8 || st.amount < 1) { this.mode = 'flee'; a.view.setState('idle'); if (this.carry) { this.announce(); } return; }
+      this.swings++; if (st.rob(1) < 1) return;
+      g.sound.play('gather'); const res = st.res, fx = g.tools.effects, y = g.play.nav.y(st.ent.x, st.ent.z) + 0.5;
+      if (!this.carry) { this.carry = { kind: res, res, amount: 0, label: res === 'food' ? 'food' : K.CastleData.resName(res) }; this.loot = new K.Loot(fx.group, fx.materials, res); }
+      fx.burst(res, st.ent.x, y, st.ent.z, 3, 2);
+      fx.courier(res, { x: st.ent.x, y, z: st.ent.z }, a, () => { if (this.carry) this.carry.amount++; });   // the food flies out to him
+    }
+    announce() { const g = this.g; g.cui.toast(`A raider is running off with your ${this.carry.label}! Stop him!`); g.sound.play('horn'); }
     take() {
       const g = this.g, t = this.target; this.mode = 'flee'; this.a.view.setState('idle');
       if (!this.stillThere(t)) return;
-      if (t.kind === 'slot') { g.home.take(t.slot); this.carry = { kind: 'furn', slot: t.slot, label: t.slot.def.name.toLowerCase() }; }
-      else { const res = t.barrel.res, n = t.barrel.rob(res === 'food' ? 3 : 10); this.carry = { kind: res, res, amount: n, label: `${n} ${res === 'food' ? 'food' : K.CastleData.resName(res)}` }; }
-      this.loot = new K.Loot(g.tools.effects.group, g.tools.effects.materials, this.carry.kind === 'furn' ? 'furn' : this.carry.kind);
-      g.cui.toast(`The raider grabbed your ${this.carry.label}! Stop him!`); g.sound.play('horn');
+      g.home.take(t.slot); this.carry = { kind: 'furn', slot: t.slot, label: t.slot.def.name.toLowerCase() };
+      this.loot = new K.Loot(g.tools.effects.group, g.tools.effects.materials, 'furn'); this.announce();
     }
     edgeFar() { const a = this.a; return this.g.L.outside.slice().sort((p, q) => dist(q, a) - dist(p, a))[0]; }
     escape() { if (this.carry) this.g.cui.toast(`The raider got away with your ${this.carry.label}.`); if (this.loot) this.loot.dispose(); this.g.removeActor(this.a); }
@@ -134,8 +148,7 @@
       const g = this.g, a = this.a, c = this.carry, fx = g.tools.effects, y = g.play.nav.y(a.x, a.z) + 0.6; if (this.loot) { this.loot.dispose(); this.loot = null; }
       if (!c) return;
       if (c.kind === 'furn') fx.spawnPickup('furn', 1, a.x, y, a.z, 1.6, true, { restore: () => { g.home.putBack(c.slot); g.cui.toast(`Your ${c.label} is back where it belongs.`); } });
-      else if (c.res === 'food') { for (let i = 0; i < c.amount; i++) fx.spawnPickup('food', 1, a.x, y, a.z, 2.2, true, { restore: () => { g.home.foodStock++; g.cui.toast('Food back in the barrel.'); } }); }
-      else { const k = Math.min(c.amount, 6); for (let i = 0; i < k; i++) fx.spawnPickup(c.res, Math.floor(c.amount / k) + (i < c.amount % k ? 1 : 0), a.x, y, a.z, 2.2, true); }
+      else { for (let i = 0; i < c.amount; i++) fx.spawnPickup(c.res, 1, a.x + rnd(-0.3, 0.3), y, a.z + rnd(-0.3, 0.3), 2.4, true); }   // every cube he took falls out; walk over them to get your supplies back
       this.carry = null;
     }
   }

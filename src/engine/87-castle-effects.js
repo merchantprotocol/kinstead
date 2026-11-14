@@ -124,15 +124,28 @@
     clear() { this.group.remove(this.root); }
   }
 
+  /** A cube flying from one place to a moving creature (a raider mining your supplies); calls onArrive when it lands on them. */
+  class Courier {
+    constructor(group, mesh, from, target, onArrive) { this.group = group; this.mesh = mesh; this.from = from; this.target = target; this.onArrive = onArrive; this.t = 0; group.add(mesh); }
+    update(dt) {
+      this.t += dt; const k = Math.min(1, this.t / 0.55), a = this.target, p = this.mesh.position, ty = (a.y || 0) + 1.0;
+      p.x = this.from.x + (a.x - this.from.x) * k; p.z = this.from.z + (a.z - this.from.z) * k; p.y = this.from.y + (ty - this.from.y) * k + Math.sin(k * Math.PI) * 0.7; this.mesh.rotation.x += dt * 9; this.mesh.rotation.y += dt * 7;
+      if (k < 1) return true; this.group.remove(this.mesh); this.onArrive(); return false;
+    }
+    clear() { this.group.remove(this.mesh); }
+  }
+
   /** The facade: pickups, particles and falling trees behind one small interface. */
   class Effects {
     constructor(group, env) {
       this.group = group; this.env = env; this.materials = new Materials();
       this.particles = new ParticleField(group, this.materials, (x, z) => env.floorY(x, z));
       this.pickups = new PickupField(group, this.materials, env);
-      this.trees = [];
+      this.trees = []; this.couriers = [];
     }
     burst(kind, x, y, z, n, speed) { this.particles.burst(kind, x, y, z, n, speed); }
+    /** a cube of `kind` flies from `from` {x,y,z} to `actor`, then onArrive() */
+    courier(kind, from, actor, onArrive) { this.couriers.push(new Courier(this.group, this.materials.mesh(kind, kind === 'wood' ? 0.2 : 0.14), from, actor, onArrive)); }
     /** exact: the value is paid in full (a refund), without the gather bonus a harvest gets */
     spawnPickup(kind, value, x, y, z, speed, exact = false, payload = null) { this.pickups.spawn(kind, value, x, y, z, speed, exact, payload); }
     /** fell a pine: crash, thud, snow puffs, then onLanded({x, z}) so the caller can drop the logs */
@@ -144,9 +157,9 @@
         onLanded(dir);
       }));
     }
-    update(dt) { this.trees = this.trees.filter((t) => t.update(dt)); this.particles.update(dt); this.pickups.update(dt); }
-    dispose() { this.trees.forEach((t) => t.clear()); this.trees = []; this.particles.clear(); this.pickups.clear(); this.materials.dispose(); }
+    update(dt) { this.trees = this.trees.filter((t) => t.update(dt)); this.couriers = this.couriers.filter((c) => c.update(dt)); this.particles.update(dt); this.pickups.update(dt); }
+    dispose() { this.trees.forEach((t) => t.clear()); this.trees = []; this.couriers.forEach((c) => c.clear()); this.couriers = []; this.particles.clear(); this.pickups.clear(); this.materials.dispose(); }
   }
 
-  Object.assign(K, { Materials, Chip, ParticleField, Pickup, PickupField, FallingTree, Effects });
+  Object.assign(K, { Materials, Chip, ParticleField, Pickup, PickupField, FallingTree, Courier, Effects });
 })(typeof window !== 'undefined' ? window : globalThis);

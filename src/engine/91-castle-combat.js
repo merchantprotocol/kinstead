@@ -33,12 +33,14 @@
   class SweepAttack {
     constructor(game) { this.g = game; this.arc = new SwingArc(game.group); this.lastSwing = -9; this.lastClick = -9; }
     get play() { return this.g.play; }
+    /** the tool in hand decides how hard, how fast and how wide you can fight */
+    get combat() { return this.g.tools.tool.combat; }
     isFoe(a) { return !!a && a !== this.play.me && a.alive && a.hostile && this.play.actors.includes(a); }
     /** is this foe inside the sweep, given where the hero faces? (anything touching the hero counts too) */
     inArc(a, facing) {
-      const me = this.play.me, dx = a.x - me.x, dz = a.z - me.z, d = Math.hypot(dx, dz) - (a.r || 0.3);
-      if (d > RADIUS) return false; if (d < 0.5) return true;
-      return Math.abs(wrap(Math.atan2(dz, dx) - facing)) <= ARC / 2;
+      const cb = this.combat, me = this.play.me, dx = a.x - me.x, dz = a.z - me.z, d = Math.hypot(dx, dz) - (a.r || 0.3);
+      if (d > cb.radius) return false; if (d < 0.5) return true;
+      return Math.abs(wrap(Math.atan2(dz, dx) - facing)) <= cb.arc / 2;
     }
     victims(facing) { return this.play.actors.filter((a) => this.isFoe(a) && this.inArc(a, facing)); }
     /** one big swing toward `target`: everything in the arc is hit a beat later, as the blade passes */
@@ -47,17 +49,18 @@
       const facing = Math.atan2(target.z - me.z, target.x - me.x), hits = this.victims(facing);
       if (auto && (P.t - this.lastClick > AUTO_WINDOW || !hits.length)) { P.target = null; return; }   // you stopped clicking, or there is nothing there: stand down
       P.face(me, target); me.cdT = me.cd; me.view.setState('attack'); this.lastSwing = P.t;
-      this.arc.play(me.x, (me.y || 0) + 0.5, me.z, facing, RADIUS, ARC);
+      const cb = this.combat; me.dmgScale = cb.scale;   // work tools hit softer than the sword
+      this.arc.play(me.x, (me.y || 0) + 0.5, me.z, facing, cb.radius, cb.arc);
       this.g.sound.play('swish');
-      for (const v of hits) P.pending.push({ t: HIT_DELAY, a: me, b: v, reach: RADIUS + 1.5 });
+      for (const v of hits) P.pending.push({ t: HIT_DELAY, a: me, b: v, reach: cb.radius + 1.5 });
     }
     /** a left-click on a foe with the sword out: swing now if one is close (as fast as you can click), else let play walk over */
     clickFoe(e, tool) {
-      if (tool.id !== 'sword' || !this.isFoe(e)) return false;
+      if (!this.isFoe(e)) return false;   // any tool defends you, the sword best
       const P = this.play, me = P.me; if (!me.alive) return false;
       if (P.dist(me, e) > REACH_FOR_CLICK + (e.r || 0)) return false;
       this.lastClick = P.t; P.target = e; P.intent = null; P.cancelChannel(); me.path = null; e.aggro = true;
-      if (P.t - this.lastSwing >= MIN_GAP) this.swing(e);
+      if (P.t - this.lastSwing >= tool.combat.gap) this.swing(e);
       return true;
     }
     update(dt) { this.arc.update(dt); }

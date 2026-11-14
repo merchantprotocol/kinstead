@@ -18,20 +18,25 @@
     /** a reason a click on this tile is refused (shown as a toast), or null */
     denyGround(i, j, ctx) { return null; }
     get verb() { return 'work'; }
+    /** how this tool fights when you are attacked: damage scale, seconds between swings, reach, arc. Only the sword is a real weapon. */
+    get combat() { return { scale: 0.4, gap: 0.25, radius: 2.0, arc: Math.PI * 0.5 }; }
   }
   class SwordTool extends Tool {
     constructor() { super('sword', '1', 'Sword', 'Sword out: ready to fight.'); }
     accepts() { return false; }                      // fighting mode never touches the land
     get verb() { return 'fight'; }
+    get combat() { return { scale: 1, gap: 0.16, radius: 2.7, arc: Math.PI * 0.85 }; }
   }
   class AxeTool extends Tool {
     constructor() { super('axe', '2', 'Axe', 'Axe out. Click a tree.'); }
     get verb() { return 'chop'; }
+    get combat() { return { scale: 0.55, gap: 0.22, radius: 2.3, arc: Math.PI * 0.6 }; }   // an axe still bites
   }
   class PickaxeTool extends Tool {
     constructor() { super('pickaxe', '3', 'Pickaxe', 'Pickaxe out. Click a boulder or a rocky hillside.'); }
     groundTarget(i, j, ctx) { return ctx.editor.isRockHill(i, j) ? new K.MineTarget(ctx, i, j) : null; }
     get verb() { return 'mine'; }
+    get combat() { return { scale: 0.5, gap: 0.24, radius: 2.2, arc: Math.PI * 0.55 }; }
   }
   class ShovelTool extends Tool {
     constructor() { super('shovel', '4', 'Shovel', 'Shovel out. Click the ground to dig.'); }

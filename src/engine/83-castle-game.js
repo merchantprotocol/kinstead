@@ -171,7 +171,7 @@
       this.castle = new K.Castle(this.data); this.day = new K.DayCycle(this.data); this.calendar = new K.Calendar(this); this.playTime = 0;
       this.saved = this.resume ? this.slot.read() : null;
       if (this.saved) { this.castle = K.Castle.fromJSON(this.data, this.saved.castle); const d = Object.assign({}, this.saved.day); if (this.day.phases[d.idx] && this.day.phases[d.idx].kind === 'night') d.t = 0; this.day = new K.DayCycle(this.data, d); this.playTime = this.saved.playTime || 0; }
-      if (!this.saved) { this.castle.add('food', 8); this.castle.add('wood', 6); this.castle.weapons.add('stoneblade'); }   // you start with a little of everything and a blade
+      if (!this.saved) { this.castle.add('wood', 6); this.castle.add('stone', 4); this.castle.add('dirt', 4); this.castle.weapons.add('stoneblade'); }   // you start with a little of everything and a blade
       this.day.phases = K.Calendar.PHASES;   // looping day and night
       this.noXp = true; this.swingSec = this.data.swingSec;
     }
@@ -334,10 +334,12 @@
         if (up) { const pb = c.upgradePayback(p), why = c.upgradeBlocker(p); act('upgrade', `Upgrade to Level 2: ${fmtCost(c.upgradeCost(p))}${pb != null ? ` · pays back in ${pb.toFixed(1)} min` : ''}${why ? ' (' + why + ')' : ''}`, 'hammer', () => this.upgrade(p), { range: e.r + 0.8 }); }
         const st = { smithy: 'craft_iron_sword', ember_forge: 'craft_ember_brand' }[p.type];
         if (st && !c.weapons.has(this.data.recipe(st).id.replace('craft_', ''))) act('craft', `Forge ${this.data.item(st.replace('craft_', '')).name} · ${fmtCost(this.data.recipe(st).inputs)}`, st === 'craft_iron_sword' ? 'sword' : 'brand', () => this.craft(st), { range: e.r + 0.8 });
+      } else if (e.type === 'c_door') {
+        const door = this.home.door; act('door', door.open ? 'Shut the door' : 'Open the door', 'hand', () => door.toggle(), { range: 1.3 });
       } else if (e.type === 'c_barrel') {
-        const rg = e.r + 0.8, br = this.home.barrelFor(e.res);
-        if (e.res === 'food') act('take', `Take a turnip (${br.amount} left)`, 'hand', () => this.home.takeFood(), { range: rg });
-        else act('look', `${e.name}: ${br.amount} ${K.CastleData.resName(e.res)}`, 'eye', () => this.cui.toast(`${br.amount} ${K.CastleData.resName(e.res)} stored here.`), { range: rg });
+        const rg = e.r + 0.8, st = e.store;
+        if (e.res === 'food') act('take', `Take a turnip (${st.amount} left)`, 'hand', () => this.home.takeFood(st), { range: rg });
+        else act('look', `${e.name}: ${st.amount} ${K.CastleData.resName(e.res)}`, 'eye', () => this.cui.toast(`${st.amount} ${K.CastleData.resName(e.res)} stored here.`), { range: rg });
       } else if (e.type === 'c_kin') {
         const id = e.kinId;
         if (!c.kin.has(id) && id === 'emberwright') act('touch', 'Touch her with the lantern', 'lantern', () => this.touchEmberwright(), { range: 1.4 });
@@ -536,7 +538,7 @@
     }
 
     /* ---------- combat glue ---------- */
-    damage(a, b) { return Math.max(1, Math.round(a.atk - (b.def || 0))); }
+    damage(a, b) { return Math.max(1, Math.round((a.atk - (b.def || 0)) * (a.dmgScale || 1))); }   // a.dmgScale: the hero is weaker with a work tool than with a sword
     onHit(a, b) { if (a === this.play.me) this.sound.play('hit'); if (b.raider && b.brain && this.castle.weapons.has('ember_brand') && a === this.play.me) b.brain.burnT = 3; }
     wakeSec() { return this.castle.has('chapel') ? 2 : 5; }
     nearestEnemy(a, range) { let best = null, bd = range; for (const e of this.play.actors) if (e.alive && (e.raider || (e.boss && this.castle.zoneOpen('troll_bridge')))) { const d = Math.hypot(e.x - a.x, e.z - a.z); if (d < bd) { bd = d; best = e; } } return best; }
@@ -758,7 +760,7 @@
       this.tracers = this.tracers.filter((l) => { l.userData.t += dt; l.material.opacity = 1 - l.userData.t / 0.25; if (l.userData.t > 0.25) { this.group.remove(l); l.geometry.dispose(); l.material.dispose(); return false; } return true; });
       for (const m of this.meshes.values()) if (m.userData.shake > 0) { m.userData.shake -= dt; m.position.x += (Math.random() - 0.5) * 0.04; }
       for (const m of this.meshes.values()) m.traverse((o) => { if (o.userData.flame) o.scale.y = 0.85 + 0.25 * Math.sin(play.t * 11 + o.id); });
-      this.updateArrow(dt); this.tools.update(dt); this.sweep.update(dt); this.vitals.update(dt); this.wild.update(dt);
+      this.updateArrow(dt); this.tools.update(dt); this.sweep.update(dt); this.home.update(dt); this.vitals.update(dt); this.wild.update(dt);
       this.updateOcclusion(dt);
       if (this.shakeT > 0) { this.shakeT -= dt; const g = play.app.rig.goal; g.tx += (Math.random() - 0.5) * this.shakeT * 0.6; g.tz += (Math.random() - 0.5) * this.shakeT * 0.6; }
       if (this.thawSnow) { const s = this.R.snow.points; s.material.opacity = (s.material.opacity == null ? 1 : s.material.opacity); s.visible = this.endT == null || this.endT < 3; }
@@ -855,6 +857,7 @@
   reg.register('c_site', spec(0xffd27a, 'pickaxe'));
   reg.register('c_piece', spec(0x9fd8ff, 'hand'));
   reg.register('c_barrel', spec(0xffd27a, 'hand'));
+  reg.register('c_door', spec(0xffd27a, 'hand'));
   reg.register('c_kin', Object.assign(spec(0x8fe0a0, 'bubble'), { name: (e) => e.name }));
   const node = (verb, cursor, charges, respawn) => ({ color: 0x9fd8ff, cursor: (e, game) => (game.nodeState(e).charges > 0 ? cursor : 'no'), node: { charges, respawn },
     actions: (e) => [{ id: 'gather', label: verb, icon: cursor, range: e.r + 0.55, run: (game, x) => castleOf(game).tools.engage(x) }, { id: 'inspect', label: 'Inspect', icon: 'eye', run: (game, x) => game.inspect(x) }],
