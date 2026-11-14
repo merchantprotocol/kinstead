@@ -1,0 +1,6 @@
+# Copyright (c) 2026 Merchant Protocol. All rights reserved.
+# Cloudflare Pages project for the static site. Build with `npm run build`, then deploy dist/:
+#   npx wrangler pages deploy
+name = "kinstead"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-11-01"
