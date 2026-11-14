@@ -452,9 +452,9 @@
       const v3 = !!(K.ActorViews && K.ActorViews.enabled);   // the 3D view has a hooded ranger; the 2D sprite set does not
       const sprite = { pinewarden: v3 ? 'ranger' : 'warden', emberwright: 'witch', rime_brute: 'troll' }[id], h = this.data.hero(id);
       const pos = joined ? { x: this.play.me.x + 1, z: this.play.me.z + 1 } : at;
-      const a = this.addActor({ id: 'kin:' + id, role: 'npc', spriteId: sprite, name: h.name, x: pos.x, z: pos.z, hpMax: 80, atk: 6, def: 0, speed: id === 'rime_brute' ? 2.0 : 2.3, cd: 1.4, reach: 1, scale: id === 'rime_brute' ? 0.95 : 1, level: 1 });
+      const a = this.addActor({ id: 'kin:' + id, role: 'npc', spriteId: sprite, name: h.name, x: pos.x, z: pos.z, hpMax: 80, atk: 6, def: 0, speed: id === 'rime_brute' ? 2.0 : 2.3, cd: 1.4, reach: 1, scale: id === 'rime_brute' ? (v3 ? 0.75 : 0.95) : 1, level: 1 });
       a.type = 'c_kin'; a.kinId = id; a.hostile = false;
-      if (id === 'pinewarden') a.view.setTint(0x9fdc8a); if (id === 'rime_brute') a.view.setTint(0xa8d8ff);
+      if (id === 'pinewarden' && !v3) a.view.setTint(0x9fdc8a); if (id === 'rime_brute' && !v3) a.view.setTint(0xa8d8ff);   // the voxel troll is already ice-blue: a tint only washes it out
       a.brain = new KinBrain(this, a, id); this.kinActors[id] = a;
       if (!joined && id !== 'rime_brute') { const ice = this.art.ice(1.1, 1.9, 0.9, id.length); this.place(ice, at.x, at.z, 0); a.ice = ice; }
       if (id === 'rime_brute' && !joined) a.walkIn = true;
@@ -490,7 +490,7 @@
     /* ---------- the troll ---------- */
     spawnTroll() {
       const e = this.data.enemy('rime_troll'), at = this.L.troll;
-      const a = this.addActor({ id: 'troll', role: 'enemy', spriteId: 'troll', name: e.name, x: at.x, z: at.z, hpMax: e.hp, atk: e.atk, def: e.defense, speed: 1.5, cd: 2, reach: 1.25, r: 0.7, scale: 1.55, level: 4, flip: true, info: { xp: 0, loot: [], desc: 'Bridge-keeper. Every third swing is a ground slam: step out of the glowing ring.' } });
+      const a = this.addActor({ id: 'troll', role: 'enemy', spriteId: 'troll', name: e.name, x: at.x, z: at.z, hpMax: e.hp, atk: e.atk, def: e.defense, speed: 1.5, cd: 2, reach: 1.25, r: 0.7, scale: K.ActorViews && K.ActorViews.enabled ? 1.15 : 1.55,   /* the voxel troll is 2.9 m at scale 1 */ level: 4, flip: true, info: { xp: 0, loot: [], desc: 'Bridge-keeper. Every third swing is a ground slam: step out of the glowing ring.' } });
       a.enemy = e; a.boss = true; a.hostile = true; a.brain = new TrollBrain(this, a); this.troll = a;
     }
     slamStart(s) { this.ring = this.art.ring(); this.ring.scale.setScalar(s.r); this.place(this.ring, s.x, s.z, 0); this.ring.position.y += 0.08; this.cui.toast('Ground slam! Step out of the ring!'); }
