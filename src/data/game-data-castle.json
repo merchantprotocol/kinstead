@@ -546,6 +546,20 @@
    "effect": "Raises the ground by one cube. Stack it to reshape the land.",
    "artPrompt": "a cube of packed dirt",
    "buildRequires": []
+  },
+  "gate": {
+   "id": "gate",
+   "name": "Gate",
+   "category": "defense",
+   "cost": {
+    "wood": 3
+   },
+   "requiresCastleLevel": 1,
+   "castlePoints": 0,
+   "hp": 40,
+   "effect": "You walk through; wolves cannot. Put it in your fence.",
+   "artPrompt": "a small wooden fort gate with sharpened posts",
+   "buildRequires": []
   }
  },
  "keepUpgrade": {

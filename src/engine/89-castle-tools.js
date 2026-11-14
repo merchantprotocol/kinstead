@@ -26,8 +26,8 @@
       this.effects = new K.Effects(game.group, this.effectsEnv());
       this.ctx = { game, play, effects: this.effects, editor: this.editor, ledger: this.ledger };
       this.belt = new K.Toolbelt([new K.SwordTool(), new K.AxeTool(), new K.PickaxeTool(), new K.ShovelTool(), new K.HammerTool()], (tool) => this.onSelect(tool), game.cui.root);   // inside #castleui so the panel styles apply
-      this.drawer = new K.BuildDrawer(game.cui, { onMode: (m) => { const dm = game.demolisher; if (dm) dm.setActive(m === 'demolish' && this.tool.id === 'hammer'); } });
-      this.worker = new K.Worker(this.ctx, this.belt); this.hl = new TileHighlight(play.ov); this.fullAt = -9;
+      this.drawer = new K.BuildDrawer(game.cui);
+      this.archery = new K.Archery(game); this.worker = new K.Worker(this.ctx, this.belt); this.hl = new TileHighlight(play.ov); this.fullAt = -9;
     }
     get play() { return this.g.play; }
     get tool() { return this.belt.current; }
@@ -49,7 +49,7 @@
     }
     onSelect(tool) {
       const hammer = tool.id === 'hammer'; this.drawer.setOpen(hammer);
-      if (!hammer) { this.g.cui.stopPlacing(); if (this.g.demolisher) this.g.demolisher.setActive(false); }
+      if (!hammer) { this.g.cui.stopPlacing(); if (this.g.demolisher) this.g.demolisher.hide(); }
       this.worker.cancel(); this.hl.hide(); this.g.sound.play('clank'); this.g.cui.toast(tool.hint);
       this.play.app.renderer3.domElement.style.cursor = '';
     }
@@ -71,6 +71,7 @@
     click(sx, sy) {
       if (this.g.cui.click(sx, sy)) return true;
       const P = this.play; if (!P.me.alive) return false;
+      if (this.tool.id === 'bow' && this.archery.click(sx, sy)) return true;   // bow: shoot, do not walk
       const e = P.pick(sx, sy);
       if (e && this.g.sweep.clickFoe(e, this.tool)) return true;   // sword + a foe in reach: swing now, as fast as you click
       if (e) { const t = K.WorkTarget.forEntity(this.ctx, e); if (!t) return false; this.engage(t); return true; }
@@ -96,7 +97,8 @@
     /** the cursor for what is under the pointer, or null to keep the default */
     hoverCursor(ent, sx, sy) {
       const Ic = K.Icons;
-      if (this.g.demolisher.active) return this.g.demolisher.hover(sx, sy);
+      if (this.tool.id === 'bow') return ent && this.g.sweep.isFoe(ent) ? Ic.cursor('bow', 'pointer') : null;
+      if (this.g.demolisher.active && !ent) { const dc = this.g.demolisher.hover(sx, sy); if (dc) return dc; }
       if (ent) {
         const t = K.WorkTarget.forEntity(this.ctx, ent); if (!t) return null;
         return Ic.cursor(this.tool.accepts(t) && t.alive ? this.tool.id : 'pointer', 'pointer');
@@ -107,8 +109,8 @@
       return t ? Ic.cursor(this.tool.id, 'pointer') : null;
     }
 
-    update(dt) { this.worker.update(dt); this.effects.update(dt); }
-    dispose() { this.worker.cancel(); this.hl.hide(); this.effects.dispose(); this.drawer.dispose(); this.belt.dispose(); }
+    update(dt) { this.worker.update(dt); this.archery.update(dt); this.effects.update(dt); }
+    dispose() { this.worker.cancel(); this.hl.hide(); this.archery.dispose(); this.effects.dispose(); this.drawer.dispose(); this.belt.dispose(); }
   }
 
   K.CastleTools = CastleTools;

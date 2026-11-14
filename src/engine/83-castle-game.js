@@ -187,12 +187,12 @@
       document.body.classList.add('castle');
       this.art = new CastleArt(R.bmats); this.group = new THREE.Group(); this.group.name = 'castle'; R.scene.add(this.group);
       this.meshes = new Map(); this.tracers = []; this.shakeT = 0; this.flareT = 0; this.nightK = this.day.isNight ? 1 : 0; this.lastCl = this.castle.cl(); this.saveT = 0; this.prevBook = null;
-      this.occ = new Uint8Array(play.nav.w * play.nav.h);
+      this.occ = new Uint8Array(play.nav.w * play.nav.h); this.gateTiles = new Set();
       // spawn by the Keep's door
       play.spawn = { x: this.L.start.x, z: this.L.start.z };
       if (this.saved && this.saved.hero) { const [x, z] = this.saved.hero; if (play.nav.standable(x, z)) { play.me.x = x; play.me.z = z; play.me.y = play.nav.y(x, z); } }
       // your hut: the fire, the furniture, the barrels. No keep, ruins, outcrop or zone barriers.
-      this.home = new K.Home(this); this.keepMesh = null; this.ruinEnts = {}; this.outcropEnt = null;
+      this.gateTiles = new Set(); this.home = new K.Home(this); this.keepMesh = null; this.ruinEnts = {}; this.outcropEnt = null;
       this.keepEnt = { id: 'c-home', type: 'c_keep', name: 'Your home', x: this.L.keep.x, z: this.L.keep.z, y: 0, r: 0.1, h: 2, goal: [this.home.doorPoint.x, this.home.doorPoint.z] };
       if (!this.castle.lit) this.castle.light();
       for (const p of this.castle.pieces) this.addPieceMesh(p);
@@ -209,15 +209,14 @@
       this.kinActors = {}; this.troll = null;
       this.restoreNodes();
       this.raid = null;
-      this.cui = new K.CastleUI(this); this.vitals = new K.Vitals(this); this.wild = new K.Wild(this); this.calendar.on((ev) => this.onCalendar(ev)); this.tools = new K.CastleTools(this); this.walls = new K.WallDrawer(this); this.sweep = new K.SweepAttack(this); this.demolisher = new K.Demolisher(this); this.play.refreshProps();
+      this.cui = new K.CastleUI(this); this.vitals = new K.Vitals(this); this.wild = new K.Wild(this); this.calendar.on((ev) => this.onCalendar(ev)); this.tools = new K.CastleTools(this); this.minimap = new K.Minimap(this); this.walls = new K.WallDrawer(this); this.sweep = new K.SweepAttack(this); this.demolisher = new K.Demolisher(this); this.play.refreshProps();
       if (this.day.isNight) this.startRaid();
-      play.app.rig.set({ dist: 11, pitch: 0.78 }); play.app.rig.maxDist = 16;   // you can never zoom out far enough to see the edge of the world
-      const fog = R.scene.fog; if (fog) { fog.near = 22; fog.far = 44; }
+      play.app.rig.set({ dist: 11, pitch: 0.78 }); play.app.rig.maxDist = 22;   // you can never zoom out far enough to see the edge of the world
       this.cui.toast(this.saved ? 'Welcome back.' : 'You wake in your hut. Eat, sleep, chop wood, and watch for wolves.');
       G.castle = this;   // test hook (and the console's best friend)
     }
     exit() {
-      this.play.app.rig.maxDist = null; if (this.vitals) this.vitals.dispose(); if (this.home) this.home.dispose();
+      this.play.app.rig.maxDist = null; if (this.minimap) this.minimap.dispose(); if (this.vitals) this.vitals.dispose(); if (this.home) this.home.dispose();
       this.save(); if (this.tools) this.tools.dispose(); if (this.sweep) this.sweep.dispose(); if (this.demolisher) this.demolisher.dispose();
       if (this.origPlace) this.R.placeDynamics = this.origPlace;
       this.R.scene.remove(this.group); this.cui && this.cui.dispose(); document.body.classList.remove('castle');
@@ -285,7 +284,11 @@
       this.blockPiece(p); return m;
     }
     /* a piece's footprint blocks the ground (walls a hair longer so a run of them has no gaps) */
-    blockPiece(p) { const [w, d] = CastleArt.size(p.type); this.blockRect(p.x, p.z, this.walls.handles(p.type) ? w + 0.04 : w, d, p.rot, p.type === 'gatehouse'); }
+    /* tiles wolves may never step on: the house, and every gate (you walk through a gate; a wolf does not) */
+    isSanctuary(x, z) { return this.home.inside(x, z) || this.gateTiles.has(Math.floor(x / TILE) + ',' + Math.floor(z / TILE)); }
+    blockPiece(p) {
+      if (p.type === 'gate') { const nav = this.play.nav, [i, j] = nav.tile(p.x, p.z); this.occ[j * nav.w + i] = 1; this.gateTiles.add(i + ',' + j); return; }   // occupied for building, but walkable
+      const [w, d] = CastleArt.size(p.type); this.blockRect(p.x, p.z, this.walls.handles(p.type) ? w + 0.04 : w, d, p.rot, p.type === 'gatehouse'); }
     /* the piece standing on this ground point, or null */
     pieceAt(x, z, pad = 0.2) {
       for (const p of this.castle.pieces) {
@@ -295,14 +298,14 @@
       return null;
     }
     /* take a piece down: it comes apart, the ground clears, and half its cost drops as pickups to collect */
-    demolishPiece(p) {
+    demolishPiece(p, opts = {}) {
       const c = this.castle; if (!c.canDemolish(p)) { this.cui.toast('Restored ruins stay standing.'); return false; }
       const r = c.demolish(p), m = this.meshes.get('p' + p.uid), [w, d] = CastleArt.size(p.type), fx = this.tools.effects, y = this.play.nav.y(p.x, p.z);
       if (m) { this.group.remove(m); this.meshes.delete('p' + p.uid); }
-      this.unblockRect(p.x, p.z, this.walls.handles(p.type) ? w + 0.04 : w, d, p.rot);
+      this.unblockRect(p.x, p.z, this.walls.handles(p.type) ? w + 0.04 : w, d, p.rot); this.gateTiles.delete(Math.floor(p.x / TILE) + ',' + Math.floor(p.z / TILE));
       for (const q of c.pieces) if (Math.hypot(q.x - p.x, q.z - p.z) < Math.max(w, d) + 6) this.blockPiece(q);   // a neighbour sharing a corner tile keeps it blocked
       this.sound.play('crack'); this.shake(0.12); this.puff(p.x, p.z); fx.burst(p.type === 'stone_wall' ? 'stone' : 'wood', p.x, y + 0.6, p.z, 12, 3.2);
-      for (const [res, n] of Object.entries(r.refund)) { const k = Math.min(n, 6); for (let i = 0; i < k; i++) fx.spawnPickup(res, Math.floor(n / k) + (i < n % k ? 1 : 0), p.x + (Math.random() - 0.5) * w * 0.5, y + 0.6, p.z + (Math.random() - 0.5) * d, 2.6, true); }
+      if (opts.refund !== false) for (const [res, n] of Object.entries(r.refund)) { const k = Math.min(n, 6); for (let i = 0; i < k; i++) fx.spawnPickup(res, Math.floor(n / k) + (i < n % k ? 1 : 0), p.x + (Math.random() - 0.5) * w * 0.5, y + 0.6, p.z + (Math.random() - 0.5) * d, 2.6, true); }
       this.play.refreshProps(); this.changed(); return true;
     }
     redrawPiece(p) { const old = this.meshes.get('p' + p.uid); if (old) this.group.remove(old); const m = this.art.piece(p.type, { level: p.level }); this.place(m, p.x, p.z, p.rot); this.meshes.set('p' + p.uid, m); if (this.castle.isFrosted(p)) this.setFrost(p, true); return m; }
@@ -330,12 +333,14 @@
         act('mine', `Build an Iron mine: ${fmtCost(c.buildCost('mine'))}${why ? ' (' + why + ')' : ''}`, 'pickaxe', () => this.buildAtSite(), { range: 1.6 });
       } else if (e.type === 'c_piece') {
         const p = e.piece, up = c.upgradeInfo(p);
-        if (c.canDemolish(p)) act('demolish', `Take down · get back ${fmtCost(c.refundFor(p)) || 'nothing'}`, 'hammer', () => this.demolishPiece(p), { range: e.r + 0.8 });
+        if (this.tools.tool.id === 'hammer' && c.canDemolish(p)) act('demolish', 'Take down…', 'hammer', () => this.demolisher.ask(p), { range: e.r + 0.8 });   // hammer only, and it asks
         if (up) { const pb = c.upgradePayback(p), why = c.upgradeBlocker(p); act('upgrade', `Upgrade to Level 2: ${fmtCost(c.upgradeCost(p))}${pb != null ? ` · pays back in ${pb.toFixed(1)} min` : ''}${why ? ' (' + why + ')' : ''}`, 'hammer', () => this.upgrade(p), { range: e.r + 0.8 }); }
         const st = { smithy: 'craft_iron_sword', ember_forge: 'craft_ember_brand' }[p.type];
         if (st && !c.weapons.has(this.data.recipe(st).id.replace('craft_', ''))) act('craft', `Forge ${this.data.item(st.replace('craft_', '')).name} · ${fmtCost(this.data.recipe(st).inputs)}`, st === 'craft_iron_sword' ? 'sword' : 'brand', () => this.craft(st), { range: e.r + 0.8 });
+      } else if (e.type === 'c_rack') {
+        const rk = e.rack; act('bow', rk.owned ? 'Put the bow back' : 'Take the bow', 'sword', () => (rk.owned ? rk.putBack() : rk.take()), { range: 1.2 });
       } else if (e.type === 'c_door') {
-        const door = this.home.door; act('door', door.open ? 'Shut the door' : 'Open the door', 'hand', () => door.toggle(), { range: 1.3 });
+        const door = this.home.door; act('door', door.broken ? 'Repair the door (3 wood)' : door.open ? 'Shut the door' : 'Open the door', 'hand', () => door.toggle(), { range: 1.3 });
       } else if (e.type === 'c_barrel') {
         const rg = e.r + 0.8, st = e.store;
         if (e.res === 'food') act('take', `Take a turnip (${st.amount} left)`, 'hand', () => this.home.takeFood(st), { range: rg });
@@ -621,6 +626,14 @@
       }
       return null;
     }
+    /* an armed enemy hits one of your structures (a gate, a wall, the door). Unarmed creatures never call this. */
+    hurtStructure(s, n) {
+      this.sound.play('hit'); this.shake(0.05);
+      if (s.door) { s.door.hurt(n); return; }
+      const p = s.piece, m = this.meshes.get('p' + p.uid); if (m) m.userData.shake = 0.25;
+      p.hp -= n; this.play.float({ x: p.x, z: p.z, y: this.play.nav.y(p.x, p.z), h: 1 }, '-' + n, 'hurt');
+      if (p.hp <= 0) { this.cui.toast(`Your ${this.data.piece(p.type).name.toLowerCase()} was broken down!`); this.demolishPiece(p, { refund: false }); }
+    }
     hurtPiece(p, n) {
       p.hp -= n; this.sound.play('hit');
       const m = this.meshes.get('p' + p.uid); if (m) { m.userData.shake = 0.25; }
@@ -760,7 +773,8 @@
       this.tracers = this.tracers.filter((l) => { l.userData.t += dt; l.material.opacity = 1 - l.userData.t / 0.25; if (l.userData.t > 0.25) { this.group.remove(l); l.geometry.dispose(); l.material.dispose(); return false; } return true; });
       for (const m of this.meshes.values()) if (m.userData.shake > 0) { m.userData.shake -= dt; m.position.x += (Math.random() - 0.5) * 0.04; }
       for (const m of this.meshes.values()) m.traverse((o) => { if (o.userData.flame) o.scale.y = 0.85 + 0.25 * Math.sin(play.t * 11 + o.id); });
-      this.updateArrow(dt); this.tools.update(dt); this.sweep.update(dt); this.home.update(dt); this.vitals.update(dt); this.wild.update(dt);
+      { const fog = this.R.scene.fog, dd = this.app.rig.cur.dist; if (fog) { fog.near = dd + 8; fog.far = dd + 32; } }   // the far edge of the world always fades out, at any zoom
+      this.updateArrow(dt); this.minimap.update(dt); this.tools.update(dt); this.sweep.update(dt); this.home.update(dt); this.vitals.update(dt); this.wild.update(dt);
       this.updateOcclusion(dt);
       if (this.shakeT > 0) { this.shakeT -= dt; const g = play.app.rig.goal; g.tx += (Math.random() - 0.5) * this.shakeT * 0.6; g.tz += (Math.random() - 0.5) * this.shakeT * 0.6; }
       if (this.thawSnow) { const s = this.R.snow.points; s.material.opacity = (s.material.opacity == null ? 1 : s.material.opacity); s.visible = this.endT == null || this.endT < 3; }
@@ -827,7 +841,7 @@
       if (cui.placing) { cui.stopPlacing(); return true; }
       if (cui.bookOpen) { cui.toggleBook(false); return true; }
       if (ui.isOpen('ctx') || ui.isOpen('dlg') || ui.isOpen('card') || ui.isOpen('trade')) { ui.closeTop(); return true; }
-      if (this.tools.drawer.mode === 'demolish') { this.tools.drawer.setMode('build'); return true; }
+      if (!cui.$('cModal').hidden) { cui.$('cModal').hidden = true; return true; }
       if (this.tools.tool.id === 'hammer') { this.tools.belt.select('sword'); return true; }
       return false;
     }
@@ -858,6 +872,7 @@
   reg.register('c_piece', spec(0x9fd8ff, 'hand'));
   reg.register('c_barrel', spec(0xffd27a, 'hand'));
   reg.register('c_door', spec(0xffd27a, 'hand'));
+  reg.register('c_rack', spec(0xffd27a, 'hand'));
   reg.register('c_kin', Object.assign(spec(0x8fe0a0, 'bubble'), { name: (e) => e.name }));
   const node = (verb, cursor, charges, respawn) => ({ color: 0x9fd8ff, cursor: (e, game) => (game.nodeState(e).charges > 0 ? cursor : 'no'), node: { charges, respawn },
     actions: (e) => [{ id: 'gather', label: verb, icon: cursor, range: e.r + 0.55, run: (game, x) => castleOf(game).tools.engage(x) }, { id: 'inspect', label: 'Inspect', icon: 'eye', run: (game, x) => game.inspect(x) }],

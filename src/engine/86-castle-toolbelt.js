@@ -55,11 +55,17 @@
     constructor(tools, onSelect, parent = document.body) {
       this.tools = tools; this.current = tools[0]; this.onSelect = onSelect || (() => {});
       this.bar = document.createElement('div'); this.bar.id = 'cTools'; this.bar.className = 'cp';
-      this.bar.innerHTML = tools.map((t) => `<button class="tl" data-t="${t.id}" title="${t.name} (${t.key})"><img src="${Toolbelt.artUrl(t.id)}" width="40" height="40" alt=""><kbd>${t.key}</kbd><span>${t.name}</span></button>`).join('');
+      this.render();
       this.bar.addEventListener('click', (e) => { const b = e.target.closest('[data-t]'); if (b) this.select(b.dataset.t); });
       this.bar.addEventListener('pointerdown', (e) => e.stopPropagation());
       parent.appendChild(this.bar); this.paint();
     }
+    /** (re)draw the hotbar buttons */
+    render() {
+      this.bar.innerHTML = this.tools.map((t) => `<button class="tl" data-t="${t.id}" title="${t.name} (${t.key})"><img src="${Toolbelt.artUrl(t.id)}" width="40" height="40" alt=""><kbd>${t.key}</kbd><span>${t.name}</span></button>`).join(''); this.paint();
+    }
+    add(tool) { if (!this.byId(tool.id)) { this.tools.push(tool); this.render(); } }
+    remove(id) { const t = this.byId(id); if (!t) return; if (this.current === t) this.select('sword'); this.tools = this.tools.filter((x) => x !== t); this.render(); }
     static artUrl(id) { return 'data:image/svg+xml,' + encodeURIComponent(K.CursorArt.svg(id)); }
     byId(id) { return this.tools.find((t) => t.id === id) || null; }
     byKey(key) { return this.tools.find((t) => t.key === key) || null; }

@@ -301,3 +301,12 @@
 /* sleeping: the screen fades to black */
 #cSleep{position:fixed;inset:0;background:#02040a;opacity:0;pointer-events:none;transition:opacity 1.4s ease;z-index:30}
 #cSleep.on{opacity:.94}
+
+/* no camera button in the game; the tool bar sits in the corner; the left column leaves room for the map */
+body.castle #voxOrbit{display:none!important}
+#cTools{right:12px!important}
+#castleui #cLeft{bottom:178px!important}
+
+/* the little world map, bottom-left */
+#cMap{left:12px;bottom:12px;padding:5px;width:212px;pointer-events:none}
+#cMap canvas{display:block;width:200px;height:auto;image-rendering:pixelated;border-radius:6px;background:#0d1320}

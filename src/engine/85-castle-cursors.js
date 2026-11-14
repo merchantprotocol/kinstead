@@ -62,6 +62,10 @@
     hammer: { hot: [6, 6], body: `<path d='M14 14L38 38' stroke='#0a1020' stroke-width='6.6' stroke-linecap='round'/><path d='M14 14L38 38' stroke='url(#wd)' stroke-width='4' stroke-linecap='round'/>
       <path d='M5 13L13 5L26 18L18 26Z' fill='url(#st)' ${O}/><path d='M8.4 12.6L13.4 7.6' stroke='#fff' stroke-width='1.1' opacity='.75'/>
       <path d='M20.6 10.4L29.4 19.2' stroke='#ff9a3a' stroke-width='1.6' opacity='.9'/>${gem(15.5, 15.5, 1.7)}` },
+    /* the bow: a yew bow, string drawn, an arrow nocked */
+    bow: { hot: [22, 22], body: `<path d='M13 5Q33 22 13 39' fill='none' stroke='#0a1020' stroke-width='6.6' stroke-linecap='round'/><path d='M13 5Q33 22 13 39' fill='none' stroke='url(#wd)' stroke-width='4' stroke-linecap='round'/>
+      <path d='M13 5L13 39' stroke='#0a1020' stroke-width='2.6'/><path d='M13 5L13 39' stroke='#e8eef6' stroke-width='1'/>
+      <path d='M13 22L37 22' stroke='#0a1020' stroke-width='3.6' stroke-linecap='round'/><path d='M13 22L36 22' stroke='url(#gd)' stroke-width='1.8' stroke-linecap='round'/><path d='M37 22L31 18.4L31 25.6Z' fill='url(#st)' ${O}/>${spark(25, 14, 2)}` },
     /* take down: the rune hammer, struck across with a red slash */
     demolish: { hot: [6, 6], body: `<path d='M14 14L38 38' stroke='#0a1020' stroke-width='6.6' stroke-linecap='round'/><path d='M14 14L38 38' stroke='url(#wd)' stroke-width='4' stroke-linecap='round'/>
       <path d='M5 13L13 5L26 18L18 26Z' fill='url(#st)' ${O}/><path d='M20.6 10.4L29.4 19.2' stroke='#ff9a3a' stroke-width='1.6' opacity='.9'/>

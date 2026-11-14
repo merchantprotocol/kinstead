@@ -178,6 +178,7 @@
         for (const [di, dj, c] of NB) {
           const ni = i + di, nj = j + dj; if (!this.inside(ni, nj)) continue; const nk = nj * w + ni; if (closed[nk]) continue;
           if (!this.step(i, j, ni, nj)) continue;
+          if (opts.blocked && opts.blocked(ni, nj)) continue;   // tiles this walker may not enter (a gate is shut to creatures, open to you)
           const climb = Math.abs(this.S[nk] - this.S[k]) * 0.6, ng = g[k] + c + climb;
           if (ng < g[nk]) { g[nk] = ng; from[nk] = k; open.push(nk, ng + hf(ni, nj)); }
         }

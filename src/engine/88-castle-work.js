@@ -28,7 +28,7 @@
 
   /** The only code that changes the ground. Knows what may be dug, and how a dug tile is re-meshed and re-pathed. */
   class TerrainEditor {
-    constructor(game) { this.g = game; }
+    constructor(game) { this.g = game; this.version = 0; }   // version: bumped on every change, so the map knows to redraw
     get doc() { return this.g.play.doc; }
     get nav() { return this.g.play.nav; }
     tileOf(p) { const [i, j] = this.doc.tileOf(p.x, p.z); return [i, j]; }
@@ -59,14 +59,14 @@
     /** put one block of dirt on a tile: the ground rises a cube and turns to dirt */
     raise(i, j) {
       const d = this.doc, k = j * d.w + i; d.height[k] = Math.min(MAX_Q, d.height[k] + BLOCK); d.terrain[k] = T.DIRT;
-      this.nav.S[k] = this.nav.surface((i + 0.5) * TILE, (j + 0.5) * TILE, d.hy(i, j)); this.g.play.R.tilesChanged(i, j, i + 1, j + 1);
+      this.nav.S[k] = this.nav.surface((i + 0.5) * TILE, (j + 0.5) * TILE, d.hy(i, j)); this.g.play.R.tilesChanged(i, j, i + 1, j + 1); this.version++;
     }
     /** take one block off a tile; mined rock turns to dirt once it is level with the ground */
     lower(i, j, mining) {
       const d = this.doc, k = j * d.w + i, q = d.height[k], nq = mining ? Math.max(0, q - BLOCK) : Math.max(MIN_Q, q - BLOCK);
       d.height[k] = nq; if (!mining || nq <= 0) d.terrain[k] = T.DIRT;
       this.nav.S[k] = this.nav.surface((i + 0.5) * TILE, (j + 0.5) * TILE, d.hy(i, j));   // paths and hero height follow at once
-      this.g.play.R.tilesChanged(i, j, i + 1, j + 1);                                      // the mesh and the paint follow next frame
+      this.g.play.R.tilesChanged(i, j, i + 1, j + 1); this.version++;                      // the mesh and the paint follow next frame
     }
   }
 

@@ -29,6 +29,8 @@
     get dayCap() { return 1; }
     get nightCap() { return this.packSize + 1; }
     get thievesAllowed() { return this.day >= 5; }
+    get armedAllowed() { return this.day >= 8; }       // armed raiders (they break gates and the door) come late
+    armedInterval() { return rnd(300, 420); }
     dayInterval() { return rnd(70, 110); }
     nightInterval() { return rnd(35, 55); }
     thiefInterval() { return rnd(240, 360); }
@@ -48,9 +50,11 @@
     /** walk toward (x, z) around obstacles; returns true while moving */
     goTo(x, z, speed, range, dt) {
       const a = this.a, P = this.P; this.repath -= dt;
-      if (this.repath <= 0 || !a.path) { this.repath = 0.5; a.path = P.nav.find(a.x, a.z, x, z, { range, maxNodes: 4000 }) || null; }
+      if (this.repath <= 0 || !a.path) { this.repath = 0.5; a.path = P.nav.find(a.x, a.z, x, z, { range, maxNodes: 4000, blocked: this.blocker() }) || null; }
       this.noWay = !a.path; const moved = a.path ? P.move(a, dt, speed) : false; this.anim(moved, speed); return moved;   // noWay: the ground does not connect (a shut door)
     }
+    /** tiles this creature may never path through: every gate. (You walk through your own gate; nothing else does.) */
+    blocker() { const g = this.g; return (i, j) => g.gateTiles.has(i + ',' + j); }
     face(t) { this.a.view.setFacing(t.x - this.a.x, t.z - this.a.z); }
     anim(moving, speed = 3) {
       const v = this.a.view; if (v.state === 'attack' || v.state === 'hurt' || v.state === 'action') return;
@@ -60,7 +64,9 @@
   }
 
   class WolfBrain extends Brain {
-    constructor(game, actor) { super(game, actor); this.mode = 'hunt'; this.spot = null; this.spotT = 0; this.leave = null; }
+    constructor(game, actor) { super(game, actor); this.mode = 'hunt'; this.spot = null; this.spotT = 0; this.leave = null; this.pace = 0; }
+    /** wolves also never plan a route through the house */
+    blocker() { const g = this.g, T = K.TILE; return (i, j) => g.gateTiles.has(i + ',' + j) || g.home.inside((i + 0.5) * T, (j + 0.5) * T); }
     /** dawn: go back to the dark */
     retreat() { this.mode = 'retreat'; this.leave = this.g.L.outside.slice().sort((p, q) => dist(q, this.a) - dist(p, this.a))[0]; this.a.path = null; }
     update(dt) {
@@ -68,9 +74,14 @@
       this.cd -= dt; const d = dist(a, me);
       if (d > 80 && this.mode !== 'retreat') { g.removeActor(a); return; }
       if (this.mode === 'retreat') { if (dist(a, this.leave) < 4) { g.removeActor(a); return; } this.goTo(this.leave.x, this.leave.z, a.speed, 1.5, dt); return; }
-      if (!me.alive || (g.home.inside(me.x, me.z) && !g.home.door.open)) { this.prowl(dt); return; }   // you are inside with the door shut: they can only circle outside
-      this.hunt(dt, d);
-      if (this.noWay) this.prowl(dt);          // no way to you (the door is shut): they can only circle outside
+      if (!me.alive || g.isSanctuary(me.x, me.z) || this.pace > 0) { this.pace -= dt; this.prowl(dt); this.keepOut(); return; }   // you are in your house or at a gate: they circle outside
+      this.hunt(dt, d); this.keepOut();
+      if (this.noWay) this.prowl(dt);          // no way to you: they can only circle
+    }
+    /** wolves never step into the house or onto a gate, whether the door is open or not */
+    keepOut() {
+      const a = this.a, g = this.g; if (!g.isSanctuary(a.x, a.z)) { this.px = a.x; this.pz = a.z; return; }
+      if (this.px != null) { a.x = this.px; a.z = this.pz; } a.path = null; this.repath = 0; this.pace = 2.5;   // pushed back; they pace outside for a moment
     }
     hunt(dt, d) {
       const a = this.a, me = this.P.me, reach = a.reach + (me.r || 0.3) + 0.35; this.spot = null;
@@ -110,10 +121,12 @@
         const store = this.target.kind === 'store', near = store ? 1.4 : 0.9;   // a store blocks a few tiles, so he stands a little further off
         if (dist(a, this.target) <= near) { this.mode = store ? 'raiding' : 'taking'; this.steal = 0; this.swings = 0; a.path = null; this.face(this.target); a.view.setState('action'); return; }
         this.goTo(this.target.x, this.target.z, a.speed, store ? 1.2 : 0.7, dt);
-        if (this.noWay) { this.target = null; this.repath = 0; }   // the way is shut: pick something else
+        if (this.noWay) { if (a.armed) { this.mode = 'siege'; return; } this.target = null; this.repath = 0; }   // the way is shut: an unarmed raider picks something else; an armed one breaks in
       } else if (this.mode === 'taking') {
         this.steal += dt; if (a.view.state !== 'action') a.view.setState('action');
         if (this.steal >= 1.6) this.take();
+      } else if (this.mode === 'siege') {
+        this.siege(dt);
       } else if (this.mode === 'raiding') {
         this.raid(dt);
       } else {
@@ -121,6 +134,20 @@
         if (dist(a, this.fleeTo) < 3 || dist(a, g.home.center) > 60) { this.escape(); return; }
         this.goTo(this.fleeTo.x, this.fleeTo.z, a.speed * 1.2, 1.5, dt);
       }
+    }
+    /** ARMED raiders only: when the way is shut they break the nearest gate (else wall, else the door) until it falls.
+        Wolves and ordinary raiders carry no weapon and never do this. */
+    nearestStructure() {
+      const g = this.g, a = this.a, c = g.castle, near = (o) => Math.hypot(o.x - a.x, o.z - a.z);
+      const pieces = c.pieces.filter((p) => ['gate', 'palisade', 'stone_wall'].includes(p.type) && near(p) < 14).sort((p, q) => (q.type === 'gate') - (p.type === 'gate') || near(p) - near(q));
+      if (pieces.length) return { x: pieces[0].x, z: pieces[0].z, piece: pieces[0] };
+      const d = g.home.door; return !d.open && !d.broken && near(d.ent) < 14 ? { x: d.ent.x, z: d.ent.z, door: d } : null;
+    }
+    siege(dt) {
+      const g = this.g, a = this.a; let s = this.struct;
+      if (!s || (s.piece && !g.castle.pieces.includes(s.piece)) || (s.door && (s.door.broken || s.door.open))) { s = this.struct = this.nearestStructure(); if (!s) { this.mode = 'seek'; this.target = null; this.repath = 0; return; } }
+      if (Math.hypot(s.x - a.x, s.z - a.z) > 1.0) { this.goTo(s.x, s.z, a.speed, 0.9, dt); return; }
+      this.face(s); a.path = null; if (this.cd <= 0) { this.cd = 0.9; a.view.setState('attack'); g.hurtStructure(s, a.atk); if (s.piece && !g.castle.pieces.includes(s.piece)) { this.struct = null; this.mode = 'seek'; this.repath = 0; } if (s.door && s.door.broken) { this.struct = null; this.mode = 'seek'; this.repath = 0; } }
     }
     stillThere(t) { return t.kind === 'store' ? t.store.amount >= 1 : t.slot.present; }
     /** mine a store: every swing knocks one unit out, a little cube of it flies to him and he pockets it */
@@ -157,7 +184,7 @@
   class Wild {
     constructor(game) {
       this.g = game; this.t = 0; this.difficulty = new Difficulty(game.calendar);
-      this.nextDayWolf = 55; this.nextNightWolf = 0; this.nextThief = 300;
+      this.nextDayWolf = 55; this.nextNightWolf = 0; this.nextThief = 300; this.nextMarauder = 480;
       game.calendar.on((ev) => this.onCalendar(ev));
     }
     get P() { return this.g.play; }
@@ -177,6 +204,7 @@
         if (this.wolves().length < df.dayCap) this.spawnPack(1);
         this.nextDayWolf = this.t + df.dayInterval();
       }
+      if (df.armedAllowed && this.t >= this.nextMarauder) { if (!this.alive((a) => a.armed).length) this.spawnMarauder(); this.nextMarauder = this.t + df.armedInterval(); }
       if (df.thievesAllowed && this.t >= this.nextThief) { if (!this.alive((a) => a.thief).length) this.spawnThief(); this.nextThief = this.t + df.thiefInterval(); }
     }
     /** a spot on the map's rim (inside the fog) that you can walk to */
@@ -203,6 +231,13 @@
       const g = this.g, at = this.edgePoint(); if (!at) return;
       const a = g.addActor({ id: 't' + Math.random().toString(36).slice(2, 7), role: 'enemy', spriteId: 'ranger', name: 'Raider', x: at.x, z: at.z, hpMax: 42, atk: 6, def: 0, speed: 2.7, cd: 1.3, reach: 0.9, r: 0.4, scale: 1, level: 1, info: { xp: 0, loot: [] } });
       a.view.setTint(0x6e4a42); a.hostile = true; a.aggro = false; a.thief = true; a.enemy = { drops: [] }; a.brain = new ThiefBrain(g, a);
+    }
+    /** an armed raider: like a thief, but carries a weapon, so a shut gate or door only slows him down */
+    spawnMarauder() {
+      const g = this.g, at = this.edgePoint(); if (!at) return;
+      const a = g.addActor({ id: 'm' + Math.random().toString(36).slice(2, 7), role: 'enemy', spriteId: 'ranger', name: 'Armed raider', x: at.x, z: at.z, hpMax: 70, atk: 8, def: 0, speed: 2.4, cd: 1.3, reach: 0.9, r: 0.4, scale: 1.05, level: 1, info: { xp: 0, loot: [] } });
+      a.view.setTint(0x8a3a34); a.hostile = true; a.aggro = false; a.thief = true; a.armed = true; a.enemy = { drops: [] }; a.brain = new ThiefBrain(g, a);
+      g.cui.toast('Armed raiders are coming. A gate will not stop them.');
     }
     /** a wolf or a thief died */
     onKill(a) {

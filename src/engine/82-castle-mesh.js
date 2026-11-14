@@ -10,7 +10,7 @@
 
   /* ---------- gatherable props (castle interaction types) ---------- */
   const P = PropBuilder.PROPS;
-  P['c:pine'] = { name: 'Snow pine', group: 'Castle', r: 0.6, h: 3, interact: 'c_tree', build(pb, o, st) { if (st === 'depleted') return; P['res:pine'].build(pb, o, st); } };
+  P['c:pine'] = { name: 'Snow pine', group: 'Castle', r: 0.6, h: 3, interact: 'c_tree', build(pb, o, st) { if (st === 'depleted') return; pb.pineAt(0, -0.05, 0, 2.9 * pb.rng.range(0.92, 1.08)); } };   // just the tree: no logs lying at its foot
   /* dead trees are harvestable too: the same stump when they are felled */
   P['c:deadtree'] = { name: 'Dead tree', group: 'Castle', r: 0.5, h: 2.4, interact: 'c_tree', build(pb, o, st) {
     if (st === 'depleted') return;   // felled: gone
@@ -28,7 +28,7 @@
 
   /* piece footprints (m): w along the piece's local x, d along local z; used for nav blocking, raider collision and placement */
   const SIZE = {
-    keep: [4.2, 4.2], palisade: [0.5, 0.5], stone_wall: [0.5, 0.5], dirt: [0.5, 0.5], gatehouse: [3.6, 1.6], watchtower: [1.5, 1.5], ember_brazier: [0.8, 0.8],
+    keep: [4.2, 4.2], palisade: [0.5, 0.5], stone_wall: [0.5, 0.5], dirt: [0.5, 0.5], gate: [0.5, 0.5], gatehouse: [3.6, 1.6], watchtower: [1.5, 1.5], ember_brazier: [0.8, 0.8],
     woodcutter: [2.6, 2.2], quarry: [2.6, 2.2], mine: [2.6, 2.4], great_hall: [5.2, 3.2], chapel: [2.2, 2.6], storehouse: [2.8, 2.2],
     smithy: [3.2, 2.6], ember_forge: [1.8, 1.6], barracks: [4.2, 2.2],
   };
@@ -90,10 +90,15 @@
           snowCap(0, 0.35 + (ruin ? 1.6 : H), W / 2 - 0.2, 0.9, 0.4);
           break;
         }
-        case 'palisade': {   // one tile, two cubes high
-          k.box('timber', 0, 0, 0, 0.5, 0.5, 0.5); k.box('wood', 0, 0.5, 0, 0.5, 0.5, 0.5);
-          for (const x of [-0.17, 0.17]) { k.box('bark', x, 0.02, 0.255, 0.1, 0.96, 0.02); k.box('bark', x, 0.02, -0.255, 0.1, 0.96, 0.02); }
-          snowCap(0, 1.0, 0, 0.5, 0.5);
+        case 'palisade': {   // a stockade section: sharpened logs, no snow on top
+          const tops = [[-0.17, -0.1, 1.08], [-0.03, 0.12, 0.96], [0.12, -0.12, 1.12], [0.17, 0.1, 1.0], [-0.14, 0.13, 1.04], [0.02, -0.02, 1.16]];
+          for (const [x, z, h] of tops) { k.geo('bark', CYL8, x, h / 2, z, 0, R.range(0, 3), 0, 0.17, h, 0.17, 0.5, 1); k.geo('wood', CONE6, x, h + 0.1, z, 0, 0, 0, 0.17, 0.3, 0.17, 0.5, 1); }
+          k.box('timber', 0, 0.28, -0.2, 0.5, 0.07, 0.05); k.box('timber', 0, 0.7, -0.2, 0.5, 0.07, 0.05);
+          break;
+        }
+        case 'gate': {       // two posts with spiked tops and a cross-bar: you walk through, wolves do not
+          for (const x of [-0.19, 0.19]) { k.geo('bark', CYL8, x, 0.6, 0, 0, 0, 0, 0.14, 1.2, 0.14, 0.5, 1); k.geo('wood', CONE6, x, 1.3, 0, 0, 0, 0, 0.14, 0.26, 0.14, 0.5, 1); }
+          k.box('planks', 0, 0.9, -0.03, 0.5, 0.09, 0.07); k.box('planks', 0, 0.35, -0.03, 0.5, 0.09, 0.07); k.box('iron', 0, 0.62, 0.03, 0.05, 0.05, 0.05);
           break;
         }
         case 'stone_wall': {   // one tile, one cube high
