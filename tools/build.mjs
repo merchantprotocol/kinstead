@@ -20,6 +20,7 @@ class EngineManifest {
   /* main thread only, in dependency order (buildings need THREE, K.TexturePainter and K.WorldDoc) */
   static MAIN = [
     '12-sprites.js', '14-post.js', '30-render.js',
+    '65-voxkit3d.js', '66-characters3d.js', '67-actor3d.js',   // 3D voxel characters; play picks the view class via K.ActorViews
     '70-building-tex.js', '71-building-data.js', '72-voxkit.js', '73-furniture.js', '74-recipes.js', '75-building-mesh.js', '76-interactions.js', '77-building-edit.js',
     '50-gen.js', '55-store.js', '56-items.js', '57-actors.js', '58-nav.js', '59-interact.js', '78-building-game.js', '62-playui.js', '63-play.js', '60-app.js', '79-building-ui.js',
   ];
