@@ -80,8 +80,14 @@
       if (e) { const t = K.WorkTarget.forEntity(this.ctx, e); if (!t) return false; this.engage(t); return true; }
       const p = P.app.pickGround(sx, sy); if (!p) return false;
       const [i, j] = this.editor.tileOf(p);
+      if (this.tool.doubleClick && !this.isDouble(sx, sy)) return false;   // a single click walks; the dig starts on the second click of a double-click
       const t = this.tool.groundTarget(i, j, this.ctx); if (!t) return false;
       this.engage(t); return true;
+    }
+    /** is this the second click of a double-click (close in time and place to the last ground click)? Records the click either way. */
+    isDouble(sx, sy) {
+      const now = performance.now(), l = this.lastGround, dbl = !!l && now - l.t < 420 && Math.hypot(sx - l.sx, sy - l.sy) < 30;
+      this.lastGround = dbl ? null : { t: now, sx, sy }; return dbl;
     }
     /** start work on a target, or say which tool it needs. Also the entry point for the right-click menu. */
     engage(target) {
@@ -94,6 +100,7 @@
     }
     /** pressing here is a tool click, not the start of a hold-to-walk */
     claims(sx, sy) {
+      if (this.tool.doubleClick) return false;   // holding the button on the ground still walks
       const p = this.play.app.pickGround(sx, sy); if (!p) return false;
       const [i, j] = this.editor.tileOf(p); return !!this.tool.groundTarget(i, j, this.ctx);
     }

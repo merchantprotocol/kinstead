@@ -17,6 +17,8 @@
     groundTarget(i, j, ctx) { return null; }
     /** a reason a click on this tile is refused (shown as a toast), or null */
     denyGround(i, j, ctx) { return null; }
+    /** a ground click only starts work when it is a double-click (single clicks walk) */
+    get doubleClick() { return false; }
     get verb() { return 'work'; }
     /** 'weapon' tools live in the weapon slot (and the weapon drawer); everything else is a work tool with its own slot */
     get kind() { return 'work'; }
@@ -47,7 +49,8 @@
     get combat() { return { scale: 0.5, gap: 0.24, radius: 2.2, arc: Math.PI * 0.55 }; }
   }
   class ShovelTool extends Tool {
-    constructor() { super('shovel', '4', 'Shovel', 'Shovel out. Click the ground to dig.'); }
+    constructor() { super('shovel', '4', 'Shovel', 'Shovel out. Double-click the ground to dig there; a single click just walks.'); }
+    get doubleClick() { return true; }                // digging is deliberate: it never starts from an ordinary walking click
     groundTarget(i, j, ctx) { return ctx.editor.canDig(i, j) ? new K.DigTarget(ctx, i, j) : null; }
     get verb() { return 'dig'; }
   }
