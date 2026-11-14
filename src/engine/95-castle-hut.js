@@ -18,6 +18,7 @@
       { id: 'wood', kind: 'barrel', name: 'Wood barrel', res: 'wood', dx: 2.5, dz: 2.9 }, { id: 'stone', kind: 'barrel', name: 'Stone barrel', res: 'stone', dx: 3.25, dz: 2.5 },
       { id: 'food', kind: 'barrel', name: 'Food barrel', res: 'food', dx: 2.05, dz: 3.6, own: 6 }, { id: 'dirt', kind: 'crate', name: 'Dirt crate', res: 'dirt', dx: 1.15, dz: 4.0 },
       { id: 'larder', kind: 'crate', name: 'Food crate', res: 'food', dx: 0.45, dz: 3.8, own: 5 },
+      { id: 'arrows1', kind: 'crate', name: 'Arrow crate', res: 'arrow', dx: -0.7, dz: 3.9, own: 14 }, { id: 'arrows2', kind: 'crate', name: 'Arrow crate', res: 'arrow', dx: -1.45, dz: 3.6, own: 12 },
     ];
     /* piled against the walls of the house: barrels and stacked crates, nearly all food. dx/dz are metres from the house centre. */
     const pile = (tag, spots) => spots.forEach(([dx, dz], i) => out.push(i % 3 === 1
@@ -37,13 +38,20 @@
       this.mesh = new THREE.Group(); for (const m of this.draw(def).meshes(g.R.bmats)) this.mesh.add(m);
       this.mesh.position.set(x, g.play.nav.y(x, z), z); this.mesh.rotation.y = x * 3; g.group.add(this.mesh);
       this.ent = { id: 'store:' + def.id, type: 'c_barrel', store: this, res: def.res, name: def.name, x, z, y: this.mesh.position.y, r: 0.42, h: 0.7 };
-      g.blockRect(x, z, 0.5, 0.5, 0, false);
+      this.x = x; this.z = z; this.present = true; g.blockRect(x, z, 0.5, 0.5, 0, false);
+    }
+    /** a barrel or crate that has been emptied disappears (and stops blocking the ground); it comes back if something is put in it */
+    sync() {
+      const has = this.amount > 0; if (has === this.present) return; this.present = has; this.mesh.visible = has;
+      const g = this.home.g; if (has) g.blockRect(this.x, this.z, 0.5, 0.5, 0, false); else { g.unblockRect(this.x, this.z, 0.5, 0.5, 0); this.home.reblock(); }
+      g.play.refreshProps();
     }
     /** the voxel model: subclasses build the container, this adds what is in it */
     draw(def) { throw new Error('Store.draw'); }
     contents(k, res, top = 0.5) {
       if (res === 'food') { k.box('bread', -0.08, top, 0.02, 0.16, 0.08, 0.1, 0.4); k.box('bread', 0.08, top, -0.05, 0.14, 0.08, 0.1, -0.3); k.box('food', 0, top, 0.09, 0.1, 0.06, 0.08); }
       else if (res === 'wood') for (const [bx, bz, r] of [[-0.07, 0, 0.2], [0.07, 0.02, -0.2], [0, -0.07, 0.6]]) k.box('wood', bx, top, bz, 0.05, 0.28, 0.05, r, 0.5, 0.2);
+      else if (res === 'arrow') for (let i = -2; i <= 2; i++) { k.box('wood', i * 0.06, top, 0.02 * i, 0.02, 0.32, 0.02, 0, 0.1 * i, 0.05 * i); k.box('snow', i * 0.06, top + 0.3, 0.02 * i, 0.05, 0.05, 0.02); }   // arrows, feathers up
       else if (res === 'stone') { k.box('boulder', -0.07, top, 0, 0.14, 0.1, 0.12, 0.3); k.box('boulder', 0.07, top, 0.04, 0.12, 0.09, 0.1, -0.4); }
       else { k.box('bark', -0.07, top, 0, 0.12, 0.1, 0.12, 0.3); k.box('bark', 0.08, top, 0.04, 0.11, 0.09, 0.1, -0.4); }   // dirt
     }
@@ -82,6 +90,8 @@
       this.owned = false;
     }
     /** take the bow off the wall: it joins your hotbar */
+    /** fletch arrows: one wood makes four */
+    fletch() { const g = this.home.g, c = g.castle; if (c.amount('wood') < 1) { g.cui.toast('You need wood to make arrows.'); g.sound.play('clank'); return; } if (c.amount('arrow') >= (c.caps().arrow || 0)) { g.cui.toast('Your quiver is full.'); return; } c.spend({ wood: 1 }); c.add('arrow', 4); g.play.float(g.play.me, '+4 arrows', 'loot'); g.sound.play('gather'); g.changed(); }
     take() { const g = this.home.g; if (this.owned) return; this.owned = true; this.bow.visible = false; g.tools.belt.addWeapon(new K.BowTool()); g.cui.toast('You take the bow. Click your weapon slot to swap to it.'); g.sound.play('clank'); }
     putBack() { const g = this.home.g; if (!this.owned) return; this.owned = false; this.bow.visible = true; g.tools.belt.removeWeapon('bow'); g.cui.toast('Bow back on the wall.'); g.sound.play('thunk'); }
     dispose() { this.home.g.group.remove(this.mesh); }
@@ -96,8 +106,8 @@
       const cx = (b.x + d.x + d.w / 2) * TILE, cz = (b.z + d.z + 0.5) * TILE, fy = g.play.nav.y(cx, cz);
       const k = new K.VoxKit(), w = d.w * TILE - 0.06;
       k.box('planks', 0, 0, 0, w, 1.55, 0.1); k.box('timber', 0, 0.25, 0.06, w, 0.1, 0.04); k.box('timber', 0, 1.1, 0.06, w, 0.1, 0.04); k.box('iron', w / 2 - 0.12, 0.8, 0.07, 0.06, 0.06, 0.04);
-      this.leaf = new THREE.Group(); for (const m of k.meshes(g.R.bmats)) this.leaf.add(m);
-      this.leaf.position.set(cx, fy, (b.z + d.z + 1) * TILE - 0.08); g.group.add(this.leaf);
+      const body = new THREE.Group(); for (const m of k.meshes(g.R.bmats)) body.add(m); body.position.x = w / 2;   // the leaf hangs off a hinge on its west edge
+      this.leaf = new THREE.Group(); this.leaf.add(body); this.angle = 0; this.leaf.position.set(cx - w / 2, fy, (b.z + d.z + 1) * TILE - 0.08); g.group.add(this.leaf);
       this.ent = { id: 'door', type: 'c_door', name: 'Door', x: cx, z: cz + 0.35, y: fy, r: 0.7, h: 1.7 };
       this.apply();
     }
@@ -115,8 +125,10 @@
     /** write the door into the ground: shut = the doorway tiles cannot be walked */
     apply() {
       const nav = this.home.g.play.nav; for (const [i, j] of this.tiles) nav.walk[j * nav.w + i] = this.open ? 1 : 0;
-      this.leaf.visible = !this.open && !this.broken;
+      this.leaf.visible = !this.broken;   // one leaf only: shut across the doorway, or swung open into the room
     }
+    /** swing the leaf toward open or shut */
+    update(dt) { const t = this.open ? 1.35 : 0, step = dt * 6; this.angle += Math.max(-step, Math.min(step, t - this.angle)); this.leaf.rotation.y = this.angle; }
     /** something (you or a creature) is standing in the doorway */
     occupied() {
       const P = this.home.g.play, r = 0.55;
@@ -168,13 +180,20 @@
     }
 
     /* ---------- the stores and the world's view of the home ---------- */
+    /** take arrows from a crate into your quiver (up to 8 at a time) */
+    takeArrows(store) {
+      const g = this.g; if (!store || store.amount <= 0) { g.cui.toast('Nothing left to take.'); return; }
+      const n = store.rob(8); g.castle.add('arrow', n); g.play.float(g.play.me, `+${n} arrows`, 'loot'); g.sound.play('gather'); g.changed();
+    }
     takeFood(store) {
       const g = this.g, p = g.play.player; if (!store || store.amount <= 0) { g.cui.toast('Nothing left to take.'); return; }
       if (!p.canAdd('turnip', 1)) { g.cui.toast('Your bag is full.'); return; }
       store.rob(1); p.addItem('turnip', 1); g.play.float(g.play.me, '+1 turnip', 'loot'); g.sound.play('gather');
     }
-    entities() { return this.stores.map((s) => s.ent).concat([this.door.ent, this.rack.ent]); }
-    update() { this.door.apply(); }   // the building re-reads the ground now and then; the door is written back every frame
+    /** after a store vanishes, re-mark the ground under the ones still standing */
+    reblock() { for (const s of this.stores) if (s.present) this.g.blockRect(s.x, s.z, 0.5, 0.5, 0, false); this.door.apply(); }
+    entities() { return this.stores.filter((s) => s.present).map((s) => s.ent).concat([this.door.ent, this.rack.ent]); }
+    update(dt) { this.door.apply(); this.door.update(dt); this.stores.forEach((x) => x.sync()); }   // the building re-reads the ground now and then; the door is written back every frame
     dispose() { this.stores.forEach((s) => s.dispose()); this.rack.dispose(); this.g.group.remove(this.door.leaf); }
   }
 

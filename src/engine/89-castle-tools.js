@@ -74,7 +74,7 @@
     click(sx, sy) {
       if (this.g.cui.click(sx, sy)) return true;
       const P = this.play; if (!P.me.alive) return false;
-      if (this.tool.id === 'bow' && this.archery.click(sx, sy)) return true;   // bow: shoot, do not walk
+      if (this.tool.ranged && this.archery.click(sx, sy)) return true;   // bow: shoot, do not walk
       const e = P.pick(sx, sy);
       if (e && this.g.sweep.clickFoe(e, this.tool)) return true;   // sword + a foe in reach: swing now, as fast as you click
       if (e) { const t = K.WorkTarget.forEntity(this.ctx, e); if (!t) return false; this.engage(t); return true; }
@@ -100,7 +100,7 @@
     /** the cursor for what is under the pointer, or null to keep the default */
     hoverCursor(ent, sx, sy) {
       const Ic = K.Icons;
-      if (this.tool.id === 'bow') return ent && this.g.sweep.isFoe(ent) ? Ic.cursor('bow', 'pointer') : null;
+      if (this.tool.ranged) return ent && this.g.sweep.isFoe(ent) ? Ic.cursor('bow', 'pointer') : null;
       if (this.g.demolisher.active && !ent) { const dc = this.g.demolisher.hover(sx, sy); if (dc) return dc; }
       if (ent) {
         const t = K.WorkTarget.forEntity(this.ctx, ent); if (!t) return null;

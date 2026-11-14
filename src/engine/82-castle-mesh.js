@@ -16,7 +16,7 @@
     if (st === 'depleted') return;   // felled: gone
     P.deadtree.build(pb, o, st);
   } };
-  P['c:iron'] = { name: 'Iron rock', group: 'Castle', r: 0.55, h: 0.9, interact: 'c_iron', build: P['res:ore'].build };
+  P['c:iron'] = { name: 'Iron rock', group: 'Castle', r: 0.55, h: 0.9, interact: 'c_iron', build(pb, o, st) { if (st === 'depleted') return; P['res:ore'].build(pb, o, st); } };
   P['c:boulder'] = { name: 'Boulder', group: 'Castle', r: 0.6, h: 0.9, interact: 'c_boulder', build(pb, o, st) {
     if (st === 'depleted') return;   // used up: gone
     pb.boulderAt(0, 0, 0, 0.55); pb.boulderAt(0.42, 0, 0.22, 0.3); pb.boulderAt(-0.36, 0, 0.18, 0.26); pb.cap(0, 0.5, 0, 0.42, 0.36, 0.3, 0.07);
@@ -28,7 +28,7 @@
 
   /* piece footprints (m): w along the piece's local x, d along local z; used for nav blocking, raider collision and placement */
   const SIZE = {
-    keep: [4.2, 4.2], palisade: [0.5, 0.5], stone_wall: [0.5, 0.5], dirt: [0.5, 0.5], gate: [2, 0.5], gatehouse: [3.6, 1.6], watchtower: [1.5, 1.5], ember_brazier: [0.8, 0.8],
+    keep: [4.2, 4.2], palisade: [0.5, 0.5], stone_wall: [0.5, 0.5], dirt: [0.5, 0.5], gate: [2, 0.5], blacksmith: [6, 4.5], gatehouse: [3.6, 1.6], watchtower: [1.5, 1.5], ember_brazier: [0.8, 0.8],
     woodcutter: [2.6, 2.2], quarry: [2.6, 2.2], mine: [2.6, 2.4], great_hall: [5.2, 3.2], chapel: [2.2, 2.6], storehouse: [2.8, 2.2],
     smithy: [3.2, 2.6], ember_forge: [1.8, 1.6], barracks: [4.2, 2.2],
   };
@@ -109,6 +109,10 @@
           break;
         }
         case 'dirt': { k.box('bark', 0, 0, 0, 0.5, 0.5, 0.5); break; }
+        case 'blacksmith': {   // only the placement ghost: the footprint of the workshop with a low wall and a chimney
+          k.box('ashlar', 0, 0, 0, 6, 0.3, 0.3, 0, 0, 0); k.box('ashlar', 0, 0, 4.2, 6, 0.3, 0.3); k.box('ashlar', -2.85, 0, 2.1, 0.3, 0.3, 4.5); k.box('ashlar', 2.85, 0, 2.1, 0.3, 0.3, 4.5); k.box('timber', 0, 0, 2.1, 5.4, 0.08, 3.9); k.box('ashlar', -2, 0.3, 0.3, 0.6, 1.4, 0.6);
+          break;
+        }
         case 'gatehouse': {
           const th = ruin ? 1.3 : 3;
           for (const s of [-1, 1]) { k.box('ashlar', s * 1.3, 0, 0, 1.1, th, 1.4); if (!ruin) { for (const dx of [-0.35, 0.35]) k.box('ashlar', s * 1.3 + dx, th, 0.5, 0.3, 0.3, 0.3); k.box('slate', s * 1.3, th, 0, 0.9, 0.7, 0.9, Math.PI / 4); snowCap(s * 1.3, th + 0.7, 0, 0.5, 0.5); } else snowCap(s * 1.3, th, 0, 1.1, 1.4); }

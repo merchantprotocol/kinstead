@@ -171,7 +171,7 @@
       this.castle = new K.Castle(this.data); this.day = new K.DayCycle(this.data); this.calendar = new K.Calendar(this); this.playTime = 0;
       this.saved = this.resume ? this.slot.read() : null;
       if (this.saved) { this.castle = K.Castle.fromJSON(this.data, this.saved.castle); const d = Object.assign({}, this.saved.day); if (this.day.phases[d.idx] && this.day.phases[d.idx].kind === 'night') d.t = 0; this.day = new K.DayCycle(this.data, d); this.playTime = this.saved.playTime || 0; }
-      if (!this.saved) { this.castle.add('wood', 6); this.castle.add('stone', 4); this.castle.add('dirt', 4); this.castle.weapons.add('stoneblade'); }   // you start with a little of everything and a blade
+      if (!this.saved) { this.castle.add('wood', 6); this.castle.add('stone', 4); this.castle.add('dirt', 4); this.castle.add('arrow', 12); this.castle.weapons.add('stoneblade'); }   // you start with a little of everything and a blade
       this.day.phases = K.Calendar.PHASES;   // looping day and night
       this.noXp = true; this.swingSec = this.data.swingSec;
     }
@@ -192,7 +192,7 @@
       play.spawn = { x: this.L.start.x, z: this.L.start.z };
       if (this.saved && this.saved.hero) { const [x, z] = this.saved.hero; if (play.nav.standable(x, z)) { play.me.x = x; play.me.z = z; play.me.y = play.nav.y(x, z); } }
       // your hut: the fire, the furniture, the barrels. No keep, ruins, outcrop or zone barriers.
-      this.gateTiles = new Set(); this.home = new K.Home(this); this.keepMesh = null; this.ruinEnts = {}; this.outcropEnt = null;
+      this.gateTiles = new Set(); this.smithy = null; this.forge = null; this.home = new K.Home(this); this.keepMesh = null; this.ruinEnts = {}; this.outcropEnt = null;
       this.keepEnt = { id: 'c-home', type: 'c_keep', name: 'Your home', x: this.L.keep.x, z: this.L.keep.z, y: 0, r: 0.1, h: 2, goal: [this.home.doorPoint.x, this.home.doorPoint.z] };
       if (!this.castle.lit) this.castle.light();
       for (const p of this.castle.pieces) this.addPieceMesh(p);
@@ -293,8 +293,35 @@
       if (!turned) { if (wallAt(spotX.x - 1.25, spotX.z) || wallAt(spotX.x + 1.25, spotX.z)) return spotX; if (wallAt(spotZ.x, spotZ.z - 1.25) || wallAt(spotZ.x, spotZ.z + 1.25)) return spotZ; return spotX; }
       return spotZ;
     }
+    /* ---- a building you place (the blacksmith): a real building from the building system, anywhere there is room, flush against your house or on its own ---- */
+    buildingSpot(p) { const ti = Math.round(p.x / TILE) - 6, tj = Math.floor(p.z / TILE) - 4; return { x: (ti + 6) * TILE, z: (tj + 4.5) * TILE, rot: 0 }; }
+    buildingOk(x, z) {
+      const nav = this.play.nav, d = this.play.doc, ti = Math.round(x / TILE - 6), tj = Math.round(z / TILE - 4.5); let lo = 1e9, hi = -1e9;
+      if (this.smithy) return 'you already have a blacksmith';
+      for (let j = 0; j < 9; j++) for (let i = 0; i < 12; i++) {
+        const ci = ti + i, cj = tj + j; if (!d.inside(ci, cj)) return 'that is off the map'; const k = cj * d.w + ci, t = d.terrain[k];
+        if (t === K.T.ROCK || t === K.T.CHASM || t === K.T.WATER) return 'the ground is not clear';
+        if (!nav.walk[k] || this.occ[k] || this.R.buildings.at(ci, cj)) return 'something is in the way';
+        lo = Math.min(lo, d.hy(ci, cj)); hi = Math.max(hi, d.hy(ci, cj));
+      }
+      if (hi - lo > 0.55) return 'the ground is too uneven (level it with dirt or a shovel)';
+      const me = this.play.me; if (me.x > ti * TILE - 0.3 && me.x < (ti + 12) * TILE + 0.3 && me.z > tj * TILE - 0.3 && me.z < (tj + 9) * TILE + 0.3) return 'you are standing there';
+      return null;
+    }
+    placeBuilding(x, z, quiet) {
+      const c = this.castle, why = this.buildingOk(x, z) || c.blocker('blacksmith');
+      if (why) { if (!quiet) { this.cui.toast(why[0].toUpperCase() + why.slice(1) + '.'); this.sound.play('clank'); } return false; }
+      const ti = Math.round(x / TILE - 6), tj = Math.round(z / TILE - 4.5), R = this.R, play = this.play;
+      c.spend(c.buildCost('blacksmith'));
+      const spec = K.makeBuilding('smithy', ti, tj, 'smithy', 23); spec.furniture = spec.furniture.filter((f) => ['forge', 'anvil', 'grindstone', 'workbench', 'barrel', 'sack', 'crate'].includes(f.type));   // a workshop, not a shop: no free weapons on the walls
+      play.doc.objects.push(spec); R.syncBuildings(true); play.nav.applyBuildings(R.buildings); play.bplay.dirty(); play.refreshProps(); this.home.door.apply();
+      this.smithy = spec; this.forge = this.forge || new K.Forge(this);
+      this.sound.play('whump'); this.shake(0.2); this.puff(x, z); this.cui.toast('Blacksmith built. Click the anvil to forge new weapons.'); this.changed(); return true;
+    }
+    /* any building of yours: wolves never go in */
+    insideBuilding(x, z) { return !!this.R.buildings.at(Math.floor(x / TILE), Math.floor(z / TILE)); }
     gateTilesOf(p) { const nav = this.play.nav, out = []; this.rectTiles(p.x, p.z, 2, 0.5, p.rot, (i, j) => out.push(i + ',' + j)); return out; }
-    isSanctuary(x, z) { return this.home.inside(x, z) || this.gateTiles.has(Math.floor(x / TILE) + ',' + Math.floor(z / TILE)); }
+    isSanctuary(x, z) { return this.insideBuilding(x, z) || this.gateTiles.has(Math.floor(x / TILE) + ',' + Math.floor(z / TILE)); }
     blockPiece(p) {
       if (p.type === 'gate') { const nav = this.play.nav; this.rectTiles(p.x, p.z, 2, 0.5, p.rot, (i, j) => { this.occ[j * nav.w + i] = 1; this.gateTiles.add(i + ',' + j); }); return; }   // occupied for building, but you can walk through
       const [w, d] = CastleArt.size(p.type); this.blockRect(p.x, p.z, this.walls.handles(p.type) ? w + 0.04 : w, d, p.rot, p.type === 'gatehouse'); }
@@ -348,11 +375,13 @@
         if (st && !c.weapons.has(this.data.recipe(st).id.replace('craft_', ''))) act('craft', `Forge ${this.data.item(st.replace('craft_', '')).name} · ${fmtCost(this.data.recipe(st).inputs)}`, st === 'craft_iron_sword' ? 'sword' : 'brand', () => this.craft(st), { range: e.r + 0.8 });
       } else if (e.type === 'c_rack') {
         const rk = e.rack; act('bow', rk.owned ? 'Put the bow back' : 'Take the bow', 'sword', () => (rk.owned ? rk.putBack() : rk.take()), { range: 1.2 });
+        act('fletch', 'Fletch 4 arrows (1 wood)', 'hand', () => rk.fletch(), { range: 1.2 });
       } else if (e.type === 'c_door') {
         const door = this.home.door; act('door', door.broken ? 'Repair the door (3 wood)' : door.open ? 'Shut the door' : 'Open the door', 'hand', () => door.toggle(), { range: 1.3 });
       } else if (e.type === 'c_barrel') {
         const rg = e.r + 0.8, st = e.store;
         if (e.res === 'food') act('take', `Take a turnip (${st.amount} left)`, 'hand', () => this.home.takeFood(st), { range: rg });
+        else if (e.res === 'arrow') act('take', `Take arrows (${st.amount} left)`, 'hand', () => this.home.takeArrows(st), { range: rg });
         else act('look', `${e.name}: ${st.amount} ${K.CastleData.resName(e.res)}`, 'eye', () => this.cui.toast(`${st.amount} ${K.CastleData.resName(e.res)} stored here.`), { range: rg });
       } else if (e.type === 'c_kin') {
         const id = e.kinId;
@@ -429,6 +458,7 @@
       const c = this.castle, [w, d] = CastleArt.size(type), nav = this.play.nav;
       let bad = null;
       if (type === 'dirt') return this.dirtOk(x, z);
+      if (type === 'blacksmith') return this.buildingOk(x, z);
       this.rectTiles(x, z, w + 0.2, d + 0.2, rot, (i, j) => { const k = j * nav.w + i; if (this.occ[k]) bad = 'something is in the way'; else if (!nav.walk[k] || nav.deck[k]) bad = bad || 'the ground is not clear'; });
       const me = this.play.me; if (!bad && Math.hypot(me.x - x, me.z - z) < Math.min(w, d) / 2 + 0.2) bad = 'you are standing there';
       if (!bad && type !== 'gate' && this.wouldWallOffKeep(type, x, z, rot)) bad = 'that would wall off the Keep';
@@ -454,6 +484,7 @@
     }
     buildAt(type, x, z, rot = this.autoRot(x, z), quiet = false) {
       if (type === 'dirt') return this.placeDirt(x, z, quiet);
+      if (type === 'blacksmith') return this.placeBuilding(x, z, quiet);
       const why = this.placementOk(type, x, z, rot); if (why) { if (!quiet) { this.cui.toast(why[0].toUpperCase() + why.slice(1) + '.'); this.sound.play('clank'); } return false; }
       const r = this.castle.build(type, { x, z, rot }); if (!r.ok) { if (!quiet) this.cui.toast(`${this.data.piece(type).name}: ${r.why}.`); return false; }
       const m = this.addPieceMesh(r.piece); this.pop(m); this.sound.play('thunk'); this.puff(x, z); this.shake(0.08);

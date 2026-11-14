@@ -323,3 +323,8 @@ body.castle #voxOrbit{display:none!important}
 #cArms .dw-t b{font-size:13px;color:#fff4dc}#cArms .dw-t b em{font:700 10px system-ui;color:#0a1020;background:#ffd27a;border-radius:4px;padding:1px 5px;margin-left:4px;font-style:normal}
 #cArms .dw-t small{font-size:10.5px;color:#8c9bb4;line-height:1.25}
 #cArms .dw-t .cost{display:flex;flex-wrap:wrap;gap:3px}
+
+#cArms .dw-list h4{margin:8px 2px 4px;font:700 11px system-ui;letter-spacing:.06em;text-transform:uppercase;color:#9fb0c8}
+#cTools .tl .bd{position:absolute;right:4px;top:3px;font:700 10px system-ui;color:#0a1020;background:#9fdcff;border-radius:4px;padding:0 4px;font-style:normal}
+#cTools .tl .bd:empty{display:none}
+#cModal .fg{margin:6px 0;padding:6px 8px;border:1px solid #2f3b54;border-radius:8px;background:#101826}#cModal .fg.have{opacity:.55}#cModal .fg.poor b{color:#c9a07a}#cModal .fg small{color:#8c9bb4}

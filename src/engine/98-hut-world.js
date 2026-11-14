@@ -24,7 +24,7 @@
     /** the cottage: the same kind of house the World Builder makes (timber, thatch, kitchen and bedroom) */
     homeSpec() {
       const h = this.home;
-      return K.BuildingSpec.normalize({
+      const spec = K.BuildingSpec.normalize({
         kind: 'building', id: 'home', prefab: 'cottage', x: h.x, z: h.z, seed: 11,
         footprint: { shape: 'rect', w: h.w, h: h.h }, walls: 'timber', roof: { style: 'gable', material: 'thatch' }, interiorFloor: 'planks', wallH: 2.1,
         rooms: [{ id: 'kitchen', type: 'kitchen', x: 0, z: 0, w: 5, h: 7 }, { id: 'bed', type: 'bedroom', x: 5, z: 0, w: 5, h: 7 }],
@@ -36,6 +36,8 @@
           { type: 'rug', x: 6, z: 4, rot: 0 }, { type: 'chair', x: 8, z: 5, rot: 2 },
         ],
       });
+      spec.noDoorLeaves = true;   // the Door class draws the door leaf, open or shut, so there is only ever one
+      return spec;
     }
     dist(a, b) { return Math.hypot(a.x - b.x, a.z - b.z); }
     inIronHills() { return false; }
@@ -65,6 +67,7 @@
         const dead = R.next() >= 0.88; this.prop(dead ? 'c:deadtree' : 'c:pine', x, z, { s: R.range(0.85, 1.25), name: dead ? 'Dead tree' : 'Snow pine' }); trees++;
       }
       for (let k = 0, got = 0; got < 34 && k < 900; k++) { const x = R.range(8, wu - 8), z = R.range(8, hu - 8); if (Math.hypot(x - L.keep.x, z - L.keep.z) < 8 || this.heightAt(x, z).rock || near(x, z, 2.2)) continue; this.prop('c:boulder', x, z, { name: 'Boulder', rot: R.range(0, 6) }); got++; }
+      for (const H of L.hills) for (let k = 0; k < 8; k++) { const a = this.R.range(0, 6.28), x = H.x + Math.cos(a) * (H.r + 1.2), z = H.z + Math.sin(a) * (H.r + 1.2); if (!this.heightAt(x, z).rock && !near(x, z, 1.6)) this.prop('c:iron', x, z, { name: 'Iron rock', rot: this.R.range(0, 6) }); }   // iron to forge with, on the edge of every hill
       for (let k = 0, got = 0; got < 24 && k < 600; k++) { const x = R.range(8, wu - 8), z = R.range(8, hu - 8); if (Math.hypot(x - L.keep.x, z - L.keep.z) < 7 || this.heightAt(x, z).rock || near(x, z, 1.8)) continue; this.prop('rock', x, z, { s: R.range(0.8, 1.4) }); got++; }
     }
   }

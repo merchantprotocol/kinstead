@@ -20,6 +20,8 @@
     get verb() { return 'work'; }
     /** 'weapon' tools live in the weapon slot (and the weapon drawer); everything else is a work tool with its own slot */
     get kind() { return 'work'; }
+    get art() { return this.id; }                  // which painting represents it (a weapon can reuse another's)
+    get category() { return this.kind === 'weapon' ? 'Melee' : 'Tools'; }
     get ranged() { return false; }
     get blurb() { return ''; }
     /** how this tool fights when you are attacked: damage scale, seconds between swings, reach, arc. Only the sword is a real weapon. */
@@ -72,8 +74,10 @@
     /** (re)draw the hotbar buttons */
     render() {
       this.tools.forEach((x, i) => { x.key = String(i + 1); });   // keys follow the slots, so a weapon takes the weapon slot's key
-      this.bar.innerHTML = this.tools.map((t) => `<button class="tl" data-t="${t.id}" title="${t.name} (${t.key})"><img src="${Toolbelt.artUrl(t.id)}" width="40" height="40" alt=""><kbd>${t.key}</kbd><span>${t.name}</span></button>`).join(''); this.paint();
+      this.bar.innerHTML = this.tools.map((t) => `<button class="tl" data-t="${t.id}" title="${t.name} (${t.key})"><img src="${Toolbelt.artUrl(t.art)}" width="40" height="40" alt=""><kbd>${t.key}</kbd><i class="bd"></i><span>${t.name}</span></button>`).join(''); this.paint();
     }
+    /** a small number on a slot (arrows left for a bow) */
+    setBadge(id, text) { const b = this.bar.querySelector(`[data-t="${id}"] .bd`); if (b && b.textContent !== String(text)) b.textContent = text; }
     /** you now own this weapon (it is offered in the weapon drawer; it is not equipped until you pick it) */
     addWeapon(w) { if (!this.weapons.some((x) => x.id === w.id)) { this.weapons.push(w); this.changed(); } }
     changed() { if (this.onWeaponsChanged) this.onWeaponsChanged(); }
@@ -85,7 +89,7 @@
       if (wasInHand || this.current !== w) { this.current = w; this.paint(); this.onSelect(w); }
       this.changed();
     }
-    static artUrl(id) { return 'data:image/svg+xml,' + encodeURIComponent(K.CursorArt.svg(id)); }
+    static artUrl(id) { return 'data:image/svg+xml,' + encodeURIComponent(K.CursorArt.svg(K.CursorArt.has(id) ? id : 'pointer')); }
     byId(id) { return this.tools.find((t) => t.id === id) || null; }
     byKey(key) { return this.tools.find((t) => t.key === key) || null; }
     /** the tool that can work on this target, if any */

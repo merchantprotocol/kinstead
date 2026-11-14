@@ -83,6 +83,14 @@
    "source": "barrels, the pantry, wolves",
    "valueSec": 3,
    "valueNote": "eating restores health"
+  },
+  "arrow": {
+   "id": "arrow",
+   "name": "Arrows",
+   "kind": "raw",
+   "source": "crates, fletching wood",
+   "valueSec": 2,
+   "valueNote": "one wood makes four arrows"
   }
  },
  "itemAliases": {
@@ -158,7 +166,8 @@
    "gold": 40,
    "ember_shard": 20,
    "dirt": 60,
-   "food": 40
+   "food": 40,
+   "arrow": 60
   },
   "baseFrom": "the Keep",
   "rule": "production and gathering stop at the cap; a full producer shows a red 'FULL' flag (the hint to build a Storehouse or spend)",
@@ -559,6 +568,21 @@
    "hp": 40,
    "effect": "A solid gate, four squares wide, with an arch. You walk through; creatures do not. Press R to turn it.",
    "artPrompt": "a small wooden fort gate with sharpened posts",
+   "buildRequires": []
+  },
+  "blacksmith": {
+   "id": "blacksmith",
+   "name": "Blacksmith",
+   "category": "building",
+   "cost": {
+    "wood": 20,
+    "stone": 25
+   },
+   "requiresCastleLevel": 1,
+   "castlePoints": 0,
+   "hp": 0,
+   "effect": "A forge, anvil and workbench in a stone workshop. Forge new weapons. Build it onto your house or on its own.",
+   "artPrompt": "a stone blacksmith workshop with a chimney",
    "buildRequires": []
   }
  },

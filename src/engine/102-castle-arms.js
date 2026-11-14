@@ -22,15 +22,15 @@
     /** what a weapon does, in words a kid can read */
     stats(w) {
       const c = w.combat, ranged = w.ranged, dmg = Math.round(c.scale * 100), rate = (1 / c.gap).toFixed(1);
-      return ranged ? `<span class="chip">Ranged</span><span class="chip">Over walls</span>` : `<span class="chip">Damage ${dmg}%</span><span class="chip">${rate} swings/s</span><span class="chip">Wide sweep</span>`;
+      return ranged ? `<span class="chip">Damage ${Math.round(((w.cfg || {}).damage || 0.85) * 100)}%</span><span class="chip">Range ${(w.cfg || {}).range || 26} m</span><span class="chip">Over walls</span>` : `<span class="chip">Damage ${dmg}%</span><span class="chip">${rate} swings/s</span><span class="chip">Wide sweep</span>`;
     }
     row(w) {
       const on = this.belt.tools.includes(w);
-      return `<button class="dw-row ${on ? 'equipped' : 'ok'}" data-w="${esc(w.id)}"><img src="${K.Toolbelt.artUrl(w.id)}" width="40" height="40" alt="">
+      return `<button class="dw-row ${on ? 'equipped' : 'ok'}" data-w="${esc(w.id)}"><img src="${K.Toolbelt.artUrl(w.art)}" width="40" height="40" alt="">
         <div class="dw-t"><b>${esc(w.name)}${on ? ' <em>equipped</em>' : ''}</b><div class="cost">${this.stats(w)}</div><small>${esc(w.blurb)}</small></div></button>`;
     }
     render() {
-      const html = this.belt.weapons.map((w) => this.row(w)).join('');
+      const cats = ['Melee', 'Ranged'], html = cats.map((cat) => { const ws = this.belt.weapons.filter((w) => w.category === cat); return ws.length ? `<h4>${cat}</h4>${ws.map((w) => this.row(w)).join('')}` : ''; }).join('');
       if (html === this.html) return; this.html = html; this.list.innerHTML = html;
     }
     update() { if (this.isOpen) this.render(); }

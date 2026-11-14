@@ -66,6 +66,12 @@
     bow: { hot: [22, 22], body: `<path d='M13 5Q33 22 13 39' fill='none' stroke='#0a1020' stroke-width='6.6' stroke-linecap='round'/><path d='M13 5Q33 22 13 39' fill='none' stroke='url(#wd)' stroke-width='4' stroke-linecap='round'/>
       <path d='M13 5L13 39' stroke='#0a1020' stroke-width='2.6'/><path d='M13 5L13 39' stroke='#e8eef6' stroke-width='1'/>
       <path d='M13 22L37 22' stroke='#0a1020' stroke-width='3.6' stroke-linecap='round'/><path d='M13 22L36 22' stroke='url(#gd)' stroke-width='1.8' stroke-linecap='round'/><path d='M37 22L31 18.4L31 25.6Z' fill='url(#st)' ${O}/>${spark(25, 14, 2)}` },
+    /* a spear: long shaft, leaf-shaped head */
+    spear: { hot: [4, 4], body: `<path d='M10 34L38 6' stroke='#0a1020' stroke-width='6' stroke-linecap='round'/><path d='M10 34L37 7' stroke='url(#wd)' stroke-width='3.4' stroke-linecap='round'/>
+      <path d='M4 4L12 6L18 12L12 18L6 12Z' fill='url(#st)' ${O}/><path d='M6 6L15 13' stroke='#fff' stroke-width='1' opacity='.7'/>${gem(18, 19, 1.6)}<path d='M33 12L38 17L35 20L31 15Z' fill='url(#gd)' ${O}/>` },
+    /* a war hammer */
+    warhammer: { hot: [6, 6], body: `<path d='M16 16L38 38' stroke='#0a1020' stroke-width='6.6' stroke-linecap='round'/><path d='M16 16L38 38' stroke='url(#wd)' stroke-width='4' stroke-linecap='round'/>
+      <path d='M3 15L15 3L29 17L17 29Z' fill='url(#st)' ${O}/><path d='M7 14L14 7' stroke='#fff' stroke-width='1.2' opacity='.75'/><path d='M22 8L30 16' stroke='#ff9a3a' stroke-width='2' opacity='.9'/><path d='M4 4L10 0L13 3L7 9Z' fill='url(#st)' ${O}/>${gem(16, 16, 1.7)}` },
     /* take down: the rune hammer, struck across with a red slash */
     demolish: { hot: [6, 6], body: `<path d='M14 14L38 38' stroke='#0a1020' stroke-width='6.6' stroke-linecap='round'/><path d='M14 14L38 38' stroke='url(#wd)' stroke-width='4' stroke-linecap='round'/>
       <path d='M5 13L13 5L26 18L18 26Z' fill='url(#st)' ${O}/><path d='M20.6 10.4L29.4 19.2' stroke='#ff9a3a' stroke-width='1.6' opacity='.9'/>

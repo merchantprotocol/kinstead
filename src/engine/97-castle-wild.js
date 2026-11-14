@@ -66,7 +66,7 @@
   class WolfBrain extends Brain {
     constructor(game, actor) { super(game, actor); this.mode = 'hunt'; this.spot = null; this.spotT = 0; this.leave = null; this.pace = 0; }
     /** wolves also never plan a route through the house */
-    blocker() { const g = this.g, T = K.TILE; return (i, j) => g.gateTiles.has(i + ',' + j) || g.home.inside((i + 0.5) * T, (j + 0.5) * T); }
+    blocker() { const g = this.g, T = K.TILE; return (i, j) => g.gateTiles.has(i + ',' + j) || g.insideBuilding((i + 0.5) * T, (j + 0.5) * T); }
     /** dawn: go back to the dark */
     retreat() { this.mode = 'retreat'; this.leave = this.g.L.outside.slice().sort((p, q) => dist(q, this.a) - dist(p, this.a))[0]; this.a.path = null; }
     update(dt) {

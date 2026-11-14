@@ -201,6 +201,7 @@
       for (const p of [o.a - 0.05, o.b + 0.05]) this.segBox(seg, upper, fr, p - 0.05, p + 0.05, 0, DOOR_H, off, th + 0.06);
       this.segBox(seg, upper, 'timber', o.a - 0.1, o.b + 0.1, DOOR_H, DOOR_H + 0.12, off, th + 0.07);
       this.segBox(seg, 'base', 'ashlar', o.a, o.b, -0.02, 0.06, 0.12, 0.26);   // stone step outside
+      if (this.spec.noDoorLeaves) return;   // the game draws (and animates) its own door leaf for this building
       // door leaf, hinged at o.a, swung open into the building
       const n = seg.normal, w = o.b - o.a - 0.04, ang = 1.25;
       const k = this.kit('base');

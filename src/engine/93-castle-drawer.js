@@ -7,8 +7,8 @@
 (function (G) {
   const K = G.K;
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const GROUPS = [['terrain', 'Land'], ['defense', 'Walls']];
-const BUILDABLE = new Set(['dirt', 'palisade', 'gate', 'stone_wall']);   // what you can place by the square
+  const GROUPS = [['terrain', 'Land'], ['defense', 'Walls'], ['building', 'Buildings']];
+const BUILDABLE = new Set(['dirt', 'palisade', 'gate', 'stone_wall', 'blacksmith']);   // what you can place by the square
 
   /** Replace an element's HTML only if it changed; keep its scroll. */
   const patch = (el, html) => { if (el._h === html) return; const top = el.scrollTop; el._h = html; el.innerHTML = html; el.scrollTop = top; };
@@ -47,8 +47,8 @@ const BUILDABLE = new Set(['dirt', 'palisade', 'gate', 'stone_wall']);   // what
       for (const id of d.pieceIds()) {
         if (!BUILDABLE.has(id)) continue;
         const ruin = c.ruinOpen(id), p = d.piece(id), why = c.blocker(id, { ruin, ignoreCost: true }); if (why && /already/.test(why)) continue;
-        const cost = c.buildCost(id, { ruin }), state = why ? 'locked' : c.canAfford(cost) ? 'ok' : 'poor';
-        rows.push({ id, kind: ruin ? 'ruin' : id === 'mine' ? 'site' : 'place', group: p.category, name: ruin ? `Restore the ${p.name}` : p.name, cost, state, why, icon: S.PIECE_ICON[id], art: id, line: p.effect || '' });
+        const mine = id === 'blacksmith' && this.g.smithy ? 'already built' : why, cost = c.buildCost(id, { ruin }), state = mine ? 'locked' : c.canAfford(cost) ? 'ok' : 'poor';
+        rows.push({ id, kind: ruin ? 'ruin' : id === 'mine' ? 'site' : 'place', group: p.category, name: ruin ? `Restore the ${p.name}` : p.name, cost, state, why: mine, icon: S.PIECE_ICON[id], art: id, line: p.effect || '' });
       }
       const html = [];
       for (const [g, label] of GROUPS) { const items = rows.filter((r) => r.group === g); if (items.length) html.push(`<h4>${label}</h4>${items.map((x) => this.row(x)).join('')}`); }

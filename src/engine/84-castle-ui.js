@@ -16,6 +16,7 @@
   const iceP = r('#1a3a5a', '#3f82aa', '#7fb6d6', '#cfe8f5'), woodP = PAL.wood, steelP = PAL.steel, goldP = PAL.gold;
   Object.assign(Icons.DRAW, {
     stone(c) { c.poly([[1, 13], [3, 8], [7, 7], [9, 10], [6, 14]], stoneP).poly([[7, 14], [9, 8], [13, 7], [15, 12], [13, 15]], stoneP).poly([[4, 8], [6, 3], [10, 2], [12, 6], [9, 8]], stoneP); },
+    arrow(c) { c.line(2, 14, 13, 3, woodP[3], 1).poly([[13, 1], [15, 5], [10, 4]], steelP).poly([[1, 12], [4, 12], [3, 15], [1, 15]], iceP[3]); },
     food(c) { c.poly([[3, 9], [7, 5], [12, 6], [14, 10], [10, 12]], r('#3a1408', '#7a2a14', '#b04a26', '#e07a46', '#ffb482')).line(10, 11, 14, 14, woodP[3], 2).disc(14.5, 14.5, 1.6, goldP[3]); },
     dirt(c) { c.poly([[1, 13], [3, 8], [8, 6], [13, 8], [15, 13], [12, 15], [4, 15]], dirtP).px(5, 9, dirtP[4]).px(9, 8, dirtP[4]).px(11, 11, dirtP[1]).px(6, 12, dirtP[1]); },
     ember(c) { c.poly([[8, 1], [12, 7], [10, 15], [6, 15], [4, 8]], emberP).px(8, 5, emberP[5]).px(7, 9, emberP[5]); },
@@ -29,8 +30,8 @@
     crown(c) { c.poly([[2, 13], [2, 5], [5, 9], [8, 3], [11, 9], [14, 5], [14, 13]], goldP).px(8, 7, emberP[4]); },
   });
 
-  const ICON = { wood: 'log', stone: 'stone', dirt: 'dirt', food: 'food', iron: 'ore', gold: 'coin', ember_shard: 'ember', troll_heart: 'heart', stoneblade: 'stoneblade', iron_sword: 'sword', ember_brand: 'brand' };
-  const RES_ORDER = ['wood', 'stone', 'dirt', 'food', 'iron', 'gold', 'ember_shard'];
+  const ICON = { wood: 'log', stone: 'stone', dirt: 'dirt', food: 'food', arrow: 'arrow', iron: 'ore', gold: 'coin', ember_shard: 'ember', troll_heart: 'heart', stoneblade: 'stoneblade', iron_sword: 'sword', ember_brand: 'brand' };
+  const RES_ORDER = ['wood', 'stone', 'dirt', 'food', 'arrow', 'iron', 'gold', 'ember_shard'];
   const PIECE_ICON = { palisade: 'log', stone_wall: 'stone', gatehouse: 'hammer', watchtower: 'eye', ember_brazier: 'ember', woodcutter: 'axe', quarry: 'pickaxe', mine: 'ore', great_hall: 'coin', chapel: 'ember', storehouse: 'bag', smithy: 'hammer', ember_forge: 'brand', barracks: 'shield', heartfire_hearth: 'heart' };
   const SHORT = {
     palisade: 'Blocks raiders; they must chop through it.', stone_wall: 'Blocks raiders. 2.5x a palisade’s HP.', gatehouse: 'The way in. Walls joined to it make the courtyard.',
@@ -256,7 +257,7 @@
     moveGhost(sx, sy) {
       const P = this.placing, g = this.g, p = g.app.pickGround(sx, sy); this.lastP = { sx, sy };
       if (!p) { P.ghost.visible = false; return; }
-      const e = g.walls.handles(P.type) ? g.walls.edgeAt(P.type, p) : P.type === 'gate' ? g.gateSpot(p) : null;
+      const e = g.walls.handles(P.type) ? g.walls.edgeAt(P.type, p) : P.type === 'gate' ? g.gateSpot(p) : P.type === 'blacksmith' ? g.buildingSpot(p) : null;
       const x = e ? e.x : Math.round(p.x * 4) / 4, z = e ? e.z : Math.round(p.z * 4) / 4, rot = e ? e.rot : g.autoRot(x, z), why = g.placementOk(P.type, x, z, rot);
       P.ghost.visible = true; P.ghost.position.set(x, g.play.nav.y(x, z), z); P.ghost.rotation.y = rot; CastleArt.tintGhost(P.ghost, !why); P.at = { x, z, rot, why };
       g.play.ui.tip(why ? `<b>Can’t build here</b> · ${esc(why)}` : `<b>${esc(this.c.data.piece(P.type).name)}</b> · click to build, or drag to draw a wall (${esc(Object.entries(this.c.buildCost(P.type)).map(([r, n]) => n + ' ' + K.CastleData.resName(r)).join(', '))})`, sx, sy);
