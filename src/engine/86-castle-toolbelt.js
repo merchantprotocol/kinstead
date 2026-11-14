@@ -17,6 +17,8 @@
     groundTarget(i, j, ctx) { return null; }
     /** a reason a click on this tile is refused (shown as a toast), or null */
     denyGround(i, j, ctx) { return null; }
+    /** does this tool have modes (a drawer opened by clicking its slot again)? */
+    get modes() { return false; }
     /** a ground click only starts work when it is a double-click (single clicks walk) */
     get doubleClick() { return false; }
     get verb() { return 'work'; }
@@ -49,9 +51,10 @@
     get combat() { return { scale: 0.5, gap: 0.24, radius: 2.2, arc: Math.PI * 0.55 }; }
   }
   class ShovelTool extends Tool {
-    constructor() { super('shovel', '4', 'Shovel', 'Shovel out. Double-click the ground to dig there; a single click just walks.'); }
-    get doubleClick() { return true; }                // digging is deliberate: it never starts from an ordinary walking click
-    groundTarget(i, j, ctx) { return ctx.editor.canDig(i, j) ? new K.DigTarget(ctx, i, j) : null; }
+    get doubleClick() { return this.mode === 'dig'; }   // digging is deliberate: it never starts from an ordinary walking click
+    constructor() { super('shovel', '4', 'Shovel', 'Shovel out. Click it again for its modes: dig, level, raise, lower.'); this.mode = 'dig'; }
+    groundTarget(i, j, ctx) { return this.mode === 'dig' && ctx.editor.canDig(i, j) ? new K.DigTarget(ctx, i, j) : null; }   // the brush modes work through GroundBrush
+    get modes() { return true; }
     get verb() { return 'dig'; }
   }
 
@@ -69,7 +72,8 @@
       this.render();
       this.bar.addEventListener('click', (e) => {
         const b = e.target.closest('[data-t]'); if (!b) return; const was = this.current && this.current.id === b.dataset.t; this.select(b.dataset.t);
-        const t = this.byId(b.dataset.t); if (t && t.kind === 'weapon' && this.onWeaponSlot) this.onWeaponSlot(was);   // clicking the weapon slot opens the weapon drawer
+        const t = this.byId(b.dataset.t); if (t && t.kind === 'weapon' && this.onWeaponSlot) this.onWeaponSlot(was);
+        if (t && t.modes && this.onModeSlot) this.onModeSlot(t, was);   // the shovel's mode drawer   // clicking the weapon slot opens the weapon drawer
       });
       this.bar.addEventListener('pointerdown', (e) => e.stopPropagation());
       parent.appendChild(this.bar); this.paint();

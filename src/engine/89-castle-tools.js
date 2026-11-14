@@ -29,6 +29,7 @@
       this.drawer = new K.BuildDrawer(game.cui);
       this.archery = new K.Archery(game);
       this.arms = new K.WeaponDrawer(game.cui, this.belt); this.belt.onWeaponsChanged = () => this.arms.update(); this.belt.onWeaponSlot = (was) => { if (was) this.arms.toggle(); else this.arms.show(); };   // clicking the weapon slot opens the weapon drawer
+      this.belt.onModeSlot = (tool, was) => { const b = this.g.brush; if (b) { if (was) b.drawer.toggle(); else b.drawer.show(); } };   // click the shovel to open its modes
       this.worker = new K.Worker(this.ctx, this.belt); this.hl = new TileHighlight(play.ov); this.fullAt = -9;
     }
     get play() { return this.g.play; }
@@ -50,6 +51,7 @@
       };
     }
     onSelect(tool) {
+      if (tool.id !== 'shovel' && this.g.brush) this.g.brush.drawer.close();
       const hammer = tool.id === 'hammer'; this.drawer.setOpen(hammer); if (tool.kind !== 'weapon') this.arms.close();
       if (!hammer) { this.g.cui.stopPlacing(); if (this.g.demolisher) this.g.demolisher.hide(); }
       this.worker.cancel(); this.hl.hide(); this.g.sound.play('clank'); this.g.cui.toast(tool.hint);
@@ -62,7 +64,8 @@
       if (e.ctrlKey || e.metaKey || e.altKey) return false;
       const P = this.play; if (P.ui.isOpen('ctx') || P.ui.isOpen('dlg')) return false;      // digits pick menu entries then
       const t = this.belt.byKey(e.key); if (!t) return false;
-      if (t.kind === 'weapon' && this.tool === t) { this.arms.toggle(); return true; }   // press the weapon key again: the weapon drawer
+      if (t.kind === 'weapon' && this.tool === t) { this.arms.toggle(); return true; }
+      if (t.modes && this.tool === t && this.g.brush) { this.g.brush.drawer.toggle(); return true; }   // press the weapon key again: the weapon drawer
       this.belt.select(t.id); return true;
     }
     /** may the mouse hit this entity with the tool in hand? Resources are invisible to the wrong tool, so a click just walks. */
