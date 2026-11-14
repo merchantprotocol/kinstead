@@ -874,6 +874,7 @@
       return this.cui.key(e) || this.tools.key(e);
     }
     /* may the mouse hit this entity right now? Resources only answer to the tool that works them. */
+    pickHeight(e) { return K.WorkTarget.TOOL_FOR[e.type] ? 4.5 : Infinity; }
     pickable(e) { return this.tools ? this.tools.canInteract(e) : true; }
     /* close the topmost thing; false when nothing was open */
     dismissTop() {

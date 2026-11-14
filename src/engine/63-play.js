@@ -350,7 +350,8 @@
         v.set(e.x, e.y, e.z).project(cam); if (v.z > 1) continue; const bx = (v.x + 1) / 2 * W, by = (1 - v.y) / 2 * H;
         v.set(e.x, e.y + e.h, e.z).project(cam); const ty = (1 - v.y) / 2 * H;
         v.set(e.x + right.x * e.r, e.y, e.z + right.z * e.r).project(cam); const hw = Math.max(10, Math.abs((v.x + 1) / 2 * W - bx));
-        if (sx >= bx - hw && sx <= bx + hw && sy >= Math.min(ty, by) - 4 && sy <= by + hw * 0.5) { const d = Math.hypot(cp.x - e.x, cp.y - e.y, cp.z - e.z); if (d < bd) { bd = d; best = e; } }
+        const top = this.ext && this.ext.pickHeight ? Math.max(Math.min(ty, by), by - this.ext.pickHeight(e) * hw) : Math.min(ty, by);   // tall resources only answer near their base, so a far tree behind the spot you clicked is not picked
+        if (sx >= bx - hw && sx <= bx + hw && sy >= top - 4 && sy <= by + hw * 0.5) { const d = Math.hypot(cp.x - e.x, cp.y - e.y, cp.z - e.z); if (d < bd) { bd = d; best = e; } }
       }
       return best;
     }
