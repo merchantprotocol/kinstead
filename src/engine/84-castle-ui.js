@@ -37,8 +37,26 @@
     woodcutter: 'Wood while you do anything else.', quarry: 'Stone while you do anything else.', heartfire_hearth: 'Bind the troll’s heart: CL 5, the whole map thaws.',
   };
 
+  /* the HD voxel art (public/art/<data id>.webp, listed in K.CASTLE_ART by the build). Any id without
+     art, or an image that fails to load, falls back to the pixel icon. */
+  class ArtLibrary {
+    constructor(manifest, win) { this.base = (manifest && manifest.base) || 'art/'; this.ids = new Set((manifest && manifest.ids) || []); this.win = win; }
+    url(id) {
+      const inl = this.win && this.win.KINSTEAD_ART_INLINE; if (inl && inl[id]) return inl[id];
+      return this.ids.has(id) ? this.base + id + '.webp' : null;
+    }
+    has(id) { return !!this.url(id); }
+    /* px: rendered size; icon: the pixel-icon fallback */
+    html(id, icon, px = 44, cls = '') {
+      const u = this.url(id), fb = Icons.img(icon || 'hammer', Math.max(1, Math.round(px / 22)));
+      if (!u) return `<span class="art ${cls} fb" style="width:${px}px;height:${px}px">${fb}</span>`;
+      return `<span class="art ${cls}" style="width:${px}px;height:${px}px"><span class="afb" hidden>${fb}</span><img src="${u}" width="${px}" height="${px}" alt="" draggable="false" onerror="this.previousElementSibling.hidden=false;this.remove()"></span>`;
+    }
+  }
+
   class CastleUI {
     constructor(game) {
+      this.art = new ArtLibrary(K.CASTLE_ART, G);
       this.g = game; this.c = game.castle; this.placing = null; this.bannerQ = []; this.hudT = 0;
       const root = (this.root = el('div', '', ''));
       root.id = 'castleui';
@@ -145,6 +163,12 @@
       if (sec === 'Frost pushed back') return { night1: 'Held Night 1', night2: 'Held Night 2', rime_troll: 'Broke the Rime Troll' }[id];
       return (d.piece(id) || { name: id }).name + (sec === 'Ruins restored' ? ' (restored)' : '');
     }
+    /* which art a Hearthbook row shows (kin and nights have none) */
+    artIdOf(sec, id) {
+      if (sec === 'Kin' || sec === 'Frost pushed back') return null;
+      if (sec === 'Upgrades') return /_lv2$/.test(id) ? id : id + '_lv2';
+      return this.art.has(id) ? id : null;
+    }
     toggleBook(on) {
       this.bookOpen = on != null ? on : !this.bookOpen; this.$('cBook').hidden = !this.bookOpen;
       if (this.bookOpen) { this.toggleRadial(false); this.renderBook(); }
@@ -153,14 +177,15 @@
       const hb = this.c.hearthbook();
       this.$('cBook').innerHTML = `<header><h2>${Icons.img('book', 2)} The Hearthbook</h2><div class="pct"><b>${hb.pct}%</b><small>${hb.done} of ${hb.total}</small></div><button class="cb" data-close>Close <kbd>H</kbd></button></header>
         <div class="pbar"><i style="width:${hb.pct}%"></i></div>
-        <div class="secs">${hb.sections.map((s) => `<section><h3>${esc(s.section)}</h3>${s.rows.map((rw) => { const k = s.section + ':' + rw.id; return `<div class="tk ${rw.done ? 'on' : ''} ${this.justTicked === k ? 'new' : ''}"><i>${rw.done ? '✓' : ''}</i>${esc(this.nameOf(s.section, rw.id))}</div>`; }).join('')}</section>`).join('')}</div>`;
+        <div class="secs">${hb.sections.map((s) => `<section><h3>${esc(s.section)}</h3>${s.rows.map((rw) => { const k = s.section + ':' + rw.id; const aid = this.artIdOf(s.section, rw.id); return `<div class="tk ${rw.done ? 'on' : ''} ${this.justTicked === k ? 'new' : ''}"><i>${rw.done ? '✓' : ''}</i>${aid ? this.art.html(aid, ICON[aid] || PIECE_ICON[aid], 26, 'th') : ''}${esc(this.nameOf(s.section, rw.id))}</div>`; }).join('')}</section>`).join('')}</div>`;
       this.justTicked = null;
     }
     endCard() {
       const c = this.c, hb = c.hearthbook(), rates = c.rates(), inc = Object.entries(rates).map(([r, n]) => `<span class="chip">${Icons.img(ICON[r], 1)}+${n}/min</span>`).join('');
-      this.modal(`<div class="end"><p class="kick">Act 1 complete</p><h1>The Heartfire burns</h1><p>The troll’s warm heart beats in the Keep’s hearth. The snow melts back from every stone and the whole hill thaws.</p>
+      this.modal(`<div class="end"><div class="hero">${this.art.html('heartfire_hearth', 'heart', 150)}</div><p class="kick">Act 1 complete</p><h1>The Heartfire burns</h1><p>The troll’s warm heart beats in the Keep’s hearth. The snow melts back from every stone and the whole hill thaws.</p>
         <div class="stats"><div><b>${mmss(this.g.playTime)}</b><small>time</small></div><div><b>${hb.pct}%</b><small>Hearthbook</small></div><div><b>${c.cl()}</b><small>Castle Level</small></div><div><b>${c.kin.size}/3</b><small>kin</small></div></div>
         <h3>Income per minute</h3><div class="chips">${inc}</div>
+        ${c.weapons.size ? `<h3>Arms forged</h3><div class="arms">${[...c.weapons].map((w) => `<span>${this.art.html(w, ICON[w], 54)}<small>${esc(c.data.item(w).name)}</small></span>`).join('')}</div>` : ''}
         <p class="tease">Far to the north, past the last pines, something on a frozen throne opens its eyes. <b>The frozen king</b> has felt your fire…</p></div>`,
       [{ label: 'Keep building', pri: true }, { label: 'Back to the menu', run: () => { G.KINSTEAD_NO_UNLOAD_PROMPT = true; this.g.save(); location.assign('index.html'); } }]);
     }
@@ -180,18 +205,18 @@
         if (why) { if (!/already/.test(why)) locked.push({ name: p.name, why }); continue; }
         const cost = c.buildCost(id, { ruin }), pb = p.produces ? c.paybackFor(id, { ruin }) : null;
         out.push({ kind: ruin ? 'ruin' : id === 'mine' ? 'site' : id === d.keepUpgrade.id ? 'heart' : 'place', id, name: ruin ? `Restore the ${p.name}` : p.name, cost, pb,
-          line: p.produces ? c.payback.line(cost, p.produces) : (SHORT[id] || ''), sub: ruin ? 'ruin · half cost' : p.category, icon: PIECE_ICON[id] });
+          line: p.produces ? c.payback.line(cost, p.produces) : (SHORT[id] || ''), sub: ruin ? 'ruin · half cost' : p.category, icon: PIECE_ICON[id], art: id });
       }
       for (const pc of c.pieces) {
         const up = c.upgradeInfo(pc); if (!up) continue; const why = c.upgradeBlocker(pc);
         const name = `${d.piece(pc.type).name} → Level 2`; if (why) { locked.push({ name, why }); continue; }
         const pb = c.upgradePayback(pc), cost = c.upgradeCost(pc), gain = up.produces ? Object.entries(up.produces).map(([r, n]) => `+${n - (c.producesOf(pc)[r] || 0)} ${K.CastleData.resName(r)}/min more`).join(' · ') : pc.type === 'storehouse' ? 'storage to +250, guards 70%' : '2 friend-guard slots';
-        out.push({ kind: 'upgrade', piece: pc, id: pc.type, name, cost, pb, line: pb != null ? `${gain} · pays for itself in ${pb.toFixed(1)} min${c.has('smithy') ? ' (Smithy −25%)' : ''}` : gain, sub: 'upgrade', icon: 'hammer' });
+        out.push({ kind: 'upgrade', piece: pc, id: pc.type, name, cost, pb, line: pb != null ? `${gain} · pays for itself in ${pb.toFixed(1)} min${c.has('smithy') ? ' (Smithy −25%)' : ''}` : gain, sub: 'upgrade', icon: 'hammer', art: pc.type + '_lv2' });
       }
       for (const rcp of d.raw.recipes) {
         const it = Object.keys(rcp.outputs)[0]; if (c.weapons.has(it)) continue; const why = c.craftBlocker(rcp.id);
         if (why) { if (c.stationReady(rcp.station)) locked.push({ name: d.item(it).name, why }); continue; }
-        out.push({ kind: 'craft', rid: rcp.id, id: it, name: `Forge the ${d.item(it).name}`, cost: rcp.inputs, pb: null, line: `Attack ${d.item(it).atk}${it === 'ember_brand' ? ' · burns frost' : ''} · at the ${rcp.station === 'keep' ? 'Keep’s workbench' : d.piece(rcp.station).name}`, sub: 'weapon', icon: ICON[it] });
+        out.push({ kind: 'craft', rid: rcp.id, id: it, name: `Forge the ${d.item(it).name}`, cost: rcp.inputs, pb: null, line: `Attack ${d.item(it).atk}${it === 'ember_brand' ? ' · burns frost' : ''} · at the ${rcp.station === 'keep' ? 'Keep’s workbench' : d.piece(rcp.station).name}`, sub: 'weapon', icon: ICON[it], art: it });
       }
       // dedupe repeated upgrade cards for several copies of the same piece type
       const seen = new Set(); const cards = out.filter((x) => { const k = x.kind + ':' + x.id; if (x.kind === 'upgrade' && seen.has(k)) return false; seen.add(k); return true; });
@@ -205,7 +230,7 @@
       const cards = out.map((x, i) => {
         const a = (i / Math.max(1, n)) * Math.PI * 2 - Math.PI / 2, rx = R * 1.35, x0 = cx + Math.cos(a) * rx, y0 = cy + Math.sin(a) * R;
         return `<button class="bc ${x.best ? 'best' : ''} k-${x.kind}" data-card="${i}" style="left:${x0.toFixed(0)}px;top:${y0.toFixed(0)}px">${x.best ? `<span class="coin" title="Best payback">${Icons.img('coin', 2)}</span>` : ''}
-          <div class="hd">${Icons.img(x.icon || 'hammer', 2)}<div><b>${esc(x.name)}</b><small>${esc(x.sub)}</small></div></div><div class="cost">${chip(x.cost)}</div><p>${esc(x.line)}</p></button>`;
+          <div class="hd">${this.art.html(x.art || x.id, x.icon, 46)}<div><b>${esc(x.name)}</b><small>${esc(x.sub)}</small></div></div><div class="cost">${chip(x.cost)}</div><p>${esc(x.line)}</p></button>`;
       }).join('');
       this.$('cRadial').innerHTML = `<div class="hub" style="left:${cx}px;top:${cy}px"><b>Build</b><small>${n ? n + ' you can afford' : 'nothing affordable yet'}</small><button class="cb" data-close>Close <kbd>B</kbd></button></div>${cards}
         ${locked.length ? `<div class="locked"><b>Not yet:</b> ${locked.slice(0, 7).map((l) => `${esc(l.name)}${l.why ? ` <i>(${esc(l.why)})</i>` : ''}`).join(' · ')}${locked.length > 7 ? ' · …' : ''}</div>` : ''}`;
@@ -227,7 +252,7 @@
       this.stopPlacing(); const g = this.g;
       this.placing = { type, ghost: g.art.ghost(type) }; g.group.add(this.placing.ghost); this.placing.ghost.visible = false;
       this.$('cPlace').hidden = false;
-      this.$('cPlace').innerHTML = `${Icons.img(PIECE_ICON[type] || 'hammer', 1)} Place the <b>${esc(this.c.data.piece(type).name)}</b> inside the glow. It faces the Keep. <button class="cb" data-rot>Turn <kbd>R</kbd></button><button class="cb" data-close>Done <kbd>Esc</kbd></button>`;
+      this.$('cPlace').innerHTML = `${this.art.html(type, PIECE_ICON[type], 30)} Place the <b>${esc(this.c.data.piece(type).name)}</b> inside the glow. It faces the Keep. <button class="cb" data-rot>Turn <kbd>R</kbd></button><button class="cb" data-close>Done <kbd>Esc</kbd></button>`;
     }
     stopPlacing() { if (!this.placing) return; this.g.group.remove(this.placing.ghost); this.placing = null; this.$('cPlace').hidden = true; this.g.play.ui.tip(null); }
     rotate() { this.g.rotExtra = ((this.g.rotExtra || 0) + Math.PI / 2) % (Math.PI * 2); if (this.lastP) this.moveGhost(this.lastP.sx, this.lastP.sy); }
@@ -260,6 +285,7 @@
     }
   }
   CastleUI.ICON = ICON;
+  K.ArtLibrary = ArtLibrary;
 
   K.CastleUI = CastleUI;
   void THREE;

@@ -22,7 +22,7 @@ class EngineManifest {
     '12-sprites.js', '14-post.js', '30-render.js',
     '65-voxkit3d.js', '66-characters3d.js', '67-actor3d.js',   // 3D voxel characters; play picks the view class via K.ActorViews
     '70-building-tex.js', '71-building-data.js', '72-voxkit.js', '73-furniture.js', '74-recipes.js', '75-building-mesh.js', '76-interactions.js', '77-building-edit.js',
-    '@castle-data', '80-castle-rules.js',
+    '@castle-data', '@castle-art', '80-castle-rules.js',
     '50-gen.js', '55-store.js', '56-items.js', '57-actors.js', '58-nav.js', '59-interact.js', '78-building-game.js', '62-playui.js', '63-play.js', '60-app.js', '79-building-ui.js',
     '81-castle-world.js', '82-castle-mesh.js', '83-castle-game.js', '84-castle-ui.js',
   ];
@@ -42,6 +42,7 @@ class SiteBuilder {
     const part = (f) => {
       const d = EngineManifest.DATA[f];
       if (d) return `/* ---- ${d[0]} ---- */\n(function (G) { (G.K = G.K || {}).${d[1]} = ${JSON.stringify(JSON.parse(this.read(d[0])))}; })(typeof window !== 'undefined' ? window : globalThis);`;
+      if (f === '@castle-art') return `/* ---- public/art manifest ---- */\n(function (G) { (G.K = G.K || {}).CASTLE_ART = ${JSON.stringify({ base: 'art/', ids: this.artIds() })}; })(typeof window !== 'undefined' ? window : globalThis);`;
       return `/* ---- ${f} ---- */\n` + this.read('engine/' + f);
     };
     return [
@@ -49,6 +50,14 @@ class SiteBuilder {
       'function KPaintModules() {', ...EngineManifest.PAINT.map(part), '}', 'KPaintModules();',
       ...EngineManifest.MAIN.map(part),
     ].join('\n');
+  }
+  /* the HD voxel art (public/art/<data id>.webp) shown on build cards, the Hearthbook and the end card */
+  artDir() { return path.join(this.root, 'public', 'art'); }
+  artIds() { return fs.existsSync(this.artDir()) ? fs.readdirSync(this.artDir()).filter((n) => n.endsWith('.webp')).map((n) => n.slice(0, -5)).sort() : []; }
+  /* --single (offline/test copy): play.html carries the art as data URLs, so it works without dist/art beside it */
+  artInline() {
+    const m = {}; for (const id of this.artIds()) m[id] = 'data:image/webp;base64,' + fs.readFileSync(path.join(this.artDir(), id + '.webp')).toString('base64');
+    return `<script>window.KINSTEAD_ART_INLINE=${JSON.stringify(m)};</script>`;
   }
   appSource() { return EngineManifest.APP.map((f) => `/* ---- ${f} ---- */\n` + this.read('app/' + f)).join('\n'); }
 
@@ -77,6 +86,7 @@ class SiteBuilder {
       .replace('<!-- @ui -->', () => this.read('engine/ui.html').replace(/\s*$/, ''))
       .replace(/\{\{asset:([\w.-]+)\}\}/g, (_, a) => { if (!assets[a]) throw new Error(`${name}: unknown asset ${a}`); return `assets/${a}?v=${this.versions[a]}`; });
     if (this.opts.single) html = this.inline(html, assets);
+    if (this.opts.single && name === 'play.html') html = html.replace('</head>', () => this.artInline() + '</head>');
     return html;
   }
   inline(html, assets) {
