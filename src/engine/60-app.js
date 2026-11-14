@@ -916,7 +916,7 @@
     }
     renderFrame() {
       const dist = this.rig.cur.dist;
-      this.post.focus = dist; this.post.band = dist * 0.07; this.post.range = dist * 0.22;
+      this.post.focus = dist; this.post.band = Math.max(dist * 0.07, this.play.active ? 2.4 : 0); this.post.range = Math.max(dist * 0.22, this.play.active ? 4 : 0);   // in play, characters always stay sharp
       const tgt = new V3(this.rig.cur.tx, this.rig.cur.ty, this.rig.cur.tz);
       this.renderer.update(this.time, this.camera, this.post.h, tgt, dist, this.rig.cur.pitch);
       this.post.render(this.renderer.scene, this.camera, this.time);

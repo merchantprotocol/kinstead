@@ -10,13 +10,11 @@
 
   /* ---------- gatherable props (castle interaction types) ---------- */
   const P = PropBuilder.PROPS;
-  /* a pine that is being chopped: every swing takes a slice off the crown ('cut1'..'cut4'), then it is a stump and logs ('depleted') */
-  P['c:pine'] = { name: 'Snow pine', group: 'Castle', r: 0.6, h: 3, interact: 'c_tree', build(pb, o, st) {
-    const m = /^cut(\d)$/.exec(st || '');
-    if (!m) return P['res:pine'].build(pb, o, st);
-    const k = +m[1], { UNIT, M4 } = K;
-    for (let i = 0; i < Math.min(k, 3); i++) pb.put(pb.bark, UNIT.log, M4(0.5 + i * 0.12, 0.13, 0.3 + i * 0.22, 0, i * 2.1, Math.PI / 2, 0.9, 0.7, 0.9));
-    pb.pineAt(0, -0.05, 0, 2.9 * pb.rng.range(0.92, 1.08) * Math.max(0.32, 1 - k * 0.19));
+  P['c:pine'] = { name: 'Snow pine', group: 'Castle', r: 0.6, h: 3, interact: 'c_tree', build: P['res:pine'].build };
+  /* dead trees are harvestable too: the same stump when they are felled */
+  P['c:deadtree'] = { name: 'Dead tree', group: 'Castle', r: 0.5, h: 2.4, interact: 'c_tree', build(pb, o, st) {
+    if (st === 'depleted') { P['res:pine'].build(pb, o, st); return; }
+    P.deadtree.build(pb, o, st);
   } };
   P['c:iron'] = { name: 'Iron rock', group: 'Castle', r: 0.55, h: 0.9, interact: 'c_iron', build: P['res:ore'].build };
   P['c:boulder'] = { name: 'Boulder', group: 'Castle', r: 0.6, h: 0.9, interact: 'c_boulder', build(pb, o, st) {

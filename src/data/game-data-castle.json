@@ -106,7 +106,7 @@
     "stone": 2
    },
    "charges": 5,
-   "respawnSec": 60,
+   "respawnSec": 0,
    "zone": "castle_hill",
    "count": 6,
    "actionSec": 4.5

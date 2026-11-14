@@ -151,9 +151,8 @@
     blocker(type, { ruin = false, ignoreCost = false } = {}) {
       const d = this.data.piece(type); if (!d) return 'unknown piece';
       if (type === 'keep') return 'the Keep is lit from its hearth';
-      if (!this.lit) return 'light the Keep first';
       if (type === this.data.keepUpgrade.id && this.has(type)) return 'already bound';
-      if (this.cl() < d.requiresCastleLevel) return `needs Castle Level ${d.requiresCastleLevel}`;
+      if (Math.max(1, this.cl()) < d.requiresCastleLevel) return `needs Castle Level ${d.requiresCastleLevel}`;   // an unlit Keep still counts as level 1: you can build from the start
       for (const req of d.buildRequires || []) if (!this.has(req)) return `needs a ${this.data.piece(req).name}`;
       if (d.requiresZone && !this.zoneOpen(d.requiresZone)) return 'the Iron Hills are still frozen';
       if (ruin && !this.ruinOpen(type)) return 'already restored';

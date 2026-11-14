@@ -45,7 +45,7 @@
     mark(x, z, bad) { this.mk = [x, z]; this.markT = 0; this.marker.material.color.setHex(bad ? 0xff6a5a : 0xffe08a); }
     ring(o, e, color) { if (!e) { o.visible = false; return; } this.set(o, this.circle(e.x, e.z, Math.max(0.3, e.r + 0.08))); o.material.color.setHex(color); }
     update(dt) {
-      const me = this.g.me; if (me && me.view.visible) this.set(this.me, this.circle(me.x, me.z, 0.3, 20)); else this.me.visible = false;
+      this.me.visible = false;   // no ring under the hero
       this.markT += dt;
       if (this.mk && this.markT < 0.7) { const k = this.markT / 0.7; this.set(this.marker, this.circle(this.mk[0], this.mk[1], 0.38 - 0.22 * k, 20)); this.marker.material.opacity = 1 - k * k; }
       else this.marker.visible = false;
@@ -249,18 +249,19 @@
     }
 
     /* ---------- input ---------- */
-    pointerDown(e, sx, sy) { this.down = { sx, sy, cx: sx, cy: sy, t: performance.now(), held: false, moved: false }; this.holdT = 0; }
+    pointerDown(e, sx, sy) { this.down = { sx, sy, cx: sx, cy: sy, t: performance.now(), held: false, moved: false }; this.holdT = 0; this.stroke = !!(this.ext && this.ext.pointerDown && this.ext.pointerDown(sx, sy)); }   // a game mode may claim the press (drawing a wall)
     /* button held and the pointer moved: remember where, for hold-to-walk */
-    dragMove(sx, sy) { const d = this.down; if (!d) return; d.cx = sx; d.cy = sy; if (Math.hypot(sx - d.sx, sy - d.sy) > 6) d.moved = true; }
+    dragMove(sx, sy) { const d = this.down; if (!d) return; if (this.stroke) { this.ext.pointerDrag(sx, sy); return; } d.cx = sx; d.cy = sy; if (Math.hypot(sx - d.sx, sy - d.sy) > 6) d.moved = true; }
     pointerUp(e, sx, sy) {
       const d = this.down; this.down = null;
+      if (this.stroke) { this.stroke = false; this.ext.pointerUp(sx, sy); return; }
       if (!d || d.held || Math.hypot(sx - d.sx, sy - d.sy) > 6) return;   // a hold-walk or a drag is not a click
       this.click(sx, sy);
     }
     /* Diablo-style hold-to-walk: keep the left button down on open ground and the hero follows the cursor */
     holdWalk(dt) {
       const d = this.down; if (!d || !this.me.alive) return;
-      if (this.ext && this.ext.cui && this.ext.cui.placing) return;
+      if (this.stroke || (this.ext && this.ext.cui && this.ext.cui.placing)) return;
       if (performance.now() - d.t < 230 && !d.held) return;
       this.holdT -= dt; if (this.holdT > 0) return; this.holdT = 0.1;
       if (!d.held && (this.pick(d.sx, d.sy) || (this.ext && this.ext.tools && this.ext.tools.claims(d.sx, d.sy)))) d.cancel = true;   // pressed on a thing or a tool target: a click, not a walk   // pressed on a thing: that is a click, not a walk

@@ -214,7 +214,7 @@
       this.troll = null; if (!this.castle.flags.has('killed:rime_troll')) this.spawnTroll();
       this.restoreNodes();
       this.raid = null;
-      this.cui = new K.CastleUI(this); this.tools = new K.CastleTools(this); this.play.refreshProps();
+      this.cui = new K.CastleUI(this); this.tools = new K.CastleTools(this); this.walls = new K.WallDrawer(this); this.play.refreshProps();
       if (this.day.isNight) this.startRaid();
       play.app.rig.set({ dist: 14, pitch: 0.78 });
       this.cui.toast(this.saved ? 'Welcome back. The fire remembers you.' : 'Your ember is the last warm thing on this hill. Click the Keep’s cold hearth.');
@@ -286,7 +286,7 @@
     addPieceMesh(p) {
       const m = this.art.piece(p.type, { level: p.level }); this.place(m, p.x, p.z, p.rot); this.meshes.set('p' + p.uid, m);
       if (p.frosted || this.castle.isFrosted(p)) this.setFrost(p, true);
-      const [w, d] = CastleArt.size(p.type); this.blockRect(p.x, p.z, w, d, p.rot, p.type === 'gatehouse');
+      const [w, d] = CastleArt.size(p.type); this.blockRect(p.x, p.z, this.walls.handles(p.type) ? w + 0.04 : w, d, p.rot, p.type === 'gatehouse');
       return m;
     }
     redrawPiece(p) { const old = this.meshes.get('p' + p.uid); if (old) this.group.remove(old); const m = this.art.piece(p.type, { level: p.level }); this.place(m, p.x, p.z, p.rot); this.meshes.set('p' + p.uid, m); if (this.castle.isFrosted(p)) this.setFrost(p, true); return m; }
@@ -389,9 +389,9 @@
     /* free placement of a new piece (from the Build radial) */
     placementOk(type, x, z, rot) {
       const c = this.castle, [w, d] = CastleArt.size(type), nav = this.play.nav;
-      if (Math.hypot(x - this.L.keep.x, z - this.L.keep.z) + Math.min(w, d) / 2 > c.glowRadius()) return 'build inside the glow';
       let bad = null;
-      this.rectTiles(x, z, w + 0.2, d + 0.2, rot, (i, j) => { const k = j * nav.w + i; if (this.occ[k]) bad = 'something is in the way'; else if (!nav.walk[k] || nav.deck[k]) bad = bad || 'the ground is not clear'; });
+      const wall = this.walls.handles(type);
+      this.rectTiles(x, z, wall ? w - 0.6 : w + 0.2, d + 0.2, rot, (i, j) => { const k = j * nav.w + i; if (this.occ[k]) bad = 'something is in the way'; else if (!nav.walk[k] || nav.deck[k]) bad = bad || 'the ground is not clear'; });
       const me = this.play.me; if (!bad && Math.hypot(me.x - x, me.z - z) < Math.min(w, d) / 2 + 0.2) bad = 'you are standing there';
       if (!bad && this.wouldWallOffKeep(type, x, z, rot)) bad = 'that would wall off the Keep';
       return bad;
@@ -406,12 +406,12 @@
       return !open;
     }
     autoRot(x, z) { return Math.atan2(-(x - this.L.keep.x), -(z - this.L.keep.z)) + (this.rotExtra || 0); }
-    buildAt(type, x, z) {
-      const rot = this.autoRot(x, z), why = this.placementOk(type, x, z, rot); if (why) { this.cui.toast(why[0].toUpperCase() + why.slice(1) + '.'); this.sound.play('clank'); return false; }
-      const r = this.castle.build(type, { x, z, rot }); if (!r.ok) { this.cui.toast(`${this.data.piece(type).name}: ${r.why}.`); return false; }
+    buildAt(type, x, z, rot = this.autoRot(x, z), quiet = false) {
+      const why = this.placementOk(type, x, z, rot); if (why) { if (!quiet) { this.cui.toast(why[0].toUpperCase() + why.slice(1) + '.'); this.sound.play('clank'); } return false; }
+      const r = this.castle.build(type, { x, z, rot }); if (!r.ok) { if (!quiet) this.cui.toast(`${this.data.piece(type).name}: ${r.why}.`); return false; }
       const m = this.addPieceMesh(r.piece); this.pop(m); this.sound.play('thunk'); this.puff(x, z); this.shake(0.08);
       const pr = this.data.piece(type).produces;
-      this.cui.toast(pr ? `${this.data.piece(type).name}: ${K.CastleUI.prodLine(this.castle, type)}.` : `${this.data.piece(type).name} built.`);
+      if (!quiet) this.cui.toast(pr ? `${this.data.piece(type).name}: ${K.CastleUI.prodLine(this.castle, type)}.` : `${this.data.piece(type).name} built.`);
       this.changed(); return true;
     }
     upgrade(p) {
@@ -770,6 +770,9 @@
     /* ---------- input ---------- */
     click(sx, sy) { this.sound.unlock(); return this.tools.click(sx, sy); }
     pointerMove(sx, sy) { return this.cui.pointerMove(sx, sy); }
+    pointerDown(sx, sy) { return this.walls.down(sx, sy); }
+    pointerDrag(sx, sy) { this.walls.drag(sx, sy); }
+    pointerUp(sx, sy) { this.walls.up(sx, sy); }
     key(e) { this.sound.unlock(); return this.cui.key(e) || this.tools.key(e); }
 
     /* ---------- save ---------- */

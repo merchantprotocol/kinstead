@@ -98,7 +98,7 @@
         if (dk < 15.5 || (x > L.chasm.x0 - 1.4 && x < L.chasm.x1 + 1.4) || L.inIronHills(x, z) || Math.abs(x - L.ridgeX) < 1.5 || near(x, z, 1.6)) continue;
         if (x > L.chasm.x1 && Math.abs(z - L.troll.z) < 4) continue;
         const r = this.heightAt(x, z); if (r.rock || r.chasm) continue;
-        this.prop(R.next() < 0.86 ? 'pine' : 'deadtree', x, z, { s: R.range(0.85, 1.25) });
+        const dead = R.next() >= 0.86; this.prop(dead ? 'c:deadtree' : 'c:pine', x, z, { s: R.range(0.85, 1.25), name: dead ? 'Dead tree' : 'Snow pine' });
       }
       for (let k = 0; k < 7; k++) { const x = R.range(37, 50), z = R.range(3, 13); if (!near(x, z, 1.8)) this.prop('rock', x, z, { s: R.range(0.8, 1.4) }); }
       this.prop('torch', L.bridge.a[0] - 0.8, L.bridge.a[1] - 1.3); this.prop('torch', L.bridge.b[0] + 0.8, L.bridge.b[1] + 1.3);

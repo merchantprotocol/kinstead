@@ -102,7 +102,7 @@
     /** the node is used up: stump / rubble look, a respawn timer, saved state */
     deplete() {
       const st = this.state, n = this.spec; st.charges = 0; st.respawnAt = n.respawnSec ? this.ctx.play.t + n.respawnSec : Infinity;
-      this.e.cutStage = 0; this.ctx.game.R.setPropState(this.e.id, 'depleted'); this.ctx.game.changed();
+      this.ctx.game.R.setPropState(this.e.id, 'depleted'); this.ctx.game.changed();
     }
   }
   class TreeTarget extends NodeTarget {
@@ -110,8 +110,6 @@
     onStrike(n) {
       const g = this.ctx.game; g.sound.play('thunk');
       this.ctx.effects.burst('wood', this.e.x + rnd(-0.1, 0.1), this.groundY + 0.8, this.e.z + rnd(-0.1, 0.1), 4, 2.4);
-      const stage = Math.min(4, Math.floor((n / this.hitsNeeded) * 5));            // the crown thins with every swing
-      if (stage >= 1 && stage !== this.e.cutStage) { this.e.cutStage = stage; g.R.setPropState(this.e.id, 'cut' + stage); }
     }
     complete() {
       const me = this.ctx.play.me, r = this.resource, v = this.yieldEach, y = this.groundY, e = this.e, fx = this.ctx.effects, n = this.pieces;

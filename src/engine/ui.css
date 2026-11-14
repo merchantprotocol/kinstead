@@ -206,7 +206,8 @@
   #cRadial{position:fixed;inset:0;z-index:14;background:radial-gradient(circle at 50% 48%,rgba(20,14,8,.55),rgba(8,10,18,.78))}
   #cRadial .hub{position:absolute;transform:translate(-50%,-50%);width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,#3a2412,#1a120a);border:2px solid #e0a24a;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;box-shadow:0 0 40px rgba(255,150,60,.35)}
   #cRadial .hub b{font-size:20px;color:#fff4dc}#cRadial .hub small{color:#cfb890;font-size:11px;text-align:center;padding:0 10px}
-  .bc{position:absolute;transform:translate(-50%,-50%);width:208px;text-align:left;background:rgba(22,29,44,.97);border:1px solid #4a5a7a;border-radius:12px;padding:8px 10px;color:#eef3fa;cursor:pointer;box-shadow:0 10px 24px rgba(0,0,0,.45);animation:cardin .28s ease both}
+  .bc{position:absolute;transform:translate(-50%,-50%);width:208px;text-align:left;background:rgba(22,29,44,.97);border:1px solid #4a5a7a;border-radius:12px;padding:8px 10px;color:#eef3fa;cursor:pointer;box-shadow:0 10px 24px rgba(0,0,0,.45)}
+  #cRadial.opening .bc{animation:cardin .28s ease both}
   @keyframes cardin{from{opacity:0;transform:translate(-50%,-50%) scale(.6)}}
   .bc:hover{border-color:#ffc35c;transform:translate(-50%,-50%) scale(1.05);z-index:2}
   .bc.best{border:2px solid #ffc35c;box-shadow:0 0 22px rgba(255,195,92,.45)}
@@ -252,7 +253,7 @@
   .dmg.snow{color:#eef6ff;font-size:14px;opacity:.9}
 
 /* castle tool bar: the tool in your hand decides what a click does */
-#cTools{left:50%;bottom:64px;transform:translateX(-50%);padding:6px 8px;display:flex;gap:6px;align-items:flex-end}
+#cTools{left:12px;bottom:12px;padding:6px 8px;display:flex;gap:6px;align-items:flex-end}
 #cTools .tl{position:relative;width:62px;padding:6px 4px 4px;border:2px solid #3a4660;border-radius:10px;background:#101826;color:#b9c6dd;display:flex;flex-direction:column;align-items:center;gap:1px;cursor:pointer;font:600 11px/1.1 system-ui,sans-serif;transition:transform .12s,border-color .12s,box-shadow .12s}
 #cTools .tl:hover{transform:translateY(-2px);border-color:#9fb4d8}
 #cTools .tl.on{border-color:#ffd27a;box-shadow:0 0 0 2px #7a4a12 inset,0 0 14px #ff9a3a88;background:#1c2334;color:#fff3c4}

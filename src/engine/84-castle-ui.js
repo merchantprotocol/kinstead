@@ -195,11 +195,10 @@
     /* ---------- the Build radial ---------- */
     toggleRadial(on) {
       this.radialOpen = on != null ? on : !this.radialOpen; this.$('cRadial').hidden = !this.radialOpen;
-      if (this.radialOpen) { this.stopPlacing(); this.toggleBook(false); this.g.play.ui.closeAll(); this.renderRadial(); this.g.sound.play('pop'); }
+      if (this.radialOpen) { this.stopPlacing(); this.toggleBook(false); this.g.play.ui.closeAll(); this.radialHtml = ''; const rd = this.$('cRadial'); rd.classList.add('opening'); clearTimeout(this.openT); this.openT = setTimeout(() => rd.classList.remove('opening'), 400); this.renderRadial(); this.g.sound.play('pop'); }
     }
     cards() {
       const c = this.c, d = c.data, out = [], locked = [];
-      if (!c.lit) return { out, locked: [{ name: 'Light the Keep’s hearth first' }] };
       for (const id of d.pieceIds().concat([d.keepUpgrade.id])) {
         if (id === 'keep') continue;
         const ruin = c.ruinOpen(id), p = d.piece(id), why = c.blocker(id, { ruin });
@@ -234,8 +233,10 @@
         return `<button class="bc ${x.best ? 'best' : ''} k-${x.kind}" data-card="${i}" style="left:${x0.toFixed(0)}px;top:${y0.toFixed(0)}px">${x.best ? `<span class="coin" title="Best payback">${Icons.img('coin', 2)}</span>` : ''}
           <div class="hd">${this.art.html(x.art || x.id, x.icon, 46)}<div><b>${esc(x.name)}</b><small>${esc(x.sub)}</small></div></div><div class="cost">${chip(x.cost)}</div><p>${esc(x.line)}</p></button>`;
       }).join('');
-      this.$('cRadial').innerHTML = `<div class="hub" style="left:${cx}px;top:${cy}px"><b>Build</b><small>${n ? n + ' you can afford' : 'nothing affordable yet'}</small><button class="cb" data-close>Close <kbd>B</kbd></button></div>${cards}
+      const html = `<div class="hub" style="left:${cx}px;top:${cy}px"><b>Build</b><small>${n ? n + ' you can afford' : 'nothing affordable yet'}</small><button class="cb" data-close>Close <kbd>B</kbd></button></div>${cards}
         ${locked.length ? `<div class="locked"><b>Not yet:</b> ${locked.slice(0, 7).map((l) => `${esc(l.name)}${l.why ? ` <i>(${esc(l.why)})</i>` : ''}`).join(' · ')}${locked.length > 7 ? ' · …' : ''}</div>` : ''}`;
+      if (html === this.radialHtml) return;   // the HUD re-renders every 0.25 s: do not rebuild (and re-animate) identical cards
+      this.radialHtml = html; this.$('cRadial').innerHTML = html;
     }
     pickCard(i) {
       const x = this.cardList && this.cardList[i]; if (!x) return; const g = this.g, play = g.play;
@@ -254,16 +255,17 @@
       this.stopPlacing(); const g = this.g;
       this.placing = { type, ghost: g.art.ghost(type) }; g.group.add(this.placing.ghost); this.placing.ghost.visible = false;
       this.$('cPlace').hidden = false;
-      this.$('cPlace').innerHTML = `${this.art.html(type, PIECE_ICON[type], 30)} Place the <b>${esc(this.c.data.piece(type).name)}</b> inside the glow. It faces the Keep. <button class="cb" data-rot>Turn <kbd>R</kbd></button><button class="cb" data-close>Done <kbd>Esc</kbd></button>`;
+      this.$('cPlace').innerHTML = `${this.art.html(type, PIECE_ICON[type], 30)} Place the <b>${esc(this.c.data.piece(type).name)}</b> anywhere you like. It faces the Keep. <button class="cb" data-rot>Turn <kbd>R</kbd></button><button class="cb" data-close>Done <kbd>Esc</kbd></button>`;
     }
     stopPlacing() { if (!this.placing) return; this.g.group.remove(this.placing.ghost); this.placing = null; this.$('cPlace').hidden = true; this.g.play.ui.tip(null); }
     rotate() { this.g.rotExtra = ((this.g.rotExtra || 0) + Math.PI / 2) % (Math.PI * 2); if (this.lastP) this.moveGhost(this.lastP.sx, this.lastP.sy); }
     moveGhost(sx, sy) {
       const P = this.placing, g = this.g, p = g.app.pickGround(sx, sy); this.lastP = { sx, sy };
       if (!p) { P.ghost.visible = false; return; }
-      const x = Math.round(p.x * 4) / 4, z = Math.round(p.z * 4) / 4, rot = g.autoRot(x, z), why = g.placementOk(P.type, x, z, rot);
+      const wall = g.walls.handles(P.type), e = wall ? g.walls.edgeAt(P.type, p) : null;
+      const x = wall ? e.x : Math.round(p.x * 4) / 4, z = wall ? e.z : Math.round(p.z * 4) / 4, rot = wall ? e.rot : g.autoRot(x, z), why = g.placementOk(P.type, x, z, rot);
       P.ghost.visible = true; P.ghost.position.set(x, g.play.nav.y(x, z), z); P.ghost.rotation.y = rot; CastleArt.tintGhost(P.ghost, !why); P.at = { x, z, why };
-      g.play.ui.tip(why ? `<b>Can’t build here</b> · ${esc(why)}` : `<b>${esc(this.c.data.piece(P.type).name)}</b> · click to build (${esc(Object.entries(this.c.buildCost(P.type)).map(([r, n]) => n + ' ' + K.CastleData.resName(r)).join(', '))})`, sx, sy);
+      g.play.ui.tip(why ? `<b>Can’t build here</b> · ${esc(why)}` : `<b>${esc(this.c.data.piece(P.type).name)}</b> · click to build, or drag to draw a wall (${esc(Object.entries(this.c.buildCost(P.type)).map(([r, n]) => n + ' ' + K.CastleData.resName(r)).join(', '))})`, sx, sy);
     }
     click(sx, sy) {
       if (!this.placing) return false;
