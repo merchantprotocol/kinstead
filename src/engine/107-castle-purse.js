@@ -121,7 +121,7 @@
     render() {
       const mine = this.panel(this.me.title, 'me', this.grid(this.me, 'me'), 'bag');
       const there = this.forge ? this.panel('Blacksmith', 'there', this.forgeBody(), 'iron') : this.there ? this.panel(this.there.title, 'there', this.grid(this.there, 'there'), /ward/i.test(this.there.title) ? 'bag' : 'wood') : '';
-      this.root.innerHTML = `<div class="torch l"></div><div class="torch r"></div><div class="pw ${there ? 'two' : ''}">${mine}${there}<button class="cb x" data-close>Close <kbd>Esc</kbd></button></div>`;
+      this.root.innerHTML = `<div class="pw ${there ? 'two' : ''}">${mine}${there}<button class="cb x" data-close>Close <kbd>Esc</kbd></button></div>`;
     }
     holdings(side) { return side === 'me' ? this.me : this.forge ? new TrayHoldings(this.forge) : this.there; }
     onClick(e) {
