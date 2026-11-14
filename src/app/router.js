@@ -1,5 +1,5 @@
 /* Copyright (c) 2026 Merchant Protocol. All rights reserved. */
-/* Kinstead · page routing between the static pages: index.html (menu), builder.html, play.html. */
+/* Kinstead · page routing between the static pages: index.html (menu), builder.html, play.html, lab.html. */
 (function (G) {
   const K = (G.K = G.K || {});
 
