@@ -1,0 +1,41 @@
+<!doctype html>
+<!-- Copyright (c) 2026 Merchant Protocol. All rights reserved. -->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<script>window.__errs=[];window.addEventListener('error',e=>window.__errs.push(String(e.message)));(function(){const ce=console.error;console.error=function(){window.__errs.push([].map.call(arguments,String).join(' '));ce.apply(console,arguments);};})();</script>
+<title>Kinstead</title>
+<meta name="description" content="Kinstead: build a hand-painted diorama world, then walk into it and play.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="{{asset:shell.css}}">
+</head>
+<body class="menu-page">
+<div id="stage"></div>
+<div class="menu-shade"></div>
+<div id="loading">painting pixels…</div>
+<main class="menu" id="menu">
+  <div class="title"><h1>KINSTEAD</h1><p>Build a world · walk into it</p></div>
+  <nav class="menu-main" id="mainPanel">
+    <button class="mbtn pri" id="mCastle">New Castle (story)<small>Rebuild a frozen castle · about 14 minutes</small></button>
+    <button class="mbtn pri" id="mCastleCont" hidden>Continue castle<small id="mCastleContName"></small></button>
+    <button class="mbtn" id="mContinue" hidden>Continue<small id="mContinueName"></small></button>
+    <button class="mbtn" id="mPlay">Play a world</button>
+    <button class="mbtn" id="mBuilder">World Builder</button>
+    <button class="mbtn" id="mSettings">Settings</button>
+  </nav>
+  <section class="mpanel" id="worldsPanel" hidden>
+    <header><h2>Play a world</h2><button class="mback" data-back>← Back</button></header>
+    <h3>Prebuilt worlds</h3><div class="wgrid" id="wPrebuilt"></div>
+    <h3>My worlds</h3><div class="wgrid" id="wMine"></div>
+  </section>
+  <section class="mpanel" id="settingsPanel" hidden>
+    <header><h2>Settings</h2><button class="mback" data-back>← Back</button></header>
+    <div class="row"><span>Quality</span><div class="segs" id="sQuality"></div></div>
+    <div class="row"><span>Depth of field</span><input type="checkbox" id="sDof"></div>
+    <div class="row"><span>Bloom</span><input type="checkbox" id="sBloom"></div>
+    <p class="note">Sharp renders at full screen resolution; Fast renders smaller for slower machines. Settings apply to the menu, the World Builder and play.</p>
+  </section>
+</main>
+<script src="{{asset:three.min.js}}"></script>
+<script src="{{asset:engine.js}}"></script>
+<script src="{{asset:app.js}}"></script>
+<script>K.Pages.boot('menu');</script>
+</body></html>

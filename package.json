@@ -1,0 +1,19 @@
+{
+  "name": "kinstead",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Kinstead: a hand-painted diorama world builder and game, built as a static site.",
+  "license": "UNLICENSED",
+  "type": "module",
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "build:single": "node tools/build.mjs --single",
+    "dev": "node tools/build.mjs --serve",
+    "worlds": "node tools/make-worlds.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "engines": { "node": ">=20" },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  }
+}
