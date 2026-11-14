@@ -38,13 +38,13 @@
   const BESTIARY = {
     ghoulA: { name: 'Frost Ghoul', level: 2, hp: 30, atk: 5, def: 1, speed: 1.7, cd: 1.35, reach: 0.8, xp: 14, coins: [2, 7], loot: [['dust', 1, 2, 1], ['bone', 1, 1, 0.6]], desc: 'A starved corpse the frost will not let rest. Slow, but it does not tire.' },
     ghoulB: { name: 'Pale Ghoul', level: 3, hp: 38, atk: 6, def: 2, speed: 1.8, cd: 1.3, reach: 0.8, xp: 18, coins: [3, 9], loot: [['dust', 1, 3, 1], ['bone', 1, 2, 0.7]], desc: 'Paler, older and meaner than its kin.' },
-    troll: { name: 'Rime Troll', level: 6, hp: 95, atk: 10, def: 4, speed: 1.4, cd: 1.9, reach: 1.05, xp: 60, coins: [15, 30], loot: [['tusk', 1, 1, 1], ['bone', 2, 4, 1], ['ore', 1, 2, 0.5]], desc: 'Bridge-keeper, toll-taker, bone-breaker. Hits like a falling cliff.' },
+    troll: { name: 'Rime Troll', level: 6, hp: 95, atk: 10, def: 4, speed: 1.4, cd: 1.9, reach: 1.05, xp: 60, coins: [15, 30], loot: [['tusk', 1, 1, 1], ['bone', 2, 4, 1], ['iron', 1, 2, 0.5]], desc: 'Bridge-keeper, toll-taker, bone-breaker. Hits like a falling cliff.' },
     warden: { name: 'The Warden', level: 8, hp: 120, atk: 12, def: 6, speed: 2.1, cd: 1.2, reach: 0.85, xp: 70, coins: [10, 20], loot: [['bread', 1, 2, 1]], desc: 'An armoured knight sworn to the crossing.' },
     witch: { name: 'Rime Witch', level: 7, hp: 80, atk: 11, def: 3, speed: 2.0, cd: 1.4, reach: 0.9, xp: 60, coins: [10, 25], loot: [['herb', 2, 4, 1]], desc: 'Keeper of the wards. Her staff hums with cold light.' },
   };
   const ROLE_NAMES = { enemy: 'Enemy', npc: 'Friendly', merchant: 'Merchant', player: 'You' };
 
-  const SHOP = [['sword', 45], ['shield', 32], ['helm', 48], ['mail', 70], ['cloak', 28], ['boots', 12], ['charm', 55], ['potion', 18], ['bread', 4], ['pickaxe', 22], ['axe', 20], ['rod', 15]];
+  const SHOP = [['iron_sword', 45], ['shield', 32], ['helm', 48], ['mail', 70], ['cloak', 28], ['boots', 12], ['charm', 55], ['potion', 18], ['bread', 4], ['pickaxe', 22], ['axe', 20], ['rod', 15]];
 
   /* dialogue trees: nodes of lines + choices; `give` hands items once (by `once` key), `trade` opens the shop */
   const DIALOGUE = {
@@ -67,7 +67,7 @@
     generic: { start: 'hi', nodes: { hi: { text: ['Cold night.'], choices: [{ label: 'It is.', end: true }] } } },
   };
 
-  const DEFAULT_KIT = { coins: 30, bag: [['sword', 1], ['axe', 1], ['pickaxe', 1], ['rod', 1], ['bread', 3]], equip: ['dress', 'hood', 'boots'] };
+  const DEFAULT_KIT = { coins: 30, bag: [['iron_sword', 1], ['axe', 1], ['pickaxe', 1], ['rod', 1], ['bread', 3]], equip: ['dress', 'hood', 'boots'] };
 
   /* ---------- default interaction specs ---------- */
   const reg = new InteractionRegistry();
@@ -98,8 +98,8 @@
         rows: [['Action', o.verb], ['Needs', o.tool ? game.items.get(o.toolItem).name : 'nothing'], ['Yields', it.name], ['Left', n.charges > 0 ? `${n.charges} / ${n.max}` : 'depleted — regrows soon']] };
     },
   });
-  reg.register('ore', gatherSpec({ verb: 'Mine', ing: 'Mining', cursor: 'pickaxe', tool: 'mine', toolItem: 'pickaxe', item: 'ore', xp: 6, charges: 3, time: 2.2, respawn: 30, desc: 'Rust-red iron glints in the rime-rock.' }));
-  reg.register('tree', gatherSpec({ verb: 'Chop', ing: 'Chopping', cursor: 'axe', tool: 'chop', toolItem: 'axe', item: 'log', xp: 5, charges: 3, time: 2.0, respawn: 35, desc: 'A straight pine, good for firewood and planks.' }));
+  reg.register('ore', gatherSpec({ verb: 'Mine', ing: 'Mining', cursor: 'pickaxe', tool: 'mine', toolItem: 'pickaxe', item: 'iron', xp: 6, charges: 3, time: 2.2, respawn: 30, desc: 'Rust-red iron glints in the rime-rock.' }));
+  reg.register('tree', gatherSpec({ verb: 'Chop', ing: 'Chopping', cursor: 'axe', tool: 'chop', toolItem: 'axe', item: 'wood', xp: 5, charges: 3, time: 2.0, respawn: 35, desc: 'A straight pine, good for firewood and planks.' }));
   reg.register('herb', gatherSpec({ verb: 'Gather', ing: 'Gathering', cursor: 'herb', tool: null, item: 'herb', xp: 3, charges: 2, time: 1.4, respawn: 25, desc: 'Frostleaf grows where the snow is thinnest.' }));
   reg.register('fish', gatherSpec({ verb: 'Fish', ing: 'Fishing', cursor: 'rod', tool: 'fish', toolItem: 'rod', item: 'fish', xp: 5, charges: 3, time: 2.8, respawn: 30, desc: 'Black water under the ice. Something moves down there.' }));
 

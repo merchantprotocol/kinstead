@@ -79,6 +79,7 @@
       document.body.classList.add('play-only'); G.KINSTEAD_NO_UNLOAD_PROMPT = true;
       const app = (this.app = this.makeApp());
       this.addBackButton(async () => { await this.saveProgress(); return true; });
+      if ((this.s.router.param('mode') || G.KINSTEAD_PLAY_MODE) === 'castle') return this.startCastle(app);   // KINSTEAD_PLAY_MODE: embedders without a query string
       const id = this.s.router.param('world');
       if (!id) { this.fail('No world was chosen. Pick one from the menu.'); return this; }
       let w;
@@ -92,8 +93,20 @@
       G.addEventListener('pagehide', () => this.saveProgress());
       return this;
     }
+    /* Castle mode (the v1.1 story): a built-in castle world with K.CastleGame layered on play; saves to localStorage */
+    startCastle(app) {
+      app.setDoc(new K.CastleWorldBuilder().build()); app.dirtySince = false;
+      this.castle = app.play.ext = new K.CastleGame(app.play, { resume: this.s.router.param('resume') === '1' || !!G.KINSTEAD_RESUME });
+      const setPlay = app.setPlay.bind(app); setPlay(true);
+      app.setPlay = (on) => { if (on) setPlay(true); };
+      document.title = 'Kinstead · The Frozen Castle';
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') this.castle.save(); });
+      G.addEventListener('pagehide', () => this.castle.save());
+      return this;
+    }
     /* the Continue slot: the world with this character's progress (doc.game) */
     async saveProgress() {
+      if (this.castle) { this.castle.save(); return null; }
       if (!this.world || !this.app.play.active) return null;
       try { return await this.s.slot.save({ worldId: this.world.id, name: this.world.name, json: this.app.serialize() }); }
       catch (e) { console.warn('could not save progress', e); return null; }

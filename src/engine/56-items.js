@@ -107,7 +107,10 @@
   const SLOTS = ['main', 'off', 'head', 'body', 'cloak', 'boots', 'trinket'];
   const SLOT_NAMES = { main: 'Main hand', off: 'Off hand', head: 'Head', body: 'Body / dress', cloak: 'Cloak', boots: 'Boots', trinket: 'Trinket' };
   const ITEMS = {
-    sword: { name: 'Iron sword', slot: 'main', atk: 6, value: 40, desc: 'A plain, honest blade.' },
+    iron_sword: { name: 'Iron sword', slot: 'main', atk: 12, value: 40, icon: 'sword', desc: 'A plain, honest blade. Forged at a Smithy.' },
+    stoneblade: { name: 'Stoneblade', slot: 'main', atk: 6, value: 15, icon: 'stoneblade', desc: 'A knapped stone blade lashed to a pine hilt. The Keep’s workbench makes it.' },
+    ember_brand: { name: 'Ember brand', slot: 'main', atk: 20, value: 90, icon: 'brand', desc: 'Its fuller glows with ember light. Frost creatures burn.' },
+    ember_lantern: { name: 'Ember lantern', stack: 1, value: 0, icon: 'lantern', desc: 'The last warm ember. It lights the Keep’s hearth.' },
     axe: { name: "Woodcutter's axe", slot: 'main', atk: 3, tool: 'chop', value: 20, desc: 'Fells pines. Fells ghouls, slowly.' },
     pickaxe: { name: 'Pickaxe', slot: 'main', atk: 2, tool: 'mine', value: 22, desc: 'For ore veins in the rime-rock.' },
     rod: { name: 'Fishing rod', slot: 'main', atk: 0, tool: 'fish', value: 15, desc: 'Line, hook and patience.' },
@@ -119,8 +122,12 @@
     cloak: { name: 'Wolf-fur cloak', slot: 'cloak', def: 1, hp: 5, value: 25, desc: 'Heavy, warm, smells of wolf.' },
     boots: { name: 'Fur boots', slot: 'boots', def: 1, speed: 0.08, value: 10, desc: 'Sure-footed on ice.' },
     charm: { name: 'Frost charm', slot: 'trinket', hp: 15, value: 50, desc: 'A rime crystal on a gold chain. +15 max HP.' },
-    ore: { name: 'Iron ore', stack: 50, value: 6, desc: 'Raw ore. A blacksmith could use it.' },
-    log: { name: 'Pine log', stack: 50, value: 3, desc: 'Resinous pine. Burns hot.' },
+    iron: { name: 'Iron', stack: 50, value: 6, icon: 'ore', desc: 'Iron ore from the rime-rock. A smith can use it.' },
+    wood: { name: 'Wood', stack: 50, value: 3, icon: 'log', desc: 'Resinous pine. Burns hot.' },
+    stone: { name: 'Stone', stack: 50, value: 3, icon: 'stone', desc: 'Fieldstone and ruin rubble.' },
+    gold: { name: 'Gold', stack: 99, value: 5, icon: 'coin', desc: 'Old coin stamped with a flame.' },
+    ember_shard: { name: 'Ember shard', stack: 50, value: 8, icon: 'ember', desc: 'A shard of warm light. Frost creatures drop them.' },
+    troll_heart: { name: 'Troll’s warm heart', stack: 1, value: 0, icon: 'heart', desc: 'Bind it into the Keep’s hearth.' },
     herb: { name: 'Frostleaf', stack: 50, value: 4, heal: 6, desc: 'Bitter leaf. Eat to heal 6 HP.' },
     fish: { name: 'Ice fish', stack: 20, value: 5, heal: 12, desc: 'Pale and oily. Eat to heal 12 HP.' },
     potion: { name: 'Healing draught', stack: 10, value: 20, heal: 35, desc: 'Drink to heal 35 HP.' },
@@ -131,9 +138,15 @@
   };
   for (const [id, d] of Object.entries(ITEMS)) { d.id = id; d.icon = d.icon || id; d.stack = d.stack || 1; }
 
+  /* one item vocabulary: the castle data's ids are canonical; old ids (log, ore, sword…) resolve through its alias map */
+  class ItemIds {
+    static alias() { if (!ItemIds.map) ItemIds.map = K.CastleData && K.CASTLE_DATA ? K.CastleData.buildAlias(K.CASTLE_DATA) : {}; return ItemIds.map; }
+    static canon(id) { return ItemIds.alias()[id] || id; }
+  }
+
   class ItemCatalog {
     constructor(defs = ITEMS) { this.defs = defs; }
-    get(id) { return this.defs[id] || null; }
+    get(id) { return this.defs[id] || this.defs[ItemIds.canon(id)] || null; }
     all() { return Object.values(this.defs); }
     register(id, def) { def.id = id; def.icon = def.icon || id; def.stack = def.stack || 1; this.defs[id] = def; return def; }
     describe(id) {
@@ -235,5 +248,5 @@
     load(o) { if (!o) return this; Object.assign(this, { bag: o.bag || this.bag, equipment: Object.assign(this.equipment, o.equipment), coins: o.coins | 0, level: o.level || 1, xp: o.xp | 0, outfitId: o.outfit || this.outfitId }); this.hp = Math.min(o.hp || 1, this.stats().hpMax); this.emit('load'); return this; }
   }
 
-  Object.assign(K, { Icons, IconCanvas, ItemCatalog, PlayerState, ITEMS, SLOTS, SLOT_NAMES });
+  Object.assign(K, { Icons, IconCanvas, ItemCatalog, ItemIds, PlayerState, ITEMS, SLOTS, SLOT_NAMES });
 })(typeof window !== 'undefined' ? window : globalThis);
