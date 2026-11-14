@@ -94,8 +94,8 @@
       w.snow.points.visible = !studio; w.fogLayers.forEach((f) => (f.m.visible = !studio));
       if (studio) {
         S.background.set(LabLighting.STUDIO_BG); S.fog.color.set(LabLighting.STUDIO_BG);
-        this.hemi.color.set('#f4f6fb'); this.hemi.groundColor.set('#8c8f96'); this.hemi.intensity = 1.9;
-        w.sun.color.set('#fff3e2'); w.sun.intensity = 2.3; w.sunOff.set(-6, 12, 9);
+        this.hemi.color.set('#eef1f7'); this.hemi.groundColor.set('#6c6f76'); this.hemi.intensity = 1.25;
+        w.sun.color.set('#fff1dc'); w.sun.intensity = 2.0; w.sunOff.set(-7, 11, 8);
         if (this.rim) { this.rim.color.set('#ffffff'); this.rim.intensity = 0.55; }
       } else if (name === 'night') {
         S.background.set('#080b14'); S.fog.color.set('#0c1222');
