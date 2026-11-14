@@ -106,7 +106,7 @@
     tile(s, side) {
       return `<button class="pt${s.held ? ' held' : ''}" draggable="true" data-side="${side}" data-key="${esc(s.key)}" title="${esc(s.name)}"><img src="${s.art}" width="52" height="52" alt="${esc(s.name)}"><b>${s.n > 1 ? s.n : ''}</b><i>${esc(s.name)}</i></button>`;
     }
-    panel(title, side, body, icon) { return `<section class="pp" data-panel="${side}"><div class="hd"><img src="${GoodsArt.url(icon)}" width="40" height="40" alt=""><h3>${esc(title)}</h3></div>${body}</section>`; }
+    panel(title, side, body, icon) { return `<section class="pp" data-panel="${side}"><div class="hd"><img src="${GoodsArt.url(icon)}" width="40" height="40" alt=""><h3>${esc(title)}</h3></div><div class="pb">${body}</div></section>`; }
     grid(h, side) { const l = h.list(); return `<div class="pg">${l.length ? l.map((s) => this.tile(s, side)).join('') : '<span class="empty">Empty</span>'}</div>`; }
     /** the forge's side: weapons to make (their materials as pictures), then what is ready */
     forgeBody() {
