@@ -25,6 +25,7 @@
       if (!this.saved) { this.castle.add('wood', 70); this.castle.add('stone', 35); this.castle.add('dirt', 4); this.castle.add('arrow', 12); this.castle.weapons.add('stoneblade'); this.freshStart = true; }   // you start with a little of everything and a blade
       this.day.phases = K.Calendar.PHASES;   // looping day and night
       this.noXp = true; this.swingSec = this.data.swingSec;
+      this.ground = new K.GroundOccupancy(this); this.pieceSet = new K.PieceManager(this); this.placement = new K.PlacementRules(this);
     }
     /** a saved game after your castle was taken: resources, strength and weapons stay; pieces, buildings, stores and ground do not */
     evictedSave(sv) { if (!sv) return null; const keep = sv.extras || {}; sv.castle.pieces = []; sv.hero = null; sv.nodes = {}; sv.extras = { weapons: keep.weapons, held: keep.held, xp: keep.xp }; return sv; }
@@ -49,6 +50,31 @@
     get ui() { return this.cui; }
     makePlayer() { this.xp = this.xp || new K.Experience(this); const p = new K.CastleHero(this.play.items, this.castle); p.xp = this.xp; p.addItem('ember_lantern', 1); if (this.freshStart) p.addItem('bread', 10); /* you arrive with food to last a while */ for (const w of this.castle.weapons) { p.addItem(w, 1); } this.equipBest(p); p.healFull(); return p; }
     equipBest(p) { const w = this.castle.bestWeapon(); if (w && p.count(w.id)) p.equip(w.id); }
+
+    /* ---------- ground tiles (GroundOccupancy) ---------- */
+    rectTiles(x, z, w, d, rot, fn) { this.ground.rectTiles(x, z, w, d, rot, fn); }
+    blockRect(x, z, w, d, rot, gate) { this.ground.blockRect(x, z, w, d, rot, gate); }
+    unblockRect(x, z, w, d, rot) { this.ground.unblockRect(x, z, w, d, rot); }
+    insideBuilding(x, z) { return this.ground.insideBuilding(x, z); }
+    gateTilesOf(p) { return this.ground.gateTilesOf(p); }
+    isSanctuary(x, z) { return this.ground.isSanctuary(x, z); }
+
+    /* ---------- the pieces in the world (PieceManager) ---------- */
+    pieceEnt(p) { return this.pieceSet.pieceEnt(p); }
+    pieceRadius(p) { return this.pieceSet.pieceRadius(p); }
+    addPieceMesh(p) { return this.pieceSet.addPieceMesh(p); }
+    blockPiece(p) { this.pieceSet.blockPiece(p); }
+    pieceAt(x, z, pad) { return this.pieceSet.pieceAt(x, z, pad); }
+    demolishPiece(p, opts) { return this.pieceSet.demolishPiece(p, opts); }
+    redrawPiece(p) { return this.pieceSet.redrawPiece(p); }
+    setFrost(p, on) { this.pieceSet.setFrost(p, on); }
+
+    /* ---------- where a new piece may go (PlacementRules) ---------- */
+    placementOk(type, x, z, rot) { return this.placement.placementOk(type, x, z, rot); }
+    wouldWallOffKeep(type, x, z, rot) { return this.placement.wouldWallOffKeep(type, x, z, rot); }
+    autoRot(x, z) { return this.placement.autoRot(x, z); }
+    dirtOk(x, z) { return this.placement.dirtOk(x, z); }
+    gateSpot(p) { return this.placement.gateSpot(p); }
 
     /* ---------- enter / exit ---------- */
     enter() {
@@ -132,26 +158,6 @@
       this.keepMesh = this.art.piece('keep', { ruin: !this.castle.lit }); this.place(this.keepMesh, this.L.keep.x, this.L.keep.z, 0);
     }
 
-    /* ---------- tiles: nav blocking + occupancy ---------- */
-    rectTiles(x, z, w, d, rot, fn) {
-      const nav = this.play.nav, c = Math.cos(rot), s = Math.sin(rot), R = Math.hypot(w, d) / 2 + TILE;
-      const [i0, j0] = nav.tile(x - R, z - R), [i1, j1] = nav.tile(x + R, z + R);
-      for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
-        if (!nav.inside(i, j)) continue; const [px, pz] = nav.centre(i, j), dx = px - x, dz = pz - z;
-        const lx = dx * c - dz * s, lz = dx * s + dz * c;
-        if (Math.abs(lx) <= w / 2 && Math.abs(lz) <= d / 2) fn(i, j, lx, lz);
-      }
-    }
-    blockRect(x, z, w, d, rot, gate) {
-      const nav = this.play.nav;
-      this.rectTiles(x, z, w, d, rot, (i, j, lx) => { const k = j * nav.w + i; this.occ[k] = 1; if (!gate || Math.abs(lx) > 0.75) nav.walk[k] = 0; });
-      const me = this.play.me, aloft = !!this.ramparts && this.ramparts.onRamparts(me);   // up on the walls: a new piece below never moves you
-      if (me && !aloft && !nav.standable(me.x, me.z)) {
-        const q = nav.nearestOk(...nav.tile(me.x, me.z), 8);
-        if (q) { [me.x, me.z] = nav.centre(...q); me.path = null; }
-      }
-    }
-    unblockRect(x, z, w, d, rot) { const nav = this.play.nav; this.rectTiles(x, z, w, d, rot, (i, j) => { const k = j * nav.w + i; this.occ[k] = 0; nav.walk[k] = 1; }); }
 
     /* ---------- entities the player can click ---------- */
     entities() {
@@ -173,66 +179,6 @@
       this.entitySources.delete(id);
       source.dispose();
       return true;
-    }
-    pieceEnt(p) {
-      if (!p.ent) { const [w, d] = CastleArt.size(p.type); p.ent = { id: 'c-p' + p.uid, type: 'c_piece', piece: p, x: p.x, z: p.z, y: 0, r: K.Breacher.GATES.has(p.type) ? Math.max(w, d) / 2 : Math.max(0.5, Math.min(w, d) / 2 + 0.2), h: { watchtower: 4.6, great_hall: 2.8, gatehouse: 3, stone_gate: 3.2, stone_wall: 3.4, stone_tower: 4 }[p.type] || 1.8 }; }
-      p.ent.name = this.data.piece(p.type).name + (p.level >= 2 ? ' · Level 2' : ''); return p.ent;
-    }
-    pieceRadius(p) { const [w, d] = CastleArt.size(p.type); return Math.max(w, d) / 2; }
-    addPieceMesh(p) {
-      const m = this.art.piece(p.type, { level: p.level }); this.place(m, p.x, p.z, p.rot); this.meshes.set('p' + p.uid, m); m.userData.piece = p;
-      if (p.frosted || this.castle.isFrosted(p)) this.setFrost(p, true);
-      if (K.Breacher.GATES.has(p.type) && !p.bridge) p.bridge = p.type === 'gate' ? new K.WoodGate(this, p) : new K.Drawbridge(this, p);
-      if (K.Breacher.GATES.has(p.type) && this.flags) { const lx = p.type === 'gate' ? 1.05 : 2.25; this.flags.flag('g' + p.uid, p.x + lx * Math.cos(p.rot || 0), p.z - lx * Math.sin(p.rot || 0), this.banners.meId, p.type === 'gate' ? 2.6 : 3.8); }   // your colours on your gate
-      this.blockPiece(p); return m;
-    }
-    /* a piece's footprint blocks the ground (walls a hair longer so a run of them has no gaps) */
-    /* tiles wolves may never step on: the house, and every gate (you walk through a gate; a wolf does not) */
-    /* where a gate goes for the pointer at p: it lines up with a fence run next to it, else follows R. Returns { x, z, rot }. */
-    gateSpot(p) {
-      const i = Math.floor(p.x / TILE), j = Math.floor(p.z / TILE), turned = Math.round((this.rotExtra || 0) / (Math.PI / 2)) % 2 === 1;
-      const spotX = { x: (i + 1) * TILE, z: (j + 0.5) * TILE, rot: 0 }, spotZ = { x: (i + 0.5) * TILE, z: (j + 1) * TILE, rot: Math.PI / 2 };
-      const wallAt = (x, z) => { const q = this.pieceAt(x, z, 0.05); return q && !K.Breacher.GATES.has(q.type); };
-      if (!turned) { if (wallAt(spotX.x - 1.25, spotX.z) || wallAt(spotX.x + 1.25, spotX.z)) return spotX; if (wallAt(spotZ.x, spotZ.z - 1.25) || wallAt(spotZ.x, spotZ.z + 1.25)) return spotZ; return spotX; }
-      return spotZ;
-    }
-    /* the blacksmith is placed by BuildingSite (104-castle-site.js) */
-    /* any building of yours: wolves never go in */
-    insideBuilding(x, z) { return !!this.R.buildings.at(Math.floor(x / TILE), Math.floor(z / TILE)); }
-    gateTilesOf(p) { const out = [], [w, d] = CastleArt.size(p.type); this.rectTiles(p.x, p.z, w, d, p.rot, (i, j) => out.push(i + ',' + j)); return out; }
-    isSanctuary(x, z) { return this.insideBuilding(x, z) || this.gateTiles.has(Math.floor(x / TILE) + ',' + Math.floor(z / TILE)); }
-    blockPiece(p) {
-      if (K.Breacher.GATES.has(p.type)) { if (p.bridge) p.bridge.apply(); return; }   // a gate's tiles follow its leaves or bridge: shut, nothing passes; open, you do
-      if (p.type === 'gate_old') { const nav = this.play.nav; this.rectTiles(p.x, p.z, 2, 0.5, p.rot, (i, j) => { this.occ[j * nav.w + i] = 1; this.gateTiles.add(i + ',' + j); }); return; }   // occupied for building, but you can walk through
-      const [w, d] = CastleArt.size(p.type);
-      if (this.floors.handles(p.type)) { this.floors.block(p); return; }   // a workshop you can walk into: only its walls block
-      this.blockRect(p.x, p.z, this.walls.handles(p.type) ? w + 0.04 : w, d, p.rot, p.type === 'gatehouse'); }
-    /* the piece standing on this ground point, or null */
-    pieceAt(x, z, pad = 0.2) {
-      for (const p of this.castle.pieces) {
-        const [w, d] = CastleArt.size(p.type), c = Math.cos(p.rot), s = Math.sin(p.rot), dx = x - p.x, dz = z - p.z;
-        if (Math.abs(dx * c - dz * s) <= w / 2 + pad && Math.abs(dx * s + dz * c) <= d / 2 + pad) return p;
-      }
-      return null;
-    }
-    /* take a piece down: it comes apart, the ground clears, and half its cost drops as pickups to collect */
-    demolishPiece(p, opts = {}) {
-      const c = this.castle; if (!c.canDemolish(p)) { this.cui.toast('Restored ruins stay standing.'); return false; }
-      if (this.mp && !this.mp.quiet) this.mp.op({ k: 'piece-', id: this.mp.pieceId(p) });
-      const r = c.demolish(p), m = this.meshes.get('p' + p.uid), [w, d] = CastleArt.size(p.type), fx = this.tools.effects, y = this.play.nav.y(p.x, p.z);
-      if (m) { this.group.remove(m); this.meshes.delete('p' + p.uid); }
-      if (p.bridge) { p.bridge.dispose(); p.bridge = null; }
-      if (this.flags) this.flags.unflag('g' + p.uid);
-      this.unblockRect(p.x, p.z, this.walls.handles(p.type) ? w + 0.04 : w, d, p.rot); if (K.Breacher.GATES.has(p.type)) this.gateTilesOf(p).forEach((k) => this.gateTiles.delete(k));
-      for (const q of c.pieces) if (Math.hypot(q.x - p.x, q.z - p.z) < Math.max(w, d) + 6) this.blockPiece(q);   // a neighbour sharing a corner tile keeps it blocked
-      this.sound.play('crack'); this.shake(0.12); this.puff(p.x, p.z); fx.burst(p.type === 'stone_wall' || p.type === 'stone_gate' ? 'stone' : 'wood', p.x, y + 0.6, p.z, 12, 3.2);
-      if (opts.refund !== false) for (const [res, n] of Object.entries(r.refund)) { const k = Math.min(n, 6); for (let i = 0; i < k; i++) fx.spawnPickup(res, Math.floor(n / k) + (i < n % k ? 1 : 0), p.x + (Math.random() - 0.5) * w * 0.5, y + 0.6, p.z + (Math.random() - 0.5) * d, 2.6, true); }
-      this.play.refreshProps(); this.changed(); return true;
-    }
-    redrawPiece(p) { const old = this.meshes.get('p' + p.uid); if (old) this.group.remove(old); const m = this.art.piece(p.type, { level: p.level }); this.place(m, p.x, p.z, p.rot); this.meshes.set('p' + p.uid, m); m.userData.piece = p; if (this.castle.isFrosted(p)) this.setFrost(p, true); return m; }
-    setFrost(p, on) {
-      const m = this.meshes.get('p' + p.uid); if (!m) return; const cur = m.children.find((c) => c.userData.frost);
-      if (on && !cur) { const f = this.art.frostShell(p.type); f.userData.frost = true; m.add(f); } else if (!on && cur) m.remove(cur);
     }
     pop(obj, s0 = 0.2) { obj.scale.setScalar(s0); obj.userData.popT = 0; obj.userData.s0 = s0; (this.pops = this.pops || []).push(obj); }
 
@@ -361,33 +307,6 @@
       const old = this.meshes.get('outcrop'); if (old) this.group.remove(old);
       this.pop(this.addPieceMesh(r.piece)); this.sound.play('thunk'); this.puff(at.x, at.z);
       this.cui.toast(`Iron mine: ${K.CastleUI.prodLine(this.castle, 'mine')}.`); this.changed();
-    }
-    /* free placement of a new piece (from the Build radial) */
-    placementOk(type, x, z, rot) {
-      const c = this.castle, [w, d] = CastleArt.size(type), nav = this.play.nav;
-      let bad = null;
-      if (type === 'dirt') return this.dirtOk(x, z);
-      if (type === 'field') return this.economy.plantOk(x, z);
-      if (type === 'blacksmith') return null;
-      this.rectTiles(x, z, w + 0.2, d + 0.2, rot, (i, j) => { const k = j * nav.w + i; if (this.occ[k] || this.R.buildings.at(i, j)) bad = 'something is in the way'; else if (!nav.walk[k] || nav.deck[k]) bad = bad || 'the ground is not clear'; });
-      const me = this.play.me; if (!bad && Math.hypot(me.x - x, me.z - z) < Math.min(w, d) / 2 + 0.2) bad = 'you are standing there';
-      return bad;
-    }
-    /* a piece may never seal the Keep in: its approach must still reach the wilds (walls need the Gatehouse as the way in) */
-    wouldWallOffKeep(type, x, z, rot) {
-      const nav = this.play.nav, [w, d] = CastleArt.size(type), gate = type === 'gatehouse', saved = [];
-      this.rectTiles(x, z, w, d, rot, (i, j, lx) => { if (gate && Math.abs(lx) <= 0.75) return; const k = j * nav.w + i; saved.push([k, nav.walk[k]]); nav.walk[k] = 0; });
-      const a = this.keepEnt.goal || [this.L.keep.x, this.L.keep.z + this.L.keep.r + 1];
-      const open = this.L.outside.some((o) => nav.find(a[0], a[1], o.x, o.z, { range: 1.5 }));
-      for (const [k, v] of saved) nav.walk[k] = v;
-      return !open;
-    }
-    autoRot(x, z) { return Math.atan2(-(x - this.L.keep.x), -(z - this.L.keep.z)) + (this.rotExtra || 0); }
-    /* dirt goes on free ground, one cube per press; it stacks */
-    dirtOk(x, z) {
-      const [i, j] = this.play.doc.tileOf(x, z), T2 = TILE, cx = (i + 0.5) * T2, cz = (j + 0.5) * T2;
-      for (const a of this.play.actors) { if (!a.alive && a !== this.play.me) continue; if (Math.abs(a.x - cx) < T2 / 2 + (a.r || 0.3) && Math.abs(a.z - cz) < T2 / 2 + (a.r || 0.3)) return a === this.play.me ? 'you are standing there' : 'something is standing there'; }   // never bury anyone
-      return this.tools.editor.canRaise(i, j) ? null : 'the ground cannot take dirt here';
     }
     placeDirt(x, z, quiet) {
       const why = this.dirtOk(x, z), c = this.castle; if (why) { if (!quiet) { this.cui.toast(why[0].toUpperCase() + why.slice(1) + '.'); this.sound.play('clank'); } return false; }
