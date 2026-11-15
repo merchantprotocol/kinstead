@@ -107,6 +107,25 @@ test('the walk crosses over the stone gate, and the gate opening is still a grou
   assert.ok(c.nav.find(...at.outside, ...at.inside), 'the ground path through the gate opening still exists');
 });
 
+// risk: the gate cut off on one side. The gate stands on ground 0.25 m higher than the wall beside it (QA on prod:
+// wall top 3.63 vs gate flank 4.52, a 0.89 m step); the walk must still join over the gate in both directions.
+test('a wall on ground 0.25 m lower than the gate still walks over the gate both ways', () => {
+  const c = new Castle(), doc = c.nav.doc;
+  for (let j = 29; j <= 31; j++) for (let i = 17; i <= 24; i++) doc.height[j * doc.w + i] = 1;   // the gate's footing: +0.25 m
+  c.nav.build(); c.square(); const r = c.ramparts(), me = c.play.me;
+  const west = [(14 + 0.5) * T, (30 + 0.5) * T], east = [(26 + 0.5) * T, (30 + 0.5) * T];
+  const flank = [(17 + 0.5) * T, (30 + 0.5) * T], wall = [(16 + 0.5) * T, (30 + 0.5) * T];
+  assert.ok(r.layer.y(...flank) - r.layer.y(...wall) > 0.85, 'the step onto the gate flank is the steep one QA measured');
+  for (const [from, to] of [[west, east], [east, west]]) {
+    Object.assign(me, { x: from[0], z: from[1], layer: 'upper', y: r.layer.y(...from) });
+    const p = r.route(me, ...to, true);
+    assert.ok(p, 'a walk along the wall and over the gate');
+    assert.ok(p.every((q) => onLayer(r, q)), 'it never leaves the ramparts');
+    assert.ok(K.Ramparts.length(from, p) < 8, 'straight over the gate, not the long way round the other three walls');
+    const end = p[p.length - 1]; assert.ok(Math.hypot(end[0] - to[0], end[1] - to[1]) < 0.01, 'it reaches the far wall');
+  }
+});
+
 // risk: getting stuck up top. Clicking the ground from the walk goes down a tower and walks on from its door.
 test('from the walk to the ground: along the walk, down a stair, then only ground waypoints', () => {
   const c = new Castle(), at = c.square(), r = c.ramparts(), me = c.play.me, top = [(20 + 0.5) * T, (10 + 0.5) * T];

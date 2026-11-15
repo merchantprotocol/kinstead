@@ -59,7 +59,7 @@
             `Right now: ${c.amount('wood')} wood, ${c.amount('stone')} stone, ${c.amount('iron')} iron.`,
                 'Another storehouse holds even more, and raiders take less.'];
         }
-        case 'watchtower': return ['I shoot anything hostile within 12 m of this tower.', 'Keep the tower inside your walls and it covers the gate.'];
+        case 'watchtower': return [`I shoot anything hostile within ${K.Towers.RANGE} m of this tower.`, 'Keep the tower inside your walls and it covers the gate.'];
       }
       return ['All is well.'];
     }
