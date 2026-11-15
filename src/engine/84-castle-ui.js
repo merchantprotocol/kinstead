@@ -278,7 +278,7 @@
     key(e) {
       const k = e.key.toLowerCase();
       if (!this.$('cModal').hidden) { if (e.key === 'Escape' || e.key === 'Enter') { const b = this.$('cModal').querySelector('.cb.pri'); if (b) b.click(); } return true; }
-      if (e.key === 'Escape') { if (this.placing) { this.stopPlacing(); return true; } if (this.radialOpen) { this.toggleRadial(false); return true; } if (this.bookOpen) { this.toggleBook(false); return true; } return false; }
+      if (e.key === 'Escape') { if (this.g.demolisher && this.g.demolisher.selling) { this.g.demolisher.setSelling(false); return true; } if (this.placing) { this.stopPlacing(); return true; } if (this.radialOpen) { this.toggleRadial(false); return true; } if (this.bookOpen) { this.toggleBook(false); return true; } return false; }
       if (k === 'b') { this.g.tools.toggleHammer(); return true; }
       if (k === 'h') { this.toggleBook(); return true; }
       if (k === 'r' && this.placing) { this.rotate(); return true; }

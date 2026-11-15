@@ -1,0 +1,48 @@
+<!doctype html>
+<!-- Copyright (c) 2026 Merchant Protocol. All rights reserved. -->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kinstead · Asset library</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<style>
+  body { margin: 0; background: #e9edf1; font: 14px/1.4 Georgia, serif; color: #2a2a2a; }
+  header { padding: 14px 18px 4px; font-size: 20px; }
+  nav { padding: 0 18px 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+  nav a { padding: 4px 10px; border-radius: 6px; background: #fff; color: #333; text-decoration: none; border: 1px solid #c8ced6; }
+  nav a.on { background: #7a1f24; color: #fff; border-color: #7a1f24; }
+  #view { display: block; margin: 0 18px; border-radius: 10px; background: #dfe4ea; cursor: grab; }
+  p { margin: 8px 18px; color: #555; }
+</style>
+</head>
+<body>
+<header>Asset library</header>
+<nav id="nav"></nav>
+<canvas id="view" width="560" height="400"></canvas>
+<p id="desc">Drag to turn it.</p>
+<script src="{{asset:three.min.js}}"></script>
+<script src="{{asset:engine.js}}"></script>
+<script>
+(function () {
+  const THREE = window.THREE, K = window.K, q = new URLSearchParams(location.search);
+  const LIST = [['market_stalls', 'Market · stall row'], ['market_pavilion', 'Market · timber hall'], ['market_wagons', 'Market · travelling fair'], ['market', 'Market · current'],
+    ['farm', 'Farm'], ['silo', 'Grain silo'], ['coop', 'Chicken coop'], ['barn', 'Cattle barn'], ['cottage', 'Cottage'], ['watchtower', 'Watchtower'], ['stone_gate', 'Stone gate'], ['fire_pot', 'Fire pot'], ['woodcutter', 'Woodcutter'], ['quarry', 'Quarry'], ['storehouse', 'Storehouse']];
+  const id = q.get('piece') || LIST[0][0];
+  document.getElementById('nav').innerHTML = LIST.map(([k, n]) => `<a href="?piece=${k}" class="${k === id ? 'on' : ''}">${n}</a>`).join('');
+  const cv = document.getElementById('view'), r = new THREE.WebGLRenderer({ canvas: cv, antialias: true, preserveDrawingBuffer: true });
+  r.setPixelRatio(Math.min(2, devicePixelRatio)); r.shadowMap.enabled = true; r.outputColorSpace = THREE.SRGBColorSpace;
+  const S = new THREE.Scene(); S.background = new THREE.Color('#dfe4ea');
+  S.add(new THREE.HemisphereLight('#c8d6f0', '#4a4a50', 1.4));
+  const sun = new THREE.DirectionalLight('#ffe2c0', 2.6); sun.position.set(-6, 10, 7); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+  Object.assign(sun.shadow.camera, { left: -5, right: 5, top: 5, bottom: -5 }); S.add(sun); const rim = new THREE.DirectionalLight('#9ab4f0', 0.7); rim.position.set(6, 4, -6); S.add(rim);
+  const ground = new THREE.Mesh(new THREE.CircleGeometry(4.2, 48), new THREE.MeshLambertMaterial({ color: '#f2f4f6' })); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; S.add(ground);
+  const art = new K.CastleArt(new K.BuildingMaterials(new K.TextureBank(r))), m = art.piece(id, { level: 1 }); S.add(m);
+  m.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  const box = new THREE.Box3().setFromObject(m), c = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3()).length();
+  const cam = new THREE.PerspectiveCamera(35, cv.width / cv.height, 0.1, 100); let yaw = 0.7, pitch = 0.5, drag = null;
+  const place = () => { const d = size * 1.55; cam.position.set(c.x + Math.sin(yaw) * Math.cos(pitch) * d, c.y + Math.sin(pitch) * d, c.z + Math.cos(yaw) * Math.cos(pitch) * d); cam.lookAt(c); };
+  cv.onpointerdown = (e) => { drag = [e.clientX, e.clientY, yaw, pitch]; cv.setPointerCapture(e.pointerId); };
+  cv.onpointermove = (e) => { if (!drag) return; yaw = drag[2] - (e.clientX - drag[0]) * 0.01; pitch = Math.max(0.1, Math.min(1.3, drag[3] + (e.clientY - drag[1]) * 0.01)); };
+  cv.onpointerup = () => (drag = null);
+  const frame = () => { place(); r.render(S, cam); requestAnimationFrame(frame); }; frame(); window.__ready = true;
+})();
+</script>
+</body></html>

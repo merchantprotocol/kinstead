@@ -104,7 +104,7 @@ class SiteBuilder {
     const assets = await this.assets();
     for (const [n, text] of Object.entries(assets)) fs.writeFileSync(path.join(this.dist, 'assets', n), text);
     fs.copyFileSync(path.join(this.src, 'vendor/three/LICENSE'), path.join(this.dist, 'assets/three.LICENSE.txt'));
-    for (const p of ['index.html', 'builder.html', 'play.html']) fs.writeFileSync(path.join(this.dist, p), this.page(p, assets));
+    for (const p of ['index.html', 'builder.html', 'play.html', 'assets.html']) fs.writeFileSync(path.join(this.dist, p), this.page(p, assets));
     this.copyDir(path.join(this.root, 'worlds'), path.join(this.dist, 'worlds'));
     this.copyDir(path.join(this.root, 'public'), this.dist);
     const kb = (n) => (fs.statSync(path.join(this.dist, n)).size / 1024).toFixed(0) + ' KB';

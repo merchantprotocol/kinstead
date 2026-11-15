@@ -880,5 +880,5 @@
     }
   }
 
-  Object.assign(K, { CH, PPU, PropBuilder, WorldRenderer, CameraRig, Chunk, SpriteActor, GeometryBuilderW: GeometryBuilder, M4, UNIT });
+  Object.assign(K, { CH, PPU, PropBuilder, WorldRenderer, TextureBank, CameraRig, Chunk, SpriteActor, GeometryBuilderW: GeometryBuilder, M4, UNIT });
 })(typeof window !== 'undefined' ? window : globalThis);

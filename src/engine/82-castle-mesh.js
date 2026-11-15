@@ -28,7 +28,7 @@
 
   /* piece footprints (m): w along the piece's local x, d along local z; used for nav blocking, raider collision and placement */
   const SIZE = {
-    keep: [4.2, 4.2], palisade: [0.5, 0.5], stone_wall: [0.5, 0.5], dirt: [0.5, 0.5], gate: [2, 0.5], stone_gate: [4, 1.5], blacksmith: [6, 4.5], cottage: [5, 3.5], gatehouse: [3.6, 1.6], watchtower: [1.5, 1.5], ember_brazier: [0.8, 0.8], fire_pot: [0.8, 0.8], farm: [3, 2.5], silo: [1.6, 1.6], coop: [1.6, 1.4], barn: [3.4, 2.6], market: [3.8, 2.6], field: [0.5, 0.5],
+    keep: [4.2, 4.2], palisade: [0.5, 0.5], stone_wall: [0.5, 0.5], dirt: [0.5, 0.5], gate: [2, 0.5], stone_gate: [4, 1.5], blacksmith: [6, 4.5], cottage: [5, 3.5], gatehouse: [3.6, 1.6], watchtower: [1.5, 1.5], ember_brazier: [0.8, 0.8], fire_pot: [0.8, 0.8], farm: [3, 2.5], silo: [1.6, 1.6], coop: [1.6, 1.4], barn: [3.4, 2.6], market: [3.8, 2.6], market_stalls: [3.8, 2.6], market_pavilion: [3.8, 2.6], market_wagons: [3.8, 2.6], field: [0.5, 0.5],
     woodcutter: [2.6, 2.2], quarry: [2.6, 2.2], mine: [2.6, 2.4], great_hall: [5.2, 3.2], chapel: [2.2, 2.6], storehouse: [2.8, 2.2],
     smithy: [3.2, 2.6], ember_forge: [1.8, 1.6], barracks: [4.2, 2.2],
   };
@@ -150,28 +150,68 @@
         case 'field': { k.box('bark', 0, 0, 0, 0.5, 0.05, 0.5); for (const [x, z] of [[-0.12, -0.12], [0.12, 0.1], [-0.1, 0.13], [0.13, -0.11]]) k.box('hay', x, 0.05, z, 0.06, 0.25, 0.06); break; }
         case 'farm': {   // a small barn with a thatched roof, a big door and hay bales
           k.box('timber', 0, 0, 0, 2.8, 1.7, 2.2);
-          k.box('thatch', 0, 1.7, -0.62, 3.1, 0.14, 1.5, 0, 0.6); k.box('thatch', 0, 1.7, 0.62, 3.1, 0.14, 1.5, 0, -0.6);
-          k.box('roofSnow', 0, 2.0, -0.58, 3.0, 0.04, 1.38, 0, 0.6); k.box('roofSnow', 0, 2.0, 0.58, 3.0, 0.04, 1.38, 0, -0.6);
+          k.box('thatch', 0, 1.7, -0.62, 3.1, 0.14, 1.5, 0, -0.6); k.box('thatch', 0, 1.7, 0.62, 3.1, 0.14, 1.5, 0, 0.6);
+          k.box('roofSnow', 0, 2.0, -0.58, 3.0, 0.04, 1.38, 0, -0.6); k.box('roofSnow', 0, 2.0, 0.58, 3.0, 0.04, 1.38, 0, 0.6);
           k.box('wood', 0, 0, 1.11, 1.1, 1.3, 0.05); k.box('timber', 0, 0.62, 1.15, 1.1, 0.08, 0.04, 0, 0, 0.85); k.box('timber', 0, 0.62, 1.15, 1.1, 0.08, 0.04, 0, 0, -0.85);
           for (const [x, z] of [[1.7, 0.6], [1.7, 1.15], [1.95, 0.85]]) k.box('hay', x, 0, z, 0.5, 0.42, 0.42); k.box('hay', 1.8, 0.42, 0.88, 0.5, 0.4, 0.42);
           break;
         }
         case 'coop': {   // a little raised hen house with a ramp and straw
           for (const [x, z] of [[-0.6, -0.5], [0.6, -0.5], [-0.6, 0.5], [0.6, 0.5]]) k.box('timber', x, 0, z, 0.1, 0.4, 0.1);
-          k.box('planks', 0, 0.4, 0, 1.4, 0.75, 1.2); k.box('shingle', 0, 1.15, -0.32, 1.6, 0.1, 0.75, 0, 0.5); k.box('shingle', 0, 1.15, 0.32, 1.6, 0.1, 0.75, 0, -0.5);
+          k.box('planks', 0, 0.4, 0, 1.4, 0.75, 1.2); k.box('shingle', 0, 1.15, -0.32, 1.6, 0.1, 0.75, 0, -0.5); k.box('shingle', 0, 1.15, 0.32, 1.6, 0.1, 0.75, 0, 0.5);
           k.box('soot', 0, 0.5, 0.61, 0.3, 0.32, 0.02); k.box('wood', 0, 0.02, 0.85, 0.28, 0.06, 0.6, 0, 0.6); k.box('straw', 0.45, 0, 0.75, 0.4, 0.15, 0.3);
           break;
         }
         case 'barn': {   // a long cattle barn with a hayloft door and a trough
-          k.box('timber', 0, 0, 0, 3.2, 1.9, 2.4); k.box('shingle', 0, 1.9, -0.68, 3.5, 0.14, 1.6, 0, 0.62); k.box('shingle', 0, 1.9, 0.68, 3.5, 0.14, 1.6, 0, -0.62);
-          k.box('roofSnow', 0, 2.24, -0.62, 3.4, 0.04, 1.4, 0, 0.62); k.box('roofSnow', 0, 2.24, 0.62, 3.4, 0.04, 1.4, 0, -0.62);
+          k.box('timber', 0, 0, 0, 3.2, 1.9, 2.4); k.box('shingle', 0, 1.9, -0.68, 3.5, 0.14, 1.6, 0, -0.62); k.box('shingle', 0, 1.9, 0.68, 3.5, 0.14, 1.6, 0, 0.62);
+          k.box('roofSnow', 0, 2.24, -0.62, 3.4, 0.04, 1.4, 0, -0.62); k.box('roofSnow', 0, 2.24, 0.62, 3.4, 0.04, 1.4, 0, 0.62);
           k.box('wood', 0, 0, 1.21, 1.3, 1.45, 0.05); k.box('timber', 0, 0.7, 1.25, 1.3, 0.08, 0.04, 0, 0, 0.8); k.box('timber', 0, 0.7, 1.25, 1.3, 0.08, 0.04, 0, 0, -0.8);
-          k.box('wood', 0, 1.95, 1.0, 0.5, 0.45, 0.05); k.box('planks', -1.0, 0, 1.6, 1.0, 0.3, 0.35); k.box('hay', -1.0, 0.3, 1.6, 0.9, 0.06, 0.3);
+          k.box('wood', 1.61, 1.95, 0, 0.05, 0.45, 0.5); k.box('planks', -1.0, 0, 1.6, 1.0, 0.3, 0.35); k.box('hay', -1.0, 0.3, 1.6, 0.9, 0.06, 0.3);
           break;
         }
         case 'silo': {   // a tall round grain store with an iron-banded wall and a cone roof
           k.geo('planks', CYL, 0, 1.7, 0, 0, 0, 0, 1.45, 3.4, 1.45); for (const y of [0.6, 1.7, 2.8]) k.geo('iron', CYL, 0, y, 0, 0, 0, 0, 1.5, 0.08, 1.5);
           k.geo('shingle', CONE6, 0, 3.85, 0, 0, 0, 0, 1.0, 0.9, 1.0); k.box('wood', 0, 0, 0.72, 0.5, 0.9, 0.06);
+          break;
+        }
+        case 'market_stalls': {   // a row of three open stalls under striped awnings, goods heaped on trestles, barrels and sacks about
+          for (const [sx, stripe] of [[-1.25, 'cloth'], [0, 'clothBlue'], [1.25, 'cloth']]) {
+            k.box('planks', sx, 0.7, 0.35, 1.1, 0.08, 0.6); for (const lx of [-0.48, 0.48]) for (const lz of [0.1, 0.6]) k.box('timber', sx + lx, 0, lz, 0.07, 0.7, 0.07);
+            for (const lx of [-0.52, 0.52]) { k.box('timber', sx + lx, 0, 0.72, 0.08, 1.9, 0.08); k.box('timber', sx + lx, 0, -0.35, 0.08, 2.2, 0.08); }
+            for (let q = 0; q < 6; q++) k.box(q % 2 ? 'linen' : stripe, sx - 0.55 + 0.1 + q * 0.183, 1.92, 0.2, 0.183, 0.04, 1.35, 0, -0.32);   // striped awning
+            for (let q = 0; q < 6; q++) k.box(q % 2 ? 'linen' : stripe, sx - 0.55 + 0.1 + q * 0.183, 1.72, 0.86, 0.183, 0.2, 0.03);       // its scalloped front edge
+          }
+          k.box('bread', -1.45, 0.78, 0.3, 0.2, 0.1, 0.12, 0.3); k.box('bread', -1.2, 0.78, 0.42, 0.2, 0.1, 0.12, -0.2); k.box('bread', -1.0, 0.78, 0.25, 0.2, 0.1, 0.12, 0.5);
+          for (const [x, z] of [[-0.25, 0.3], [0.05, 0.42], [0.3, 0.28]]) k.geo('cheese', CYL, x, 0.83, z, 0, 0, 0, 0.13, 0.1, 0.13);
+          for (const [x, z] of [[1.0, 0.3], [1.25, 0.45], [1.5, 0.3]]) k.box('food', x, 0.78, z, 0.2, 0.16, 0.2, 0.4);
+          k.box('green', 1.25, 0.78, 0.22, 0.18, 0.12, 0.14);
+          for (const [x, z] of [[-1.9, 1.05], [1.95, 1.0]]) k.geo('wood', CYL8, x, 0.32, z, 0, 0, 0, 0.24, 0.64, 0.24);
+          for (const [x, z] of [[-0.7, 1.1], [0.65, 1.15]]) { k.box('linen', x, 0, z, 0.32, 0.4, 0.26, 0.3); k.box('hay', x, 0.4, z, 0.2, 0.05, 0.16, 0.3); }
+          k.box('crate', 1.6, 0, -0.85, 0.5, 0.45, 0.5); k.box('crate', 1.6, 0.45, -0.85, 0.4, 0.38, 0.4, 0.3); k.box('crate', -1.6, 0, -0.9, 0.5, 0.45, 0.5, 0.2);
+          break;
+        }
+        case 'market_pavilion': {   // an open timber market hall: a steep roof on posts, counters inside, a stone market cross out front
+          for (const x of [-1.6, 0, 1.6]) for (const z of [-0.95, 0.95]) { k.box('ashlar', x, 0, z, 0.3, 0.2, 0.3); k.box('timber', x, 0.2, z, 0.16, 1.9, 0.16); }
+          k.box('timber', 0, 2.1, -0.95, 3.5, 0.14, 0.16); k.box('timber', 0, 2.1, 0.95, 3.5, 0.14, 0.16);
+          k.box('shingle', 0, 2.35, -0.6, 3.9, 0.12, 1.45, 0, -0.75); k.box('shingle', 0, 2.35, 0.6, 3.9, 0.12, 1.45, 0, 0.75);
+          k.box('roofSnow', 0, 2.48, -0.58, 3.8, 0.03, 1.35, 0, -0.75); k.box('roofSnow', 0, 2.48, 0.58, 3.8, 0.03, 1.35, 0, 0.75);
+          k.box('planks', 0, 0, -0.45, 2.9, 0.75, 0.45); k.box('planks', -0.9, 0, 0.45, 1.1, 0.75, 0.45); k.box('planks', 0.9, 0, 0.45, 1.1, 0.75, 0.45);
+          for (const [x, z, m] of [[-1.0, -0.45, 'food'], [-0.4, -0.45, 'cheese'], [0.3, -0.45, 'bread'], [0.95, -0.45, 'green'], [-0.95, 0.45, 'linen'], [0.95, 0.45, 'hay']]) k.box(m, x, 0.75, z, 0.4, 0.14, 0.3, 0.2);
+          for (let q = 0; q < 7; q++) k.box(q % 2 ? 'cloth' : 'clothBlue', -1.5 + q * 0.5, 1.85, 1.0, 0.22, 0.24, 0.02, 0, 0, 0.785);   // bunting under the eaves
+          k.box('ashlar', 0, 0, 1.75, 0.6, 0.25, 0.6); k.box('ashlar', 0, 0.25, 1.75, 0.2, 1.3, 0.2); k.box('ashlar', 0, 1.25, 1.75, 0.55, 0.14, 0.14);   // the market cross
+          k.geo('wood', CYL8, -1.85, 0.3, 1.45, 0, 0, 0, 0.22, 0.6, 0.22); k.box('crate', 1.85, 0, 1.4, 0.45, 0.42, 0.45, 0.3);
+          break;
+        }
+        case 'market_wagons': {   // a travelling fair: a covered wagon selling from its tailboard, a striped tent, a scale and crates
+          k.box('planks', -0.9, 0.45, 0, 1.9, 0.5, 1.1); for (const [x, z] of [[-1.55, -0.6], [-0.25, -0.6], [-1.55, 0.6], [-0.25, 0.6]]) k.geo('wood', CYL, x, 0.34, z, Math.PI / 2, 0, 0, 0.34, 0.08, 0.34);
+          for (let q = 0; q < 5; q++) { const a = -1.1 + q * 0.55; k.box('linen', -0.9, 0.95 + Math.cos(a) * 0.55, Math.sin(a) * 0.55, 1.85, 0.05, 0.36, 0, a); }   // the canvas hoops
+          k.box('wood', 0.15, 0.45, 0, 0.3, 0.06, 1.0); k.box('food', 0.15, 0.51, -0.25, 0.22, 0.14, 0.22); k.box('cheese', 0.15, 0.51, 0.2, 0.22, 0.12, 0.22); k.box('timber', -2.0, 0.55, 0, 0.9, 0.06, 0.08);
+          k.geo('cloth', CONE6, 1.35, 1.05, -0.25, 0, 0.26, 0, 1.0, 1.6, 1.0); k.geo('linen', CONE6, 1.35, 1.07, -0.25, 0, 0.78, 0, 0.98, 1.56, 0.98); k.box('timber', 1.35, 0, -0.25, 0.06, 2.1, 0.06);
+          k.box('cloth', 1.35, 2.05, -0.25, 0.03, 0.2, 0.28);   // the tent's pennant
+          k.box('soot', 1.35, 0, 0.7, 0.45, 0.6, 0.02);
+          k.box('planks', 0.9, 0, 0.95, 0.9, 0.7, 0.4); k.box('brass', 0.75, 0.7, 0.95, 0.04, 0.4, 0.04); k.box('brass', 0.75, 1.08, 0.95, 0.5, 0.03, 0.03); k.geo('brass', CYL8, 0.53, 0.92, 0.95, 0, 0, 0, 0.12, 0.03, 0.12); k.geo('brass', CYL8, 0.97, 0.92, 0.95, 0, 0, 0, 0.12, 0.03, 0.12);
+          for (const [x, z] of [[1.75, 1.0], [1.75, 0.55]]) k.geo('wood', CYL8, x, 0.3, z, 0, 0, 0, 0.22, 0.6, 0.22);
+          k.box('crate', -1.7, 0, 1.05, 0.45, 0.42, 0.45, 0.4); k.box('crate', -1.2, 0, 1.1, 0.4, 0.36, 0.4); k.box('linen', -0.6, 0, 1.15, 0.3, 0.38, 0.26);
           break;
         }
         case 'market': {   // an open stall: a counter, posts, a slanted awning, crates at the side
@@ -183,8 +223,8 @@
         }
         case 'woodcutter': {
           k.box('timber', 0, 0, 0, 2.2, 1.3, 1.6);
-          k.box('thatch', 0, 1.3, -0.45, 2.5, 0.12, 1.15, 0, 0.55); k.box('thatch', 0, 1.3, 0.45, 2.5, 0.12, 1.15, 0, -0.55);
-          k.box('roofSnow', 0, 1.56, -0.42, 2.4, 0.04, 1.05, 0, 0.55); k.box('roofSnow', 0, 1.56, 0.42, 2.4, 0.04, 1.05, 0, -0.55);
+          k.box('thatch', 0, 1.3, -0.45, 2.5, 0.12, 1.15, 0, -0.55); k.box('thatch', 0, 1.3, 0.45, 2.5, 0.12, 1.15, 0, 0.55);
+          k.box('roofSnow', 0, 1.56, -0.42, 2.4, 0.04, 1.05, 0, -0.55); k.box('roofSnow', 0, 1.56, 0.42, 2.4, 0.04, 1.05, 0, 0.55);
           k.box('wood', 0.3, 0, 0.81, 0.5, 0.9, 0.04); k.box('window', -0.6, 0.6, 0.81, 0.35, 0.3, 0.02);
           for (let i = 0; i < 3; i++) for (let j = 0; j < 3 - i; j++) k.geo('bark', CYL8, -0.9 + j * 0.26 + i * 0.13, 0.12 + i * 0.22, 1.05, Math.PI / 2, 0, 0, 0.11, 0.7, 0.11);
           k.geo('bark', CYL8, 1.15, 0.2, 1.05, 0, 0, 0, 0.22, 0.4, 0.22); k.box('wood', 1.15, 0.4, 1.05, 0.04, 0.5, 0.04, 0, 0, 0.4); k.box('iron', 1.24, 0.82, 1.05, 0.2, 0.12, 0.04);
@@ -230,7 +270,7 @@
         }
         case 'storehouse': {
           k.box('ashlar', 0, 0, 0, 2.6, 1.2, 2); k.box('timber', 0, 1.2, 0, 2.6, 0.7, 2);
-          k.box('shingle', 0, 1.9, -0.55, 2.9, 0.12, 1.25, 0, 0.5); k.box('shingle', 0, 1.9, 0.55, 2.9, 0.12, 1.25, 0, -0.5); k.box('roofSnow', 0, 2.2, 0, 2.8, 0.04, 0.6);
+          k.box('shingle', 0, 1.9, -0.55, 2.9, 0.12, 1.25, 0, -0.5); k.box('shingle', 0, 1.9, 0.55, 2.9, 0.12, 1.25, 0, 0.5); k.box('roofSnow', 0, 2.2, 0, 2.8, 0.04, 0.6);
           k.box('wood', 0, 0, 1.01, 0.7, 1, 0.04); k.box('iron', 0, 0.4, 1.04, 0.72, 0.06, 0.02); k.box('iron', 0, 0.75, 1.04, 0.72, 0.06, 0.02);
           for (let i = 0; i < 3; i++) k.geo('wood', CYL8, -1.1 + i * 0.32, 0.25, 1.3, 0, 0, 0, 0.15, 0.5, 0.15); k.box('crate', 1, 0, 1.3, 0.4, 0.4, 0.4, 0.3); k.box('hay', 0.95, 0.4, 1.3, 0.3, 0.25, 0.3);
           break;
@@ -260,7 +300,7 @@
         }
         case 'barracks': {
           k.box('timber', 0, 0, 0, 4, 1.2, 1.8);
-          k.box('shingle', 0, 1.2, -0.5, 4.3, 0.12, 1.2, 0, 0.45); k.box('shingle', 0, 1.2, 0.5, 4.3, 0.12, 1.2, 0, -0.45); k.box('roofSnow', 0, 1.45, 0, 4.2, 0.04, 0.6);
+          k.box('shingle', 0, 1.2, -0.5, 4.3, 0.12, 1.2, 0, -0.45); k.box('shingle', 0, 1.2, 0.5, 4.3, 0.12, 1.2, 0, 0.45); k.box('roofSnow', 0, 1.45, 0, 4.2, 0.04, 0.6);
           for (let i = 0; i < 3; i++) k.box('wood', -1.2 + i * 1.2, 0, 0.91, 0.5, 0.95, 0.04);
           k.box('timber', 2.2, 0, 0.3, 0.1, 1, 0.1); for (let i = 0; i < 3; i++) k.box('steel', 2.25, 0.3 + i * 0.05, 0.1 + i * 0.2, 0.03, 1.2, 0.03);
           k.geo('clothBlue', CYL8, -2.15, 0.65, 0.3, 0, 0, Math.PI / 2, 0.3, 0.05, 0.3);

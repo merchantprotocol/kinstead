@@ -55,7 +55,7 @@
     onSelect(tool) {
       if (tool.id !== 'shovel' && this.g.brush) this.g.brush.drawer.close();
       const hammer = tool.id === 'hammer'; this.drawer.setOpen(hammer); if (tool.kind !== 'weapon') this.arms.close();
-      if (!hammer) { this.g.cui.stopPlacing(); if (this.g.demolisher) this.g.demolisher.hide(); }
+      if (!hammer) { this.g.cui.stopPlacing(); if (this.g.demolisher) { this.g.demolisher.hide(); this.g.demolisher.setSelling(false); } }
       this.worker.cancel(); this.hl.hide(); this.g.sound.play('clank'); this.g.cui.toast(tool.hint);
       this.play.app.renderer3.domElement.style.cursor = '';
     }
@@ -119,7 +119,7 @@
     hoverCursor(ent, sx, sy) {
       const Ic = K.Icons;
       if (this.tool.ranged) return ent && this.g.sweep.isFoe(ent) ? Ic.cursor('bow', 'pointer') : null;
-      if (this.g.demolisher.active && !ent) { const dc = this.g.demolisher.hover(sx, sy); if (dc) return dc; }
+      if (this.g.demolisher.active && (!ent || this.g.demolisher.selling)) { const dc = this.g.demolisher.hover(sx, sy); if (dc) return dc; }
       if (ent) {
         const t = K.WorkTarget.forEntity(this.ctx, ent); if (!t) return null;
         return Ic.cursor(this.tool.accepts(t) && t.alive ? this.tool.id : 'pointer', 'pointer');

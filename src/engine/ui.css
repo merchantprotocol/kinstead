@@ -283,6 +283,7 @@
 #cDrawer .dw-list h4{margin:8px 2px 4px;font:700 11px system-ui;letter-spacing:.06em;text-transform:uppercase;color:#9fb0c8}
 #cDrawer .dw-row{display:flex;gap:8px;align-items:center;width:100%;text-align:left;background:#101826;border:1px solid #2f3b54;border-radius:10px;padding:6px;margin:0 0 6px;color:#eef3fa;cursor:pointer}
 #cDrawer .dw-row:hover:not(.locked){border-color:#ffd27a;background:#162036}
+#cDrawer .dw-row.dw-sell{border-color:#7a5a2a}#cDrawer .dw-row.dw-sell.on{border-color:#ffd27a;background:#3a2a10;box-shadow:0 0 0 1px #ffd27a inset}
 #cDrawer .dw-row.poor{opacity:.78}#cDrawer .dw-row.locked{opacity:.42;cursor:not-allowed}
 #cDrawer .dw-t{display:flex;flex-direction:column;gap:2px;min-width:0}
 #cDrawer .dw-t b{font-size:13px;color:#fff4dc}#cDrawer .dw-t small{font-size:10.5px;color:#8c9bb4;line-height:1.25}
