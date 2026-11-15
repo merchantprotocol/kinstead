@@ -78,25 +78,31 @@
     capture() {
       const w = this.world, S = w.scene;
       return { bg: S.background.clone(), fog: [S.fog.color.clone()], hemi: [this.hemi.color.clone(), this.hemi.groundColor.clone(), this.hemi.intensity],
-        sun: [w.sun.color.clone(), w.sun.intensity, w.sunOff.clone()], rim: this.rim ? [this.rim.color.clone(), this.rim.intensity] : null };
+        sun: [w.sun.color.clone(), w.sun.intensity, w.sunOff.clone()], rim: this.rim ? [this.rim.color.clone(), this.rim.intensity, this.rim.position.clone()] : null };
     }
     restore() {
       const g = this.game, w = this.world, S = w.scene;
       S.background.copy(g.bg); S.fog.color.copy(g.fog[0]); this.hemi.color.copy(g.hemi[0]); this.hemi.groundColor.copy(g.hemi[1]); this.hemi.intensity = g.hemi[2];
-      w.sun.color.copy(g.sun[0]); w.sun.intensity = g.sun[1]; w.sunOff.copy(g.sun[2]); if (this.rim) { this.rim.color.copy(g.rim[0]); this.rim.intensity = g.rim[1]; }
+      w.sun.color.copy(g.sun[0]); w.sun.intensity = g.sun[1]; w.sunOff.copy(g.sun[2]); if (this.rim) { this.rim.color.copy(g.rim[0]); this.rim.intensity = g.rim[1]; this.rim.position.copy(g.rim[2]); }
     }
-    /* name: 'studio' | 'game' | 'night'; fireAt: [x, y, z] for the night campfire */
+    static isStudio(name) { return name === 'studio' || name === 'grok'; }
+    /* name: 'studio' | 'grok' | 'game' | 'night'; fireAt: [x, y, z] for the night campfire */
     apply(name, fireAt) {
       const w = this.world, S = w.scene; this.restore(); this.name = name;
       w.lightSrc = w.lightSrc.filter((s) => !s.labFire);
       if (this.fire) { this.fire.parent && this.fire.parent.remove(this.fire); this.fire = null; }
-      const studio = name === 'studio';
+      const studio = LabLighting.isStudio(name);
       w.snow.points.visible = !studio; w.fogLayers.forEach((f) => (f.m.visible = !studio));
       if (studio) {
         S.background.set(LabLighting.STUDIO_BG); S.fog.color.set(LabLighting.STUDIO_BG);
         this.hemi.color.set('#eef1f7'); this.hemi.groundColor.set('#6c6f76'); this.hemi.intensity = 1.25;
         w.sun.color.set('#fff1dc'); w.sun.intensity = 2.0; w.sunOff.set(-7, 11, 8);
-        if (this.rim) { this.rim.color.set('#ffffff'); this.rim.intensity = 0.55; }
+        if (this.rim) { this.rim.color.set('#ffffff'); this.rim.intensity = 0.55; this.rim.position.set(30, 12, -10); }
+        if (name === 'grok' && this.rim) {
+          /* the Grok refs glow: a warm orange back-rim from behind-left-above, slightly softer key */
+          this.hemi.intensity = 1.1; w.sun.intensity = 1.8;
+          this.rim.color.set('#ff8a2a'); this.rim.intensity = 2.6; this.rim.position.set(-14, 16, -22);
+        }
       } else if (name === 'night') {
         S.background.set('#080b14'); S.fog.color.set('#0c1222');
         this.hemi.color.set('#30447a'); this.hemi.groundColor.set('#07080d'); this.hemi.intensity = 0.55;
@@ -252,6 +258,16 @@
       this.post.render(this.world.scene, this.camera, this.time);
     }
     ready() { return this.world.ready(20000); }
+    /* the subject alone, flat white on black, straight to the canvas (no post): a clean silhouette mask. Returns the canvas;
+       the next frame() repaints the normal view */
+    maskCanvas() {
+      const S = this.world.scene, keep = { bg: S.background, fog: S.fog, over: S.overrideMaterial }, hidden = [];
+      S.children.forEach((o) => { if (this.subject && o !== this.subject.object3d && o.visible && !o.isLight) { o.visible = false; hidden.push(o); } });
+      S.background = new THREE.Color(0, 0, 0); S.fog = null; S.overrideMaterial = this.maskMat || (this.maskMat = new THREE.MeshBasicMaterial({ color: 0xffffff }));
+      this.gl.setRenderTarget(null); this.gl.render(S, this.camera);
+      S.background = keep.bg; S.fog = keep.fog; S.overrideMaterial = keep.over; hidden.forEach((o) => (o.visible = true));
+      return this.canvas;
+    }
   }
 
   /* ---------------- the page ---------------- */
@@ -293,6 +309,7 @@
       on('dof', (e) => { this.stage.post.enabled.dof = e.target.checked; });
       on('plot', (e) => this.stage.showPlot(e.target.checked));
       on('bSnap', () => this.downloadSnapshot());
+      on('bSil', () => { const r = this.silhouette(); this.$('info').textContent = `${this.id} · silhouette IoU ${(r.iou * 100).toFixed(1)}% · ref uncovered ${(r.refOnly * 100).toFixed(1)}% · model outside ref ${(r.renderOnly * 100).toFixed(1)}%`; });
       on('bReframe', () => this.reframe());
     }
     async select(id) {
@@ -333,7 +350,7 @@
     }
     setLight(name) {
       this.light = name; this.stage.lighting.apply(name, this.stage.fireSpot());
-      const pc = this.$('plot'); if (pc) { pc.checked = name !== 'studio'; this.stage.showPlot(pc.checked); }
+      const pc = this.$('plot'); if (pc) { pc.checked = !LabLighting.isStudio(name); this.stage.showPlot(pc.checked); }
       this.doc.querySelectorAll('[data-light]').forEach((b) => b.classList.toggle('on', b.dataset.light === name));
       this.doc.body.dataset.light = name;
     }
@@ -348,15 +365,39 @@
     /* ---- automation + snapshots ---- */
     step(n = 1, dt = 1 / 60) { for (let i = 0; i < n; i++) this.stage.frame(dt); return this.stage.time; }
     /* side-by-side PNG: the reference on the studio grey (left) | the live render (right), labelled */
-    snapshot(label) {
+    snapshot(label, withDiff) {
+      const sil = withDiff && LabLighting.isStudio(this.light) ? this.silhouette() : null;
       this.stage.frame(1 / 60);
-      const W = this.stage.w, H = this.stage.h, c = this.doc.createElement('canvas'); c.width = W * 2; c.height = H + 28;
+      const W = this.stage.w, H = this.stage.h, c = this.doc.createElement('canvas'); c.width = W * (sil ? 3 : 2); c.height = H + 28;
       const g = c.getContext('2d'); g.fillStyle = '#d3d5d9'; g.fillRect(0, 0, c.width, c.height);
       if (this.ref && this.ref.img) g.drawImage(this.ref.img, 0, 28, W, H);
       g.drawImage(this.stage.canvas, W, 28, W, H);
       g.fillStyle = '#20242c'; g.font = '600 14px system-ui, sans-serif';
       g.fillText('Reference (Grok)', 10, 19); g.fillText(`In game: ${this.id} · ${this.light}${label ? ' · ' + label : ''}`, W + 10, 19);
+      if (sil) {
+        const img = new Image(); img.src = sil.diff;
+        return new Promise((res) => { img.onload = () => { g.drawImage(img, W * 2, 28); g.fillStyle = '#20242c'; g.fillText(`Silhouette IoU ${(sil.iou * 100).toFixed(1)}% (red ref only, blue model only)`, W * 2 + 10, 19); res(c.toDataURL('image/png')); }; });
+      }
       return c.toDataURL('image/png');
+    }
+    /* silhouette match at the ref framing: ref mask = alpha > 40, model mask = a flat white render of the subject alone. -> { iou, refOnly, renderOnly, diff (PNG data URL:
+       grey both, red ref only, blue render only) } */
+    silhouette() {
+      this.stage.frame(1 / 60);
+      const W = this.stage.w, H = this.stage.h, mk = () => { const c = this.doc.createElement('canvas'); c.width = W; c.height = H; return [c, c.getContext('2d', { willReadFrequently: true })]; };
+      const [, gr] = mk(), [, gm] = mk(), [dc, gd] = mk();
+      if (this.ref && this.ref.img) gr.drawImage(this.ref.img, 0, 0, W, H);
+      gm.drawImage(this.stage.maskCanvas(), 0, 0, W, H);
+      const R = gr.getImageData(0, 0, W, H).data, M = gm.getImageData(0, 0, W, H).data, out = gd.createImageData(W, H), O = out.data;
+      let both = 0, ro = 0, mo = 0;
+      for (let i = 0; i < R.length; i += 4) {
+        const r = R[i + 3] > 40, m = M[i] > 127;
+        const c = r && m ? [120, 120, 125] : r ? [220, 40, 40] : m ? [40, 90, 230] : [235, 236, 238];
+        O[i] = c[0]; O[i + 1] = c[1]; O[i + 2] = c[2]; O[i + 3] = 255;
+        if (r && m) both++; else if (r) ro++; else if (m) mo++;
+      }
+      gd.putImageData(out, 0, 0);
+      return { iou: both / Math.max(1, both + ro + mo), refOnly: ro / Math.max(1, both + ro), renderOnly: mo / Math.max(1, both + mo), diff: dc.toDataURL('image/png') };
     }
     downloadSnapshot() {
       const a = this.doc.createElement('a'); a.href = this.snapshot(); a.download = `compare-${this.id}-${new Date().toISOString().replace(/[:.]/g, '-')}.png`; a.click();
