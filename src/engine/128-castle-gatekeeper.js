@@ -3,32 +3,43 @@
 (function (G) {
   const K = G.K;
 
+  /* Who the gate opens for: only players. Your own hero (on the ground, not up on the walls) and your teammates'
+     heroes open it; workers, kin, townsfolk and animals never do (carts and couriers route round gates anyway).
+     Creatures that fight (wolves, bears, raiders) keep it shut; a player outside your team never opens it, and it
+     shuts at once behind you when one is waiting, but they can't lock you out of your own castle. */
   class GatePolicy {
-    constructor(options = {}) { this.manualSeconds = options.manualSeconds || 20; this.passSeconds = options.passSeconds || 2; }
+    constructor(options = {}) {
+      this.manualSeconds = options.manualSeconds || 20;
+      this.passSeconds = options.passSeconds || 2;
+      this.range = options.range || 5.5;
+    }
     isTower(type) { return type === 'watchtower' || type === 'stone_tower'; }
     isGate(type) { return type === 'gate' || type === 'stone_gate'; }
-    near(actor, gate, range) { return !!actor && actor.alive !== false && Math.hypot(actor.x - gate.x, actor.z - gate.z) <= range; }
+    near(actor, gate, range = this.range) {
+      return !!actor && actor.alive !== false && Math.hypot(actor.x - gate.x, actor.z - gate.z) <= range;
+    }
+    /** a player (not a worker, kin or animal) who may come through: your own hero or a teammate's */
     friendly(actor, game) {
       if (!actor || actor.alive === false || actor.hostile) return false;
-      if (!actor.remote) return true;
-      const id = actor.pid || String(actor.id || '').replace(/^pl:/, '');
-      return !!(id && game.mp && game.mp.mayUse(id));
+      if (actor === game.play.me) return !this.aloft(actor);
+      if (!actor.remote || !actor.pid || !game.mp) return false;
+      return !!game.mp.mayUse(actor.pid);
     }
+    /** up on the walls or a tower stair: over the gate, not at it */
+    aloft(actor) { return actor.layer === 'upper' || actor.layer === 'stair'; }
+    /** a player outside your team */
+    stranger(actor, game) {
+      return !!actor && actor.alive !== false && !!actor.remote && !!actor.pid && !!game.mp && !game.mp.mayUse(actor.pid);
+    }
+    /** a creature that fights: wolves, bears, raiders (grazing deer and other prey don't count) */
+    threat(actor) { return !!actor && actor.alive !== false && !!actor.hostile && !actor.prey && !actor.pid; }
+    avatars(game) { return game.mp ? [...game.mp.avatars.by.values()].map((record) => record.a).filter(Boolean) : []; }
     nearbyFriendly(gate, game) {
-      for (const actor of game.play.actors) {
-        if (this.friendly(actor, game) && this.near(actor, gate, 5.5)) return true;
-      }
-      if (!game.mp) return false;
-      for (const record of game.mp.avatars.by.values()) {
-        if (this.friendly(record.a, game) && this.near(record.a, gate, 5.5)) return true;
-      }
-      return false;
+      if (this.friendly(game.play.me, game) && this.near(game.play.me, gate)) return true;
+      return this.avatars(game).some((actor) => this.friendly(actor, game) && this.near(actor, gate));
     }
-    nearbyHostile(gate, game) {
-      if (game.play.actors.some((a) => a && a.alive !== false && a.hostile && this.near(a, gate, 5.5))) return true;
-      if (!game.mp) return false;
-      return [...game.mp.avatars.by.values()].some((r) => r.a && !game.mp.mayUse(r.a.pid) && this.near(r.a, gate, 5.5));
-    }
+    nearbyStranger(gate, game) { return this.avatars(game).some((actor) => this.stranger(actor, game) && this.near(actor, gate)); }
+    nearbyHostile(gate, game) { return game.play.actors.some((actor) => this.threat(actor) && this.near(actor, gate)); }
     night(game) { return game.day.isNight; }
   }
 
@@ -69,14 +80,12 @@
       this.refresh();
       for (const gate of this.gates()) {
         const state = this.state(gate); if (!state.tower) continue;
-        const hostile = this.policy.nearbyHostile(gate, this.g), friendly = this.policy.nearbyFriendly(gate, this.g);
-        if (hostile || this.policy.night(this.g)) { this.set(gate, false); state.away = 0; continue; }
+        if (this.policy.nearbyHostile(gate, this.g) || this.policy.night(this.g)) { this.set(gate, false); state.away = 0; continue; }
         if (state.manualUntil > this.g.play.t) continue;
-        if (friendly) { this.set(gate, true); state.away = 0; }
-        else if (gate.bridge.open) {
-          state.away += dt;
-          if (state.away >= this.policy.passSeconds) this.set(gate, false);
-        }
+        if (this.policy.nearbyFriendly(gate, this.g)) { this.set(gate, true); state.away = 0; continue; }
+        if (!gate.bridge.open) continue;
+        state.away += dt;
+        if (state.away >= this.policy.passSeconds || this.policy.nearbyStranger(gate, this.g)) this.set(gate, false);
       }
     }
   }
