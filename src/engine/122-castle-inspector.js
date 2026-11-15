@@ -10,19 +10,22 @@
     piece(e) {
       const g = this.g, c = this.c, remote = e.type === 'c_rpiece', p = remote ? e.rec.p : e.piece, d = g.data.piece(p.type); if (!d) return;
       const owner = remote ? (g.mp && g.mp.owners[e.rec.p.owner] || 'Another player') : 'You'; const banner = remote && g.mp ? g.mp.teamId(e.rec.p.owner) : null;
-      const pr = remote ? null : c.producesOf(p), stock = remote ? {} : (g.economy && g.economy.stock && g.economy.stock.stock ? g.economy.stock.stock(p) : {});
-      const hpMax = g.pieceHpMax(p), rows = [`<div class="ci-row"><span>Owner</span><b>${esc(owner)}${banner!=null?` · Team ${esc(banner)}`:''}</b></div>`,`<div class="ci-row"><span>Health</span><b>${Number.isFinite(p.hp) ? Math.ceil(p.hp) : hpMax} / ${hpMax}</b></div>`,`<div class="ci-row"><span>Level</span><b>${p.level || 1}</b></div>`,`<div class="ci-row"><span>Condition</span><b>${remote ? 'Other player’s building' : c.isFrosted(p) ? 'Frosted — production stopped' : 'Working'}</b></div>`];
+      const pr = remote ? null : c.producesOf(p), stock = remote ? {} : (g.economy ? g.economy.ledger(p).goods : {});
+      const hpMax = g.pieceHpMax(p), rows = [`<div class="ci-row"><span>Owner</span><b>${esc(owner)}${banner!=null?` · Team ${esc(banner)}`:''}</b></div>`,`<div class="ci-row"><span>Health</span><b>${Number.isFinite(p.hp) ? Math.ceil(p.hp) : hpMax} / ${hpMax}</b></div>`,`<div class="ci-row"><span>Level</span><b>${p.level || 1}</b></div>`,`<div class="ci-row"><span>Condition</span><b>${remote ? 'Other player’s building' : c.isFrosted(p) ? 'Frosted — production stopped' : c.isFull(p) ? 'Full' : pr ? 'Working' : 'Idle'}</b></div>`];
       if (pr) rows.push(`<div class="ci-row"><span>Producing</span><b>${Object.entries(pr).map(([r,n])=>`+${n} ${K.CastleData.resName(r)}/min`).join(', ')}</b></div>`);
       if (Object.keys(stock).length) rows.push(`<div class="ci-row"><span>Stored</span><b>${Object.entries(stock).map(([r,n])=>`${n} ${K.CastleData.resName(r)}`).join(', ')}</b></div>`);
+      if (!remote && ['coop','barn'].includes(p.type)) { const herd=g.economy.stock.herd(p), kind=p.type==='coop'?'hen':'cow'; rows.push(`<div class="ci-row"><span>Animals</span><b>${herd.length} ${kind}${herd.length===1?'':'s'}</b></div>`); }
+      if (!remote && g.workers) { const job=g.workers.jobs.find((item)=>item.p===p); if(job&&job.report) rows.push(`<div class="ci-row"><span>Worker</span><b>${esc(job.report().join(' '))}</b></div>`); }
+      if (!remote) { const payback=c.upgradePayback(p); if(payback!=null) rows.push(`<div class="ci-row"><span>Upgrade payback</span><b>${payback.toFixed(1)} min</b></div>`); }
       const actions = [];
       if (!remote) {
         const up = c.upgradeInfo(p); if (up) { const blocker = c.upgradeBlocker(p), cost = c.upgradeCost(p), bad = c.missing(cost), benefit = up.produces ? Object.entries(up.produces).map(([r,n])=>`+${n-(pr&&pr[r]||0)} ${K.CastleData.resName(r)}/min`).join(', ') : 'Improved level benefits'; actions.push(`<section class="ci-action"><h3>Upgrade</h3><p>${esc(benefit)}</p><div>${Object.entries(cost).map(([r,n])=>`<span class="${bad[r]?'poor':'enough'}">${n} ${K.CastleData.resName(r)} (have ${c.amount(r)})${bad[r]?` · need ${bad[r]} more`:''}</span>`).join(' · ')}</div>${blocker?`<p>${esc(blocker)}</p>`:''}<button data-upgrade ${(Object.keys(bad).length||blocker)?'disabled':''}>Upgrade</button></section>`); } else actions.push('<p>This building cannot be upgraded.</p>');
         if (c.canDemolish(p)) { const refund=c.refundFor(p), label=Object.entries(refund).map(([r,n])=>`${n} ${K.CastleData.resName(r)}`).join(', ')||'nothing'; actions.push(`<section class="ci-danger"><h3>Take down</h3><p>Refund: ${esc(label)}</p><button data-takedown>Take down…</button></section>`); }
       }
-      const available = g.actionsFor(e).filter((a) => !['inspect', 'demolish'].includes(a.id));
+      const available = g.actionsFor(e).filter((a) => !['inspect', 'demolish', 'upgrade'].includes(a.id));
       if (available.length) actions.unshift(`<section class="ci-action"><h3>Options</h3>${available.map((a) => `<button data-building-action="${esc(a.id)}">${esc(a.label)}</button>`).join('')}</section>`);
       if (!remote && ['coop', 'barn'].includes(p.type)) actions.unshift(this.orderHtml(p));
-      this.selected={e,p,remote,available}; this.open(d.name,this.g.cui.art.html(p.type,K.CastleUI.PIECE_ICON[p.type],84),` <p>${esc(d.effect||K.CastleUI.SHORT[p.type]||'A castle building.')}</p>${rows.join('')}${actions.join('')}`);
+      this.selected={e,p,remote,available}; this.open(d.name,this.g.cui.art.html(p.type,K.CastleUI.PIECE_ICON[p.type],84),` <p>${esc(d.effect||K.CastleUI.SHORT[p.type]||'A castle building.')}</p><h3>How it’s doing</h3>${rows.slice(0,5).join('')}<h3>What it holds</h3>${rows.slice(5).join('')}${actions.join('')}`);
     }
     orderHtml(p) {
       const orders=this.g.economy.stock.orders, order=orders.get(p), herd=this.g.economy.stock.herd(p);
