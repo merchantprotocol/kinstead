@@ -12,6 +12,9 @@
       const peerOwners=g.mp&&g.mp.world&&g.mp.world.owners, legacyOwners=g.mp&&g.mp.owners; const owner = remote ? ((peerOwners&&peerOwners[e.rec.p.owner])||(legacyOwners&&legacyOwners[e.rec.p.owner])||'Another player') : 'You'; const banner = remote && g.mp ? g.mp.teamId(e.rec.p.owner) : null;
       const pr = remote ? null : c.producesOf(p), stock = remote ? {} : (g.economy ? g.economy.ledger(p).goods : {});
       const hpMax = g.pieceHpMax(p), statusRows = [`<div class="ci-row"><span>Owner</span><b>${esc(owner)}${banner!=null?` · Team ${esc(banner)}`:''}</b></div>`,`<div class="ci-row"><span>Health</span><b>${Number.isFinite(p.hp) ? Math.ceil(p.hp) : hpMax} / ${hpMax}</b></div>`,`<div class="ci-row"><span>Level</span><b>${p.level || 1}</b></div>`,`<div class="ci-row"><span>Condition</span><b>${remote ? 'Other player’s building' : c.isFrosted(p) ? 'Frosted — production stopped' : c.isFull(p) ? 'Full' : pr ? 'Working' : 'Idle'}</b></div>`], holdings = [];
+      const keeper = !remote && p.gatekeeper, keeperTower = !remote && p.keeperGate;
+      if (keeper) statusRows.push(`<div class="ci-row"><span>Archer</span><b>Gatekeeper</b></div>`);
+      if (keeperTower) statusRows.push(`<div class="ci-row"><span>Role</span><b>Gatekeeper · ${esc(g.data.piece(keeperTower.type).name)}</b></div>`);
       if (pr) statusRows.push(`<div class="ci-row"><span>Producing</span><b>${Object.entries(pr).map(([r,n])=>`+${n} ${K.CastleData.resName(r)}/min`).join(', ')}</b></div>`);
       if (Object.keys(stock).length) holdings.push(`<div class="ci-row"><span>Stored</span><b>${Object.entries(stock).map(([r,n])=>`${n} ${K.CastleData.resName(r)}`).join(', ')}</b></div>`);
       if (!remote && ['coop','barn'].includes(p.type)) { const herd=g.economy.stock.herd(p), kind=p.type==='coop'?'hen':'cow'; holdings.push(`<div class="ci-row"><span>Animals</span><b>${herd.length} ${kind}${herd.length===1?'':'s'}</b></div>`); }

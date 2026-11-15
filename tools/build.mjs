@@ -105,6 +105,7 @@ class EngineManifest {
     '128-castle-herdsync.js',
     '129-castle-farm-visuals.js',
     '130-castle-farmsync.js',
+    '128-castle-gatekeeper.js',
   ];
   /* game data inlined as K.CASTLE_DATA (src/data is the single source; tests read the same file) */
   static DATA = { '@castle-data': ['data/game-data-castle.json', 'CASTLE_DATA'] };
