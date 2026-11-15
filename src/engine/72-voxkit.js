@@ -93,14 +93,18 @@
       lam('hangingRed', tex(P.hanging(TP.cloth), null, { mips: false, flipY: true }), { alphaTest: 0.5, side: THREE.DoubleSide });
       // the bright palette: clean colours that read at a glance (signs, painted trim, roofs, goods). Each gets a faint grain so it is not plastic.
       const gc = document.createElement('canvas'); gc.width = gc.height = 16; const gx = gc.getContext('2d'), gd = gx.createImageData(16, 16);
-      for (let i = 0; i < 256; i++) { const v = 228 + Math.floor(Math.random() * 27); gd.data.set([v, v, v, 255], i * 4); } gx.putImageData(gd, 0, 0);   // a faint, near-white grain: it keeps the colour clean
+      for (let i = 0; i < 256; i++) { const v = 196 + Math.floor(Math.random() * 59); gd.data.set([v, v, v, 255], i * 4); } gx.putImageData(gd, 0, 0);   // a faint, near-white grain: it keeps the colour clean
       const grain = new THREE.CanvasTexture(gc); grain.magFilter = THREE.NearestFilter; grain.wrapS = grain.wrapT = THREE.RepeatWrapping; grain.repeat.set(2, 2); grain.colorSpace = THREE.SRGBColorSpace;
-      const PAINT = { paintRed: '#c8392b', paintBlue: '#2f72c0', paintGreen: '#3f9a3a', paintYellow: '#f0bf2e', paintWhite: '#f4efe4', paintOrange: '#e8792a', paintPurple: '#7b4bb0',
-        whitewash: '#ece5d3', woodLight: '#c99358', woodMid: '#94612f', woodDark: '#5e3c20', roofRed: '#b84a30', roofBlue: '#3d6696', roofGreen: '#4f8a3c', roofBrown: '#7a4a2a',
-        stoneLight: '#c6c1b6', stoneMid: '#9a958c', stoneDark: '#67635c', gold: '#f0c94a', ironDark: '#3c3f47', rope: '#d2ad6e', canvas: '#f1e8d0', wheatGold: '#ecc65a',
-        leafGreen: '#4ea33e', waterBlue: '#4a94d0', meatRed: '#b8443c', eggWhite: '#f8f2e4', signBoard: '#b07a42', potionPink: '#e05aa0', potionTeal: '#2ec4b0', bookRed: '#9a2e2a', bookBlue: '#2c4f8a' };
+      // the castle palette: weathered heraldic colours (oxblood, woad blue, moss, ochre, aged limewash) over stone and dark timber.
+      // Every roof uses one slate (roofRed/Blue/Green are aliases of it, below), so the town reads as one castle.
+      const PAINT = { paintRed: '#7c2f27', paintBlue: '#35496b', paintGreen: '#4b5a37', paintYellow: '#b08d3e', paintWhite: '#cbc2ae', paintOrange: '#94552c', paintPurple: '#4f3c63',
+        whitewash: '#c4bba7', woodLight: '#9c7448', woodMid: '#74502c', woodDark: '#4a3220', roofRed: '#565c66', roofBlue: '#565c66', roofGreen: '#565c66', roofBrown: '#6a4a2e',
+        stoneLight: '#aaa597', stoneMid: '#87827a', stoneDark: '#5c5952', gold: '#c4a04a', ironDark: '#36383e', rope: '#a88a5a', canvas: '#c9bea4', wheatGold: '#d2b052',
+        leafGreen: '#4a7a3a', waterBlue: '#4a7aa0', meatRed: '#a8443c', eggWhite: '#ece4d2', signBoard: '#7e5a36', potionPink: '#c45a90', potionTeal: '#2ea898', bookRed: '#7a2e2a', bookBlue: '#2c4370' };
       for (const [k, c] of Object.entries(PAINT)) this.map.set(k, new THREE.MeshLambertMaterial({ map: grain, color: new THREE.Color(c) }));
       this.paint = PAINT;
+      // one roof for the whole castle: the slate texture, shared by every roof key
+      const roof = this.map.get('slate'); if (roof) for (const k of ['roofRed', 'roofBlue', 'roofGreen']) this.map.set(k, roof);
       // emissive parts: colour > 1 feeds the bloom pass
       const basic = (key, t, col) => this.map.set(key, new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(col, col * 0.92, col * 0.8) }));
       basic('coals', tex(P.coals(), [0.5, 0.5]), 2.2);

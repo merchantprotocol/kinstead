@@ -171,7 +171,7 @@
       }
       // roof: a silver-grey dome cap with a vent
       k.geo('paintWhite', CYL, 0, H1 + 0.03, 0, 0, 0, 0, 0.8, 0.06, 0.8);
-      k.geo('stoneLight', CONE6, 0, H1 + 0.06 + 0.3, 0, 0, Math.PI / 6, 0, 0.86, 0.6, 0.86);
+      k.geo('slate', CONE6, 0, H1 + 0.06 + 0.3, 0, 0, Math.PI / 6, 0, 0.86, 0.6, 0.86);
       k.geo('paintRed', CYL8, 0, H1 + 0.7, 0, 0, 0, 0, 0.1, 0.12, 0.1); k.geo('stoneLight', CONE6, 0, H1 + 0.82, 0, 0, 0, 0, 0.16, 0.14, 0.16);
       vane1(k, 0, H1 + 0.88, 0);
       // a hatch near the top (front-right) with wheat showing

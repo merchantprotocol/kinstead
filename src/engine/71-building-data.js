@@ -20,19 +20,19 @@
        bunting [colours]  pennants along the front eave   awning [colourA, colourB]  striped awning over the main door
        flowerBoxes  window boxes with flowers   fill  interior fill light strength (0 = none) */
   const LOOKS = {
-    cottage: { wallColor: '#f1e7d2', trim: '#5b3a22', doorColor: 'paintRed', shutterColor: 'paintGreen', roof: { color: '#e0b04e', snow: 'light' }, flowerBoxes: true, fill: 1,
+    cottage: { wallColor: '#c9bfa8', trim: '#3e2a1a', doorColor: 'paintRed', shutterColor: 'paintGreen', roof: { snow: 'light' }, flowerBoxes: true, fill: 1,
       props: [{ type: 'woodpile', side: 'l', at: 0 }, { type: 'bench', side: 'r', at: 0 }] },
-    smithy: { wallColor: '#9a9088', trim: '#2c2a2a', doorColor: 'ironDark', shutterColor: 'ironDark', roof: { color: '#4a4c55', snow: 'light' }, fill: 1,
+    smithy: { wallColor: '#8a847b', trim: '#2c2a2a', doorColor: 'ironDark', shutterColor: 'ironDark', roof: { snow: 'light' }, fill: 1,
       sign: { icon: 'anvil', board: 'signBoard', emblem: true }, props: [{ type: 'forge', side: 'l', at: 0 }, { type: 'anvil', side: 'r', at: 1 }, { type: 'quench_tub', side: 'r', at: 2 }] },
-    stable: { wallColor: '#a8382c', trim: '#f2ece0', doorColor: 'paintWhite', shutterColor: 'paintWhite', roof: { color: '#3f7a3a', snow: 'light' }, fill: 1,
+    stable: { wallColor: '#6e4c33', trim: '#3a2818', doorColor: 'paintRed', shutterColor: 'paintRed', roof: { snow: 'light' }, fill: 1,
       sign: { icon: 'horse', emblemIcon: 'horseshoe', board: 'paintWhite', emblem: true }, props: [{ type: 'hay_bale', side: 'l', at: 0 }, { type: 'hay_bale', side: 'l', at: 1 }, { type: 'trough', side: 'r', at: 0 }] },
-    market_hall: { wallColor: '#f0cf6a', trim: '#5b3a22', doorColor: 'paintBlue', shutterColor: 'paintBlue', roof: { color: '#2f6fb8', snow: 'light' }, fill: 1.2,
-      sign: { icon: 'scales', board: 'paintBlue', text: 'MARKET', textColor: '#ffd54a', emblem: true }, bunting: ['#d8402e', '#f0c43a', '#2f72c0', '#3f9a3a', '#f4efe4'], awning: ['#d8402e', '#f4efe4'] },
-    bakery: { wallColor: '#f6ead2', trim: '#8a5a2e', doorColor: 'woodLight', shutterColor: 'paintOrange', roof: { color: '#d06a2a', snow: 'light' }, flowerBoxes: true, fill: 1,
-      sign: { icon: 'bread', board: 'canvas', emblem: true }, awning: ['#e8792a', '#f4efe4'], props: [{ type: 'flour_sack', side: 'l', at: 0 }, { type: 'flour_sack', side: 'l', at: 1 }, { type: 'bread_rack', side: 'r', at: 0 }] },
-    butcher: { wallColor: '#f4f1ea', trim: '#8e2420', doorColor: 'paintRed', shutterColor: 'paintRed', roof: { color: '#9a2a26', snow: 'light' }, fill: 1,
-      sign: { icon: 'cleaver', board: 'paintWhite', emblem: true }, awning: ['#c8392b', '#f4efe4'], props: [{ type: 'chopping_block', side: 'r', at: 0 }, { type: 'barrel', side: 'l', at: 0 }, { type: 'crate', side: 'l', at: 1 }] },
-    library: { wallColor: '#d8d2e4', trim: '#3a2a52', doorColor: 'paintPurple', shutterColor: 'paintPurple', roof: { color: '#6a3fa8', snow: 'light' }, fill: 1.1,
+    market_hall: { wallColor: '#b8ab8c', trim: '#3e2a1a', doorColor: 'paintBlue', shutterColor: 'paintBlue', roof: { snow: 'light' }, fill: 1.2,
+      sign: { icon: 'scales', board: 'paintBlue', text: 'MARKET', textColor: '#d8b45a', emblem: true }, bunting: ['#7c2f27', '#b08d3e', '#35496b', '#7c2f27', '#b08d3e'], awning: ['#7c2f27', '#cbc2ae'] },
+    bakery: { wallColor: '#c6baa0', trim: '#4a3220', doorColor: 'woodLight', shutterColor: 'paintOrange', roof: { snow: 'light' }, flowerBoxes: true, fill: 1,
+      sign: { icon: 'bread', board: 'canvas', emblem: true }, awning: ['#94552c', '#cbc2ae'], props: [{ type: 'flour_sack', side: 'l', at: 0 }, { type: 'flour_sack', side: 'l', at: 1 }, { type: 'bread_rack', side: 'r', at: 0 }] },
+    butcher: { wallColor: '#c2b9a6', trim: '#3e2a1a', doorColor: 'paintRed', shutterColor: 'paintRed', roof: { snow: 'light' }, fill: 1,
+      sign: { icon: 'cleaver', board: 'paintWhite', emblem: true }, awning: ['#7c2f27', '#cbc2ae'], props: [{ type: 'chopping_block', side: 'r', at: 0 }, { type: 'barrel', side: 'l', at: 0 }, { type: 'crate', side: 'l', at: 1 }] },
+    library: { wallColor: '#9a958a', trim: '#2e2420', doorColor: 'paintPurple', shutterColor: 'paintPurple', roof: { snow: 'light' }, fill: 1.1,
       sign: { icon: 'potion', board: 'paintPurple', emblem: true }, props: [{ type: 'potion_crate', side: 'l', at: 0 }, { type: 'cauldron_small', side: 'r', at: 0 }] },
     keep: { trim: '#3a2a1c', roof: { snow: true }, fill: 1 },
   };
@@ -97,8 +97,8 @@
       r = r || {};
       const look = LOOKS[o.prefab] || {}, lr = look.roof || {};
       const snow = r.snow !== undefined ? r.snow : lr.snow !== undefined ? lr.snow : true;
-      o.roof = { style: ROOF_STYLES[r.style] ? r.style : 'gable', material: ROOF_MATERIALS[r.material] ? r.material : 'thatch', snow: snow === 'light' ? 'light' : snow !== false, pitch: Math.max(0.45, Math.min(0.9, +r.pitch || 0.72)) };
-      const rc = r.color !== undefined ? r.color : lr.color; if (isColor(rc)) o.roof.color = rc;
+      o.roof = { style: ROOF_STYLES[r.style] ? r.style : 'gable', material: 'slate',   /* every roof in the castle is the same slate */ snow: snow === 'light' ? 'light' : snow !== false, pitch: Math.max(0.45, Math.min(0.9, +r.pitch || 0.72)) };
+      /* roof colour is fixed: one slate for every building */
       // look (all optional): explicit fields win, then the prefab's look
       for (const k of ['wallColor', 'trim', 'doorColor', 'shutterColor']) { const v = o[k] !== undefined ? o[k] : look[k]; if (isColor(v)) o[k] = v; else delete o[k]; }
       const sg = o.sign !== undefined ? o.sign : look.sign;
