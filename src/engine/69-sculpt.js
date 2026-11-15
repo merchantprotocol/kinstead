@@ -31,6 +31,11 @@
       const tot = pairs.reduce((s, p) => s + p[1], 0);
       return (x, y, z) => { let r = Hash.h3(x, y, z, seed) * tot; for (const [c, w] of pairs) { if ((r -= w) <= 0) return c; } return pairs[0][0]; };
     }
+    /* a calmer mottle: one weighted pick per cell x cell x cell block (2-3 close tones read as plates, not dither) */
+    static tones(pairs, cell = 2, seed = 1) {
+      const pick = Shapes.mottle(pairs, seed);
+      return (x, y, z) => pick(Math.floor(x / cell), Math.floor(y / cell), Math.floor(z / cell));
+    }
     /* palette shorthand: hexes -> { name: linear colour }; names ending in '*' become emissive (glow 2.2) */
     static palette(o) { const p = {}; for (const k in o) p[k.replace('*', '')] = k.endsWith('*') ? KV.Colour.glow(o[k]) : KV.Colour.hex(o[k]); return p; }
     static noise2(x, y, scale, seed) { return Noise.n2(x, y, scale, seed); }

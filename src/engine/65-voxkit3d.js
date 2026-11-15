@@ -240,7 +240,8 @@
   class VoxelRig {
     constructor(model, opts = {}) {
       this.model = model; const geo = model.build(), s = model.size, names = model.boneNames;
-      this.mat = new THREE.MeshLambertMaterial({ vertexColors: true, map: VoxelMesher.bevelTexture(), emissive: new THREE.Color(0, 0, 0) });
+      const M = model.mesher && model.mesher.constructor;   // the HD registry models bring their own bevel material (68-modelkit.js)
+      this.mat = M && M.material ? M.material() : new THREE.MeshLambertMaterial({ vertexColors: true, map: VoxelMesher.bevelTexture(), emissive: new THREE.Color(0, 0, 0) });
       this.glowMat = new THREE.MeshBasicMaterial({ vertexColors: true, color: new THREE.Color(1.35, 1.35, 1.4) });
       this.group = new THREE.Group(); this.body = new THREE.Group(); this.group.add(this.body);
       this.bones = {}; this.rest = {};

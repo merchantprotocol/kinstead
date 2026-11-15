@@ -89,7 +89,8 @@
                 out.pos.push((P[0] + off[0]) * size, (P[1] + off[1]) * size, (P[2] + off[2]) * size);
                 out.nrm.push(nrm[0], nrm[1], nrm[2]);
                 const k = em ? em : AO[aos[o]]; out.col.push(col[0] * k, col[1] * k, col[2] * k);
-                out.uv.push(corners[o][0], corners[o][1]);
+                // uv in voxel units, oriented so that on side faces uv.y is world up (the bevel shader lights the top lip)
+                if (a === 2) out.uv.push(corners[o][0], corners[o][1]); else out.uv.push(corners[o][1], corners[o][0]);
               }
               const A = order.map((o) => aos[o]);
               if (A[0] + A[2] > A[1] + A[3]) out.idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
@@ -108,6 +109,35 @@
       if (!r.glow) return r.body;
       const g = KV.VoxelModel.merge([r.body, r.glow]); g.boundingSphere.radius /= 1.6; return g;
     }
+    /* the HD voxel material: Lambert + per-voxel bevel computed from the voxel-unit uvs (no texture, so it stays
+       crisp at any distance): a dark seam between cubes, a light top / left lip and a darker bottom / right lip,
+       the way each cube in the Grok refs reads as a small bevelled block. A new material per call (rigs flash
+       their emissive); the shader program is shared through customProgramCacheKey. */
+    static material(opts = {}) {
+      const m = new THREE.MeshLambertMaterial(Object.assign({ vertexColors: true, emissive: new THREE.Color(0, 0, 0) }, opts));
+      const B = GreedyMesher.BEVEL;
+      m.onBeforeCompile = (sh) => {
+        sh.uniforms.uBevel = { value: new THREE.Vector4(B.seam, B.lip, B.hi, B.lo) };
+        sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vVox;')
+          .replace('#include <uv_vertex>', '#include <uv_vertex>\nvVox = uv;');
+        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec2 vVox;\nuniform vec4 uBevel;')
+          .replace('#include <color_fragment>', `#include <color_fragment>
+          {
+            vec2 f = fract(vVox), w = max(fwidth(vVox), vec2(1e-4));
+            vec2 e0 = f / w, e1 = (1.0 - f) / w;                         // distance to each edge, in pixels
+            float px = min(min(e0.x, e1.x), min(e0.y, e1.y));
+            float seam = 1.0 - smoothstep(0.35, 1.25, px);               // a ~1 px groove between cubes
+            float far = smoothstep(0.08, 0.2, min(w.x, w.y));            // cubes smaller than ~6 px: fade the lips
+            vec2 L = vec2(uBevel.y);
+            float hi = max(1.0 - smoothstep(0.0, L.y, 1.0 - f.y), 0.55 * (1.0 - smoothstep(0.0, L.x, f.x)));
+            float lo = max(1.0 - smoothstep(0.0, L.y, f.y), 0.55 * (1.0 - smoothstep(0.0, L.x, 1.0 - f.x)));
+            float k = 1.0 + (uBevel.z * hi - uBevel.w * lo) * (1.0 - 0.6 * far) - uBevel.x * seam * (1.0 - 0.5 * far);
+            diffuseColor.rgb *= k;
+          }`);
+      };
+      m.customProgramCacheKey = () => 'kinstead-voxbevel';
+      return m;
+    }
     static geometry(o) {
       const g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.Float32BufferAttribute(o.pos, 3));
@@ -118,6 +148,8 @@
       g.computeBoundingSphere(); return g;
     }
   }
+  /* bevel strengths: seam darkening, lip width (fraction of a voxel), top/left highlight, bottom/right shade */
+  GreedyMesher.BEVEL = { seam: 0.42, lip: 0.2, hi: 0.2, lo: 0.24 };
   class GeoOut { constructor() { this.pos = []; this.nrm = []; this.col = []; this.uv = []; this.idx = []; this.n = 0; } }
 
   /* ---------------- static (rigid) models ---------------- */
@@ -145,7 +177,7 @@
       return this.geo;
     }
     static material() {
-      return StaticVoxelModel._mat || (StaticVoxelModel._mat = new THREE.MeshLambertMaterial({ vertexColors: true, map: VoxelMesher.bevelTexture() }));
+      return StaticVoxelModel._mat || (StaticVoxelModel._mat = GreedyMesher.material());
     }
     static glowMaterial() { return StaticVoxelModel._gmat || (StaticVoxelModel._gmat = new THREE.MeshBasicMaterial({ vertexColors: true })); }
     /* a live instance: shared geometry and materials (clone the materials before changing them) */

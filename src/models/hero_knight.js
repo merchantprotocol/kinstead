@@ -35,14 +35,14 @@
 
   K.Models.register('hero_knight', ({ Shapes: S, VoxelModel, GreedyMesher, Hash }) => {
     const P = S.palette({
-      steel: '#7a7c80', steelL: '#a0a2a5', steelLL: '#c3c4c6', steelD: '#4f5155', steelDD: '#303135',
+      steel: '#8c8b88', steelM: '#7b7a78', steelL: '#a3a19d', steelLL: '#c3c4c6', steelD: '#4f5155', steelDD: '#303135',
       red: '#9a281e', redL: '#b5372a', redD: '#6c1912', redDD: '#4a0f0b',
       gold: '#e3a43a', goldL: '#ffd263', goldD: '#a8681c', leather: '#6a4029', leatherD: '#43271a', black: '#121214',
     });
     const mo = S.mottle;
-    const steel = mo([[P.steel, 7], [P.steelL, 1.6], [P.steelD, 1]], 3);
-    const steelDk = mo([[P.steelD, 5], [P.steel, 2.5], [P.steelDD, 1]], 4);
-    const red = mo([[P.red, 6], [P.redD, 2.2], [P.redL, 1.3]], 5);
+    const steel = S.tones([[P.steel, 6], [P.steelL, 2.5], [P.steelM, 2]], 2, 3);
+    const steelDk = S.tones([[P.steelD, 5], [P.steelM, 2.5]], 2, 4);
+    const red = S.tones([[P.red, 6], [P.redD, 1.5], [P.redL, 1.5]], 2, 5);
     const leather = mo([[P.leather, 5], [P.leatherD, 2.5]], 6);
     /* plate armour: banded every `band` voxels with a dark seam (the lames in the ref), and light rivets */
     const plate = (band = 4, seed = 9) => (x, y, z) => {
