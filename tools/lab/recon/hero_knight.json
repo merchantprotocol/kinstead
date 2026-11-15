@@ -1,0 +1,15 @@
+{
+  "id": "hero_knight",
+  "ref": "public/lab/hero_knight.png",
+  "prior": "/mnt/worktrees/_scratch/fidelity-spike/b/knight-mesh.json",
+  "out": "/mnt/worktrees/_scratch/asset-fidelity/recon",
+  "height": 64,
+  "palette": 28,
+  "fit": "height",
+  "symBand": [
+    0.62,
+    0.98
+  ],
+  "edgeErode": 3,
+  "glowBand": 24
+}
