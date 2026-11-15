@@ -23,7 +23,7 @@
 <script>
 (function () {
   const THREE = window.THREE, K = window.K, q = new URLSearchParams(location.search);
-  const LIST = [['market_stalls', 'Market · stall row'], ['market_pavilion', 'Market · timber hall'], ['market_wagons', 'Market · travelling fair'], ['market', 'Market · current'],
+  const LIST = [['hall', 'Marketplace'], ['hall_inside', 'Marketplace · inside'], ['market', 'Market street stalls'], ['market_stalls', 'Stall row'], ['market_pavilion', 'Timber hall'], ['market_wagons', 'Travelling fair'],
     ['farm', 'Farm'], ['silo', 'Grain silo'], ['coop', 'Chicken coop'], ['barn', 'Cattle barn'], ['cottage', 'Cottage'], ['watchtower', 'Watchtower'], ['stone_gate', 'Stone gate'], ['fire_pot', 'Fire pot'], ['woodcutter', 'Woodcutter'], ['quarry', 'Quarry'], ['storehouse', 'Storehouse']];
   const id = q.get('piece') || LIST[0][0];
   document.getElementById('nav').innerHTML = LIST.map(([k, n]) => `<a href="?piece=${k}" class="${k === id ? 'on' : ''}">${n}</a>`).join('');
@@ -33,8 +33,15 @@
   S.add(new THREE.HemisphereLight('#c8d6f0', '#4a4a50', 1.4));
   const sun = new THREE.DirectionalLight('#ffe2c0', 2.6); sun.position.set(-6, 10, 7); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
   Object.assign(sun.shadow.camera, { left: -5, right: 5, top: 5, bottom: -5 }); S.add(sun); const rim = new THREE.DirectionalLight('#9ab4f0', 0.7); rim.position.set(6, 4, -6); S.add(rim);
-  const ground = new THREE.Mesh(new THREE.CircleGeometry(4.2, 48), new THREE.MeshLambertMaterial({ color: '#f2f4f6' })); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; S.add(ground);
-  const art = new K.CastleArt(new K.BuildingMaterials(new K.TextureBank(r))), m = art.piece(id, { level: 1 }); S.add(m);
+  const ground = new THREE.Mesh(new THREE.CircleGeometry(12, 48), new THREE.MeshLambertMaterial({ color: '#f2f4f6' })); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; S.add(ground);
+  const mats = new K.BuildingMaterials(new K.TextureBank(r)), art = new K.CastleArt(mats); let m;
+  if (id.startsWith('hall')) {
+    m = new THREE.Group(); const spec = K.BuildingSpec.normalize(K.makeBuilding('market_hall', 0, 0, 'hall', 31)), bm = new K.BuildingMesh(spec, { mats, catalog: K.FURNITURE }); m.add(bm.group);
+    if (id === 'hall_inside') for (const [n, l] of Object.entries(bm.layers || {})) if (/roof|upper|wall/i.test(n)) l.snap(0);
+    const st = art.piece('market', { level: 1 }); st.position.set(spec.footprint.w * 0.25, 0, spec.footprint.h * 0.5 + 1.0); m.add(st);
+    window.__layers = Object.keys(bm.layers || {});
+  } else m = art.piece(id, { level: 1 });
+  S.add(m);
   m.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   const box = new THREE.Box3().setFromObject(m), c = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3()).length();
   const cam = new THREE.PerspectiveCamera(35, cv.width / cv.height, 0.1, 100); let yaw = 0.7, pitch = 0.5, drag = null;

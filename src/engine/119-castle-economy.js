@@ -241,11 +241,14 @@
         const l = this.ledger(p), sig = JSON.stringify(l.goods); let v = this.piles.get(p.uid); if (v && v.sig === sig) continue;
         if (v) this.g.group.remove(v.grp); const k = new K.VoxKit(), grp = new THREE.Group();
         if (p.type === 'silo') { const f = Math.min(1, l.amount('wheat') / SILO_CAP); k.box('hay', 0, 0.1, 0.78, 0.18, Math.max(0.05, 3.0 * f), 0.04); k.box('iron', 0, 0.1, 0.8, 0.24, 3.0, 0.02); }
-        else {
-          let slot = 0; for (const [good, n] of Object.entries(l.goods)) {
-            if (n <= 0) continue; const stacks = Math.min(6, Math.ceil(n / 15)), mat = { wheat: 'hay', stone: 'ashlar', iron: 'iron', egg: 'linen', milk: 'plaster', beef: 'leather' }[good] || 'wood';
-            for (let q = 0; q < stacks; q++) { const x = -1.5 + (slot % 7) * 0.5, z = -0.4 + Math.floor(slot / 7) * 0.5, y = (q % 3) * 0.42; k.box(mat, x + (q > 2 ? 0.0 : 0), y, z + (q > 2 ? -0.48 : 0), 0.42, 0.4, 0.42); }
-            slot++;
+        else {   // each stall's goods heap up on its counter and spill onto the street as the stock grows
+          const SECT = [[-4.0, ['wheat', 'bread']], [-1.0, ['beef', 'egg', 'milk', 'food']], [1.0, ['arrow', 'gold']], [4.0, ['wood', 'stone', 'iron', 'dirt']]];
+          const MAT = { wheat: 'hay', bread: 'bread', beef: 'food', egg: 'linen', milk: 'plaster', food: 'food', arrow: 'wood', gold: 'brass', wood: 'bark', stone: 'ashlar', iron: 'iron', dirt: 'soot' };
+          for (const [cx, goods] of SECT) {
+            let slot = 0; for (const good of goods) {
+              const n = l.amount(good); if (n <= 0) continue; const stacks = Math.min(9, Math.ceil(n / 12));
+              for (let q = 0; q < stacks; q++, slot++) { const on = slot < 6, x = cx - 0.55 + (slot % 3) * 0.55, z = on ? -0.2 + Math.floor(slot / 3) * 0.32 : 0.65 + Math.floor((slot - 6) / 3) * 0.3, y = on ? 0.78 : 0; k.box(MAT[good] || 'crate', x, y, z, 0.26, 0.2, 0.24, q * 0.4); }
+            }
           }
         }
         for (const m of k.meshes(this.g.R.bmats)) grp.add(m); grp.position.set(p.x, this.g.play.nav.y(p.x, p.z), p.z); grp.rotation.y = p.rot || 0; this.g.group.add(grp);

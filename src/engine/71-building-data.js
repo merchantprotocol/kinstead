@@ -259,6 +259,24 @@
         ],
       }),
     },
+    market_hall: {
+      name: 'Market hall', desc: 'A big timber market hall in four sections: wheat and bread, meat and eggs, weapons, raw materials',
+      make: () => ({
+        footprint: { shape: 'rect', w: 20, h: 14 }, walls: 'timber', roof: { style: 'gable', material: 'shingle' }, interiorFloor: 'planks', wallH: 2.4,
+        rooms: [{ id: 'grain', type: 'storage', x: 0, z: 0, w: 10, h: 6 }, { id: 'meat', type: 'kitchen', x: 10, z: 0, w: 10, h: 6 }, { id: 'arms', type: 'armory', x: 0, z: 6, w: 10, h: 8 }, { id: 'goods', type: 'storage', x: 10, z: 6, w: 10, h: 8 }],
+        doors: [{ x: 4, z: 13, side: 's', w: 2 }, { x: 14, z: 13, side: 's', w: 2 }, { x: 4, z: 6, side: 'n', w: 2, kind: 'interior' }, { x: 14, z: 6, side: 'n', w: 2, kind: 'interior' }, { x: 10, z: 9, side: 'w', w: 2, kind: 'interior' }],
+        windows: [{ x: 1, z: 13, side: 's', w: 2 }, { x: 8, z: 13, side: 's', w: 1 }, { x: 17, z: 13, side: 's', w: 2 }, { x: 0, z: 3, side: 'w', w: 1 }, { x: 0, z: 10, side: 'w', w: 1 }, { x: 19, z: 3, side: 'e', w: 1 }, { x: 19, z: 10, side: 'e', w: 1 }, { x: 7, z: 0, side: 'n', w: 1 }, { x: 13, z: 0, side: 'n', w: 1 }],
+        furniture: [
+          { type: 'sack', x: 0, z: 0 }, { type: 'sack', x: 1, z: 0 }, { type: 'sack', x: 0, z: 1 }, { type: 'sack', x: 0, z: 4 }, { type: 'sack', x: 0, z: 5 }, { type: 'pantry', x: 2, z: 0, rot: 0 },
+          { type: 'hay_bale', x: 8, z: 0 }, { type: 'hay_bale', x: 9, z: 0 }, { type: 'hay_bale', x: 9, z: 1 }, { type: 'table', x: 6, z: 2, rot: 0 },
+          { type: 'barrel', x: 10, z: 0 }, { type: 'barrel', x: 11, z: 0 }, { type: 'pantry', x: 13, z: 0, rot: 0 }, { type: 'hearth', x: 17, z: 0, rot: 0 }, { type: 'long_table', x: 11, z: 2, rot: 0 },
+          { type: 'crate', x: 19, z: 4 }, { type: 'crate', x: 18, z: 5 }, { type: 'sack', x: 10, z: 5 },
+          { type: 'weapon_rack', x: 0, z: 7, rot: 1 }, { type: 'weapon_rack', x: 0, z: 11, rot: 1 }, { type: 'armor_stand', x: 2, z: 7 }, { type: 'armor_stand', x: 7, z: 7 }, { type: 'chest', x: 8, z: 12, rot: 2 }, { type: 'grindstone', x: 7, z: 10 }, { type: 'banner', x: 3, z: 6, rot: 0 },
+          { type: 'crate', x: 18, z: 7 }, { type: 'crate', x: 19, z: 7 }, { type: 'crate', x: 19, z: 8 }, { type: 'barrel', x: 11, z: 7 }, { type: 'barrel', x: 12, z: 7 }, { type: 'workbench', x: 16, z: 7, rot: 0 },
+          { type: 'sack', x: 19, z: 12 }, { type: 'sack', x: 18, z: 12 }, { type: 'sack', x: 19, z: 11 }, { type: 'crate', x: 11, z: 12 }, { type: 'crate', x: 12, z: 12 },
+        ],
+      }),
+    },
     keep: {
       name: 'Keep', desc: 'Stone manor (L-shaped): great hall, armory, kitchen, bedroom, wardrobe room',
       make: () => ({

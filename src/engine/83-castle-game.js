@@ -190,7 +190,7 @@
     /** your character wears your banner's colour */
     applyLook() { const me = this.play.me; if (me && me.view) { const c = K.BANNER_COLORS[this.banners.mine().color % 12]; if (me.view.setTeam) me.view.setTeam(c); else if (me.view.setTint) me.view.setTint(c); } }
     /** do you hold the key to this building? (your own house and workshop always; others' only through a key, yours or your team's) */
-    keyFor(id) { if (id === 'home' || id === 'smithy') return true; return this.mp ? this.mp.keyFor(id) : false; }
+    keyFor(id) { if (id === 'home' || id === 'smithy' || id === 'market') return true; return this.mp ? this.mp.keyFor(id) : false; }
     /** where you slept last is where you wake (and where you come back after a fall) */
     setRespawn(buildingId, x, z) {
       const slot = this.mp ? this.mp.slotOf(buildingId) : buildingId === 'home' ? 0 : null; if (slot == null) return;   // only a house: not the workshop
@@ -216,7 +216,7 @@
         play.me.x = play.spawn.x; play.me.z = play.spawn.z; play.me.y = play.nav.y(play.spawn.x, play.spawn.z); }
       // your hut: the fire, the furniture, the barrels. No keep, ruins, outcrop or zone barriers.
       this.walls = new K.WallDrawer(this);   // before any saved pieces come back: placing and blocking a piece asks it what it is
-      this.gateTiles = new Set(); this.smithy = null; this.forge = null; this.home = new K.Home(this); this.castle.extraHas = (t) => (t === 'blacksmith' && !!this.smithy) || (t === 'cottage' && this.home.built); this.keepMesh = null; this.ruinEnts = {}; this.outcropEnt = null;
+      this.gateTiles = new Set(); this.smithy = null; this.marketHall = null; this.forge = null; this.home = new K.Home(this); this.castle.extraHas = (t) => (t === 'blacksmith' && !!this.smithy) || (t === 'cottage' && this.home.built) || (t === 'market' && !!this.marketHall); this.keepMesh = null; this.ruinEnts = {}; this.outcropEnt = null;
       this.keepEnt = { id: 'c-home', type: 'c_keep', name: 'Your home', x: this.L.keep.x, z: this.L.keep.z, y: 0, r: 0.1, h: 2, goal: [this.home.doorPoint.x, this.home.doorPoint.z] };
       if (!this.castle.lit) this.castle.light();
       for (const p of this.castle.pieces) this.addPieceMesh(p);
@@ -514,6 +514,11 @@
       if (c.amount('dirt') < 1) { if (!quiet) this.cui.toast('You need dirt. Dig some with the shovel.'); return false; }
       c.spend({ dirt: 1 }); const [i, j] = this.play.doc.tileOf(x, z); this.tools.editor.raise(i, j); this.xp.built('dirt');
       this.tools.effects.burst('dirt', x, this.play.nav.y(x, z) + 0.2, z, 5, 2.2); this.sound.play('thunk'); this.changed(); return true;
+    }
+    /** a piece that comes with something already paid for (the marketplace's street stalls): no cost, no placement check */
+    addFreePiece(type, x, z, rot) {
+      const c = this.castle, d = this.data.piece(type), p = { uid: c.nextUid++, type, level: 1, x, z, rot, hp: (d && d.hp) || 100, ruin: false }; c.pieces.push(p);
+      this.addPieceMesh(p); if (this.mp) this.mp.op({ k: 'piece+', id: this.mp.pieceId(p), type, x, z, rot }); this.changed(); return p;
     }
     buildAt(type, x, z, rot = this.autoRot(x, z), quiet = false) {
       if (type === 'dirt') return this.placeDirt(x, z, quiet);

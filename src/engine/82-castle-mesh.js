@@ -28,7 +28,7 @@
 
   /* piece footprints (m): w along the piece's local x, d along local z; used for nav blocking, raider collision and placement */
   const SIZE = {
-    keep: [4.2, 4.2], palisade: [0.5, 0.5], stone_wall: [0.5, 0.5], dirt: [0.5, 0.5], gate: [2, 0.5], stone_gate: [4, 1.5], blacksmith: [6, 4.5], cottage: [5, 3.5], gatehouse: [3.6, 1.6], watchtower: [1.5, 1.5], ember_brazier: [0.8, 0.8], fire_pot: [0.8, 0.8], farm: [3, 2.5], silo: [1.6, 1.6], coop: [1.6, 1.4], barn: [3.4, 2.6], market: [3.8, 2.6], market_stalls: [3.8, 2.6], market_pavilion: [3.8, 2.6], market_wagons: [3.8, 2.6], field: [0.5, 0.5],
+    keep: [4.2, 4.2], palisade: [0.5, 0.5], stone_wall: [0.5, 0.5], dirt: [0.5, 0.5], gate: [2, 0.5], stone_gate: [4, 1.5], blacksmith: [6, 4.5], cottage: [5, 3.5], gatehouse: [3.6, 1.6], watchtower: [1.5, 1.5], ember_brazier: [0.8, 0.8], fire_pot: [0.8, 0.8], farm: [3, 2.5], silo: [1.6, 1.6], coop: [1.6, 1.4], barn: [3.4, 2.6], market: [1, 1], market_stalls: [3.8, 2.6], market_pavilion: [3.8, 2.6], market_wagons: [3.8, 2.6], field: [0.5, 0.5],
     woodcutter: [2.6, 2.2], quarry: [2.6, 2.2], mine: [2.6, 2.4], great_hall: [5.2, 3.2], chapel: [2.2, 2.6], storehouse: [2.8, 2.2],
     smithy: [3.2, 2.6], ember_forge: [1.8, 1.6], barracks: [4.2, 2.2],
   };
@@ -214,11 +214,16 @@
           k.box('crate', -1.7, 0, 1.05, 0.45, 0.42, 0.45, 0.4); k.box('crate', -1.2, 0, 1.1, 0.4, 0.36, 0.4); k.box('linen', -0.6, 0, 1.15, 0.3, 0.38, 0.26);
           break;
         }
-        case 'market': {   // an open stall: a counter, posts, a slanted awning, crates at the side
-          k.box('planks', 0, 0, 0.6, 3.4, 0.9, 0.7); k.box('timber', 0, 0.9, 0.6, 3.5, 0.08, 0.8);
-          for (const [x, z] of [[-1.7, 1.0], [1.7, 1.0], [-1.7, -1.1], [1.7, -1.1]]) k.box('timber', x, 0, z, 0.14, 2.4, 0.14);
-          k.box('shingle', 0, 2.25, 0, 3.9, 0.1, 2.8, 0, 0.18); k.box('roofSnow', 0, 2.38, 0, 3.8, 0.03, 2.7, 0, 0.18);
-          k.box('planks', 0, 0, -1.1, 3.4, 1.4, 0.1);
+        case 'market': {   // the marketplace's street front: four stalls along the hall, one per section (the hall stands behind them)
+          const stall = (cx, cloth, w = 1.5) => {
+            k.box('planks', cx, 0.7, 0.05, w, 0.08, 0.7); for (const lx of [-w / 2 + 0.05, w / 2 - 0.05]) { k.box('timber', cx + lx, 0, 0.35, 0.08, 1.85, 0.08); k.box('timber', cx + lx, 0, -0.55, 0.08, 2.15, 0.08); for (const lz of [-0.2, 0.3]) k.box('timber', cx + lx * 0.95, 0, lz, 0.06, 0.7, 0.06); }
+            const n = Math.round(w / 0.25); for (let q = 0; q < n; q++) { const x = cx - w / 2 + (q + 0.5) * (w / n); k.box(q % 2 ? 'linen' : cloth, x, 1.88, -0.12, w / n, 0.04, 1.15, 0, 0.3); k.box(q % 2 ? 'linen' : cloth, x, 1.72, 0.45, w / n, 0.18, 0.03); }
+          };
+          stall(-4.0, 'hay', 1.6); stall(-1.0, 'cloth'); stall(1.0, 'clothBlue'); stall(4.0, 'bark', 1.6);
+          k.box('linen', -4.6, 0, 0.6, 0.3, 0.38, 0.26); k.box('hay', -3.4, 0, 0.62, 0.4, 0.3, 0.3);            // wheat and bread
+          k.geo('wood', CYL8, -1.6, 0.3, 0.6, 0, 0, 0, 0.22, 0.6, 0.22); k.box('crate', -0.45, 0, 0.62, 0.36, 0.34, 0.34);   // meat and eggs
+          k.box('timber', 1.0, 0.78, -0.4, 1.3, 0.06, 0.06); for (let q = 0; q < 4; q++) k.box('iron', 0.55 + q * 0.3, 0.84, -0.4, 0.04, 0.6, 0.02);   // a rack of blades
+          for (let q = 0; q < 3; q++) k.geo('bark', CYL8, 4.0 - 0.5 + q * 0.5, 0.12, 0.75, 0, 0, Math.PI / 2, 0.12, 0.7, 0.12);   // the raw-materials yard: a log pile
           break;
         }
         case 'woodcutter': {

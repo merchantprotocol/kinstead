@@ -730,13 +730,13 @@
    "name": "Marketplace",
    "category": "trade",
    "cost": {
-    "wood": 30,
-    "stone": 20
+    "wood": 50,
+    "stone": 30
    },
    "requiresCastleLevel": 1,
    "castlePoints": 0,
    "hp": 400,
-   "effect": "Your storehouse and shop. Carts bring everything your town makes here, and you can watch the crates pile up.",
+   "effect": "A big market hall you can walk into, in four sections: wheat and bread, meat and eggs, weapons, raw materials. Street stalls out front fill up as your carts bring goods in.",
    "artPrompt": "Marketplace",
    "buildRequires": [
     "cottage"
