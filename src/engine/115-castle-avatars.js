@@ -107,11 +107,25 @@
     update(dt) {
       for (const r of this.by.values()) {
         const [x, y, front] = this.play.toScreen(r.a.x, r.a.y + (r.a.view.h || 1.6) + 0.35, r.a.z);
-        r.el.style.display = front ? '' : 'none';
-          r.el.style.transform = `translate(${Math.round(x)}px,${Math.round(y)}px) translate(-50%,-100%)`;
-        if (r.sayT > 0 && (r.sayT -= dt) <= 0) { r.el.classList.remove('talking');
-           r.el.querySelector('span').textContent = '';
-          }
+        this.placePlate(r, x, y, front);
+        if (r.sayT > 0 && (r.sayT -= dt) <= 0) {
+          r.el.classList.remove('talking');
+          r.el.querySelector('span').textContent = '';
+        }
+      }
+    }
+
+    /** DOM writes only on change: 30 plates every frame add up */
+    placePlate(r, x, y, front) {
+      const display = front ? '' : 'none';
+      if (r.display !== display) {
+        r.display = display;
+        r.el.style.display = display;
+      }
+      const transform = `translate(${Math.round(x)}px,${Math.round(y)}px) translate(-50%,-100%)`;
+      if (front && r.transform !== transform) {
+        r.transform = transform;
+        r.el.style.transform = transform;
       }
     }
     dispose() { this.clear();

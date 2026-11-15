@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 const engine = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'src/engine');
 const FILES = [
   '115-castle-net.js', '115-castle-mp-presence-sync.js', '115-castle-mp-world-sync.js', '115-castle-mp-store-sync.js',
-  '115-castle-mp-mob-sync.js', '115-castle-mp-locked-exits.js', '115-castle-mp-door-gate-sync.js',
+  '115-castle-mob-caster.js', '115-castle-mp-mob-sync.js', '115-castle-mp-locked-exits.js', '115-castle-mp-door-gate-sync.js',
   '115-castle-mp-combat-sync.js', '115-castle-mp-team-sync.js', '115-castle-mp-tribute-sync.js',
   '115-castle-mp-chat-sync.js', '115-castle-mp.js',
 ];
@@ -56,7 +56,7 @@ function load() {
       snapshot() {} relabel() {} flush() {} apply() {} reconcile() { return null; } },
     Avatars: FakeAvatars,
     RemoteStores: FakeRemoteStores,
-    RemoteMobs: class { update() {} dropOwner() {} dispose() {} find() { return null; } },
+    RemoteMobs: class { update() {} batch(m) { this.batched = m; } tick() {} dropOwner() {} dispose() {} find() { return null; } },
     FarmSync: class { apply() {} update() {} dispose() {} publish() {} updateOwner() {} },
     InviteBoard: class { constructor(owner) { this.owner = owner; this.renders = 0; } render() { this.renders++; } dispose() {} },
   };
@@ -109,9 +109,18 @@ test('every server message the old Multiplayer handled still has a listener', ()
   const { net } = setup();
   const types = ['join', 'house', 'pvphit', 'leave', 'resync', 'mobs', 'mobhurt', 'tick', 'op', 'farm', 'gate', 'door', 'hp',
     'locked', 'teams', 'invite', 'invites', 'declined', 'demand', 'paid', 'refused', 'fx', 'stores', 'store', 'stock', 'took',
-    'raided', 'evicted', 'weather', 'chat', 'welcome', 'offline'];
+    'raided', 'evicted', 'weather', 'chat', 'welcome', 'offline', 'mobz'];
   for (const type of types) assert.ok(net.handlers.has(type), `no listener for '${type}'`);
   assert.equal(net.handlers.get('leave').length, 2, 'leave drops the avatar and that player\'s creatures');
+});
+
+test('batched creature deltas reach RemoteMobs and a reconnect makes MobCaster resend everything', () => { // risk: invisible mobs after reconnect
+  const { net, mp } = setup();
+  net.emit('mobz', { from: 'ann', u: [[1, 2, 3]] });
+  assert.deepEqual(JSON.parse(JSON.stringify(mp.mobs.batched.u)), [[1, 2, 3]]);
+  mp.mobSync.caster.sent.set('wolf1', 'row');
+  net.emit('welcome', { players: [], stores: [] });
+  assert.equal(mp.mobSync.caster.sent.size, 0, 'the new server connection hears every creature again');
 });
 
 test('keys follow teams: you and teammates may use, strangers may not', () => { // risk: permissions

@@ -1,5 +1,5 @@
 /* Copyright (c) 2026 Merchant Protocol. All rights reserved. */
-/* MobSync: the creatures and townsfolk this game runs, told to everyone else, and blows struck across games. */
+/* MobSync: creatures across games. MobCaster sends ours, RemoteMobs shows theirs, and blows struck across games land here. */
 (function (G) {
   const K = G.K;
 
@@ -8,63 +8,26 @@
       this.mp = multiplayer;
       this.g = multiplayer.g;
       this.net = multiplayer.net;
-      this.castT = 0;
-      this.hadMobs = false;
+      this.caster = new K.MobCaster(multiplayer.g, multiplayer.net);
       this.net.on('mobs', (m) => this.mp.mobs.update(m.from, m.list || []));
+      this.net.on('mobz', (m) => this.mp.mobs.batch(m));
       this.net.on('mobhurt', (m) => this.onMobHurt(m));
       this.net.on('leave', (m) => this.mp.mobs.dropOwner(m.id));
     }
 
-    /** a few times a second */
+    /** a new connection: the server knows nothing about our creatures yet */
+    reset() {
+      this.caster.reset();
+    }
+
+    /** ours go out four times a second (only what changed); theirs step toward where they were last seen */
     update(dt) {
-      this.castT -= dt;
-      if (this.castT > 0) return;
-      this.castT = 0.2;
-      this.castMobs();
-    }
-
-    isTownsperson(actor) {
-      return !!actor.worker || (actor.role === 'npc' && String(actor.id).startsWith('kin:'));
-    }
-
-    isShared(actor) {
-      if (actor.remote || actor === this.g.play.me) return false;
-      if (this.isTownsperson(actor)) return true;
-      return !!actor.hostile && !!(actor.wolf || actor.bear || actor.thief || actor.gameKind);
-    }
-
-    kindOf(actor) {
-      if (this.isTownsperson(actor)) return 'person:' + actor.spriteId;
-      if (actor.gameKind) return actor.gameKind;
-      if (actor.bear) return 'bear';
-      return actor.wolf ? 'wolf' : 'raider';
-    }
-
-    describe(actor) {
-      const dir = actor.view.dir;
-      return [
-        actor.id,
-        this.kindOf(actor),
-        +actor.x.toFixed(2),
-        +actor.z.toFixed(2),
-        +(actor.y || 0).toFixed(2),
-        +Math.atan2(dir.z, dir.x).toFixed(2),
-        actor.alive ? actor.view.state : 'dead',
-        Math.round(actor.hp),
-        actor.hpMax,
-        actor.name,
-      ];
+      this.caster.update(dt);
+      this.mp.mobs.tick(dt);
     }
 
     castMobs() {
-      const list = [];
-      for (const actor of this.g.play.actors) {
-        if (!this.isShared(actor)) continue;
-        list.push(this.describe(actor));
-        if (list.length >= 40) break;
-      }
-      if (list.length || this.hadMobs) this.net.send({ t: 'mobs', list });
-      this.hadMobs = list.length > 0;
+      this.caster.cast();
     }
 
     /** you struck someone else's creature: its owner's game takes the blow */

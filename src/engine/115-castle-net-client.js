@@ -65,7 +65,7 @@
            } }, timer = setTimeout(() => fail('timed out'), 15000);
           // a busy or slow machine may take a while to answer
         const ws = (this.ws = new WebSocket(this.url));
-        ws.onopen = () => ws.send(JSON.stringify({ t: 'hello', cid: this.cid, name: this.name }));
+        ws.onopen = () => ws.send(JSON.stringify({ t: 'hello', cid: this.cid, name: this.name, mv: 2 }));   // mv 2: send me batched creature deltas ('mobz')
         ws.onerror = () => fail('connection failed');
         ws.onclose = () => { fail('closed');
            this.onClosed();

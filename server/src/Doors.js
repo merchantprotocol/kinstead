@@ -17,7 +17,7 @@ export class Doors {
     }
     const pc = this.world.pieces[m.id]; if (!pc) return;   // no distance rule: a gate shuts itself behind its owner from wherever they are
     if (!this.mayUse(p, pc.owner)) { this.send(this.wsOf(p), { t: 'locked', what: 'gate', id: m.id }); return; }
-    this.gates[m.id] = !!m.open; this.ver.p++; this.broadcast({ t: 'gate', id: m.id, open: !!m.open });
+    this.gates[m.id] = !!m.open; this.ver.g++; this.broadcast({ t: 'gate', id: m.id, open: !!m.open });
   }
 
   wsOf(p) { for (const [ws, q] of this.sockets) if (q === p) return ws; return null; }
@@ -29,7 +29,7 @@ export class Doors {
       const d = this.world.doors[m.slot], house = this.world.houses[m.slot]; if (!d || d.broken || this.mayUse(p, d.owner)) return;
       const c = this.cottage(m.slot); if (!this.near(p, c, 6)) return;
       d.hp = Math.max(0, d.hp - dmg); this.broadcast({ t: 'hp', slot: m.slot, hp: d.hp, max: d.hpMax });
-      if (d.hp <= 0) { d.broken = true; d.owner = null; this.ver.p++; this.broadcast({ t: 'door', slot: m.slot, broken: true, open: true }); }
+      if (d.hp <= 0) { d.broken = true; d.owner = null; this.ver.g++; this.broadcast({ t: 'door', slot: m.slot, broken: true, open: true }); }
       this.dirty = true; return;
     }
     const pc = this.world.pieces[m.id]; if (!pc || this.mayUse(p, pc.owner) || !this.near(p, pc, 5)) return;

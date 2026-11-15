@@ -3,10 +3,14 @@
 export class FarmSync {
   constructor(room) {
     this.room = room;
+    this.signatures = new Map();   // owner -> the last snapshot they sent, so an unchanged one costs nothing
   }
 
   snapshot(owner, data) {
     if (!data || !Array.isArray(data.fields) || !Array.isArray(data.herds)) return false;
+    const signature = JSON.stringify([data.fields.slice(0, 4000), data.herds.slice(0, 100), (data.goods || []).slice(0, 100)]);
+    if (this.signatures.get(owner) === signature) return null;   // nothing changed: no broadcast, no world version bump
+    this.signatures.set(owner, signature);
     const farms = this.room.world.farms || (this.room.world.farms = { fields: {}, herds: {}, goods: {} });
     farms.goods = farms.goods || {};
     for (const [id, field] of Object.entries(farms.fields)) {
@@ -50,7 +54,7 @@ export class FarmSync {
       if (Object.keys(clean).length) farms.goods[owner + ':' + piece] = { owner, piece, goods: clean };
     }
     this.room.dirty = true;
-    this.room.ver.p++;
+    this.room.ver.f++;
     const message = {
       t: 'farm', owner,
       fields: Object.values(farms.fields).filter((field) => field.owner === owner),

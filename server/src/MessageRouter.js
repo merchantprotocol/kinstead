@@ -18,7 +18,7 @@ export class MessageRouter {
       stock: () => this.onStock(p, m), take: () => this.onTake(p, m),
       fx: () => this.broadcast({ t: 'fx', from: p.id, fx: m.fx }, this.wsOf(p)),
       pvp: () => this.routePvp(p, m), sync: () => this.routeSync(ws, p, m),
-      mobs: () => this.broadcast({ t: 'mobs', from: p.id, list: (m.list || []).slice(0, 40) }, ws),
+      mobs: () => this.mobRelay.receive(p, m),
       mobhit: () => this.routeMobHit(ws, p, m), mobbite: () => this.routeMobBite(p, m),
       banner: () => this.onBanner(p, m), team: () => this.onTeam(p, m),
       farm: () => this.farmSync.snapshot(p.id, m.farm),
@@ -42,7 +42,7 @@ export class MessageRouter {
     }
     const slot = this.claim(cid, name);
     if (slot < 0) { this.send(ws, { t: 'full' }); return; }
-    Object.assign(p, { cid, id: cid.slice(0, 8), name, slot, x: ServerConfig.PLOTS[slot].x, z: ServerConfig.PLOTS[slot].z, joined: true });
+    Object.assign(p, { cid, id: cid.slice(0, 8), name, slot, mobsV2: m.mv === 2, mobView: null, x: ServerConfig.PLOTS[slot].x, z: ServerConfig.PLOTS[slot].z, joined: true });
     const save = await this.state.storage.get('save:' + cid);
     const evicted = this.plots[cid].evicted;
     if (evicted) { delete this.plots[cid].evicted; this.state.storage.put('plots', this.plots); }
@@ -54,6 +54,7 @@ export class MessageRouter {
       banners: this.allBanners(), clock: this.clock(), weather: this.weather(), respawn: this.validRespawn(p),
       stores: Object.values(this.stores), markets: Object.values(this.markets), sales: this.takeSales(p.id),
     });
+    this.resync.sent(p);
     this.broadcast({ t: 'join', p: this.pub(p) }, ws);
     this.pushBanners([p.id]);
     this.startTimer();
@@ -80,7 +81,7 @@ export class MessageRouter {
     door.broken = !!m.broken;
     if (!door.broken) door.hp = door.hpMax;
     this.broadcast({ t: 'door', slot: p.slot, broken: door.broken, open: door.broken ? true : undefined, hp: door.hp, max: door.hpMax }, null);
-    this.dirty = true; this.ver.p++;
+    this.dirty = true; this.ver.g++;
   }
 
   routeSave(p, m) {
@@ -106,15 +107,7 @@ export class MessageRouter {
   }
 
   routeSync(ws, p, m) {
-    const versions = m.v || {};
-    const out = { t: 'resync', ver: this.ver, players: this.online().filter((q) => q !== p).map((q) => this.pub(q)) };
-    if (versions.p !== this.ver.p) {
-      out.world = { pieces: this.world.pieces, buildings: this.world.buildings, doors: this.world.doors, farms: this.world.farms };
-      out.claimed = this.claimed(); out.gates = this.gates; out.teams = this.teamList();
-    }
-    if (versions.s !== this.ver.s) out.stores = Object.values(this.stores);
-    if (versions.t !== this.ver.t) { out.tiles = this.world.tiles; out.nodes = this.world.nodes; }
-    this.send(ws, out);
+    this.send(ws, this.resync.reply(p, m.v || {}));
   }
 
   routeMobHit(ws, p, m) {

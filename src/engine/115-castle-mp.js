@@ -42,6 +42,7 @@
 
     /** a (re)connection: take the server's clock, weather, players, land, farms and supplies */
     start(welcome, first) {
+      this.mobSync.reset();
       if (welcome.clock) {
         this.net.clock = welcome.clock;
         this.net.offset = welcome.clock.now - Date.now();

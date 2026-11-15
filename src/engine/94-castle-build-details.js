@@ -4,6 +4,12 @@
   const K = G.K;
 
   class BuildDetailsDialog {
+    static POPULATION = Object.freeze({ cottage: 1, woodcutter: 1, quarry: 1, farm: 1,
+      mill: 1, storehouse: 1, bakery: 1, barn: 1, market: 1 });
+    static FOOD_PRODUCERS = Object.freeze({ bakery: 'Bread feeds up to 12 people',
+      coop: 'Each chicken feeds 1 person', barn: 'Each cow produces milk for 1 person',
+      farm: 'Every 3 wheat fields feed 1 person' });
+
     constructor(ui) {
       this.ui = ui;
       this.castle = ui.c;
@@ -70,10 +76,19 @@
         <h3>Materials</h3>${this.materialRows(cost)}
         <p class="detail-verdict ${verdictClass}">${this.escape(verdict)}</p>
         <h3>What it does</h3>${this.production(data)}${this.payback(card)}${this.durability(data)}
-        ${this.effect(data, card)}${this.castlePoints(data)}
+        ${this.effect(data, card)}${this.populationImpact(card)}${this.castlePoints(data)}
         <p><b>Requirements:</b> ${requirements}</p>${priceRule}
         <button class="cb pri detail-build" data-detail-build ${canBuild ? '' : 'disabled'}>${button}</button>
       </div>`;
+    }
+
+    populationImpact(card) {
+      const mouths = BuildDetailsDialog.POPULATION[card.id];
+      const demand = mouths || 0;
+      const feeds = BuildDetailsDialog.FOOD_PRODUCERS[card.id] || '';
+      if (!mouths && !feeds) return '';
+      const impact = mouths ? `+${mouths} mouths (−${demand} food/min)` : '';
+      return `<p>${impact}${impact && feeds ? ' · ' : ''}${feeds}</p>`;
     }
 
     art(card) {
