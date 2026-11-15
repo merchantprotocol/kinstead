@@ -14,7 +14,12 @@
         "nodes": {},
         "buildings": {},
         "houses": {},
-        "doors": {}
+        "doors": {},
+        "farms": {
+          "fields": {},
+          "herds": {},
+          "goods": {}
+        }
       },
       "teams": [],
       "gates": {},
@@ -216,7 +221,12 @@
         "nodes": {},
         "buildings": {},
         "houses": {},
-        "doors": {}
+        "doors": {},
+        "farms": {
+          "fields": {},
+          "herds": {},
+          "goods": {}
+        }
       },
       "teams": [],
       "gates": {},

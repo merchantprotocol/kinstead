@@ -11,6 +11,7 @@ import { Teams } from './Teams.js';
 import { Doors } from './Doors.js';
 import { Tribute } from './Tribute.js';
 import { MessageRouter } from './MessageRouter.js';
+import { FarmSync } from './FarmSync.js';
 
 export default {
   async fetch(request, env) {
@@ -29,17 +30,18 @@ export class GameRoom {
   constructor(state, env) {
     this.state = state; this.env = env;
     this.sockets = new Map(); this.plots = {};
-    this.world = { pieces: {}, tiles: {}, nodes: {}, buildings: {}, houses: {}, doors: {} };
+    this.world = { pieces: {}, tiles: {}, nodes: {}, buildings: {}, houses: {}, doors: {}, farms: { fields: {}, herds: {}, goods: {} } };
     this.teams = {}; this.gates = {}; this.lastHit = {};
     this.epoch = Date.now(); this.seed = 7; this.respawns = {}; this.stores = {};
     this.markets = {}; this.sales = {}; this.storesDirty = false;
     this.lastPeriod = -1; this.ver = { p: 1, s: 1, t: 1 };
     this.banners = {}; this.invites = {}; this.dirty = false; this.loaded = false; this.timer = null;
-    const services = [PlayerRegistry, WorldState, ClockWeather, Markets, Stores, Banners, Teams, Doors, Tribute, MessageRouter];
+    const services = [PlayerRegistry, WorldState, ClockWeather, Markets, Stores, Banners, Teams, Doors, Tribute, FarmSync, MessageRouter];
     for (const Service of services) new Service().install(this);
     state.blockConcurrencyWhile(async () => {
       this.plots = (await state.storage.get('plots')) || {};
       const world = await state.storage.get('world'); if (world) this.world = Object.assign(this.world, world);
+      this.world.farms = Object.assign({ fields: {}, herds: {}, goods: {} }, this.world.farms || {});
       this.teams = (await state.storage.get('teams')) || {};
       const epoch = await state.storage.get('epoch');
       if (epoch) { this.epoch = epoch.epoch; this.seed = epoch.seed; }

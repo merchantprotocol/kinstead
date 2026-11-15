@@ -267,8 +267,9 @@
       for (const [id, kind, x, z, y, f, st, hp, hpMax, name] of list) {
         const k = this.key(from, id); let r = this.by.get(k);
         if (!r) {
-          const a = g.addActor({ id: 'mob:' + k, role: 'remote', spriteId: kind === 'bear' ? 'bear' : kind === 'wolf' ? 'wolf' : 'ranger', name: name || kind, x, z, hpMax: hpMax || 30, atk: 0, def: 0, speed: 3, cd: 1, reach: 1, r: kind === 'bear' ? 0.8 : 0.45, scale: 1, level: 1, info: { xp: 0, loot: [] } });
-          a.remote = true; a.hostile = true; a.mob = { owner: from, id }; if (kind === 'raider') a.view.setTint(0x6e4a42);
+          const worker = kind.startsWith('person:'), sprite = worker ? kind.slice(7) : kind === 'bear' ? 'bear' : kind === 'wolf' ? 'wolf' : 'ranger';
+          const a = g.addActor({ id: 'mob:' + k, role: 'remote', spriteId: sprite, name: name || kind, x, z, hpMax: hpMax || 30, atk: 0, def: 0, speed: 3, cd: 1, reach: 1, r: kind === 'bear' ? 0.8 : 0.45, scale: 1, level: 1, info: { xp: 0, loot: [] } });
+          a.remote = true; a.hostile = !worker; a.mob = { owner: from, id }; if (worker) a.worker = true; if (kind === 'raider') a.view.setTint(0x6e4a42);
           if (K.GAME_ANIMALS && K.GAME_ANIMALS[kind]) { a.view.dispose(); a.view = new K.AnimalView(g.R, kind); a.view.setPosition(x, y, z); a.gameKind = kind; a.r = K.GAME_ANIMALS[kind].r; }   // a deer, elk, bison or wild horse someone else's game runs
           r = { a, tx: x, tz: z, ty: y, f, st, seen: now }; a.brain = { update: (dt) => this.step(r, dt) }; this.by.set(k, r);
         }
@@ -311,7 +312,7 @@
 
   class Multiplayer {
     constructor(game, net) {
-      this.g = game; this.net = net; this.world = new RemoteWorld(game, net); this.avatars = new Avatars(game, net); this.stores = new RemoteStores(game, net); this.mobs = new RemoteMobs(game, net); this.lastSave = -1e9; this.ver = net.welcome.ver || {}; this.syncT = 8; this.mobT = 0; this.t = 0; this.chat = null;
+      this.g = game; this.net = net; this.world = new RemoteWorld(game, net); this.avatars = new Avatars(game, net); this.stores = new RemoteStores(game, net); this.mobs = new RemoteMobs(game, net); this.farms = new K.FarmSync(game, this); this.lastSave = -1e9; this.ver = net.welcome.ver || {}; this.syncT = 8; this.mobT = 0; this.t = 0; this.chat = null;
       net.on('join', (m) => { this.avatars.add(m.p); game.cui.toast(`${m.p.name} joined.`); });
       net.on('house', (m) => this.onHouse(m)); net.on('pvphit', (m) => this.onPvpHit(m)); game.banners.on(() => { this.avatars.relook(); this.world.relabel(); });
       net.on('leave', (m) => { const r = this.avatars.by.get(m.id); if (r) game.cui.toast(`${r.name} left.`); this.avatars.remove(m.id); });
@@ -319,6 +320,7 @@
       net.on('mobhurt', (m) => this.onMobHurt(m)); net.on('leave', (m) => this.mobs.dropOwner(m.id));
       net.on('tick', (m) => this.avatars.ticks(m.p));
       net.on('op', (m) => this.onOp(m));
+      net.on('farm', (m) => this.farms.updateOwner(m));
       net.on('gate', (m) => { this.world.gateState(m.id, m.open); this.mineGate(m.id, m.open); });
       net.on('door', (m) => this.onDoor(m)); net.on('hp', (m) => this.onHp(m));
       net.on('locked', (m) => game.cui.toast(m.what === 'door' ? 'The door is locked. Only its owner and their team have the key.' : 'The gate is locked. Only its owner and their team have the key.'));
@@ -333,7 +335,7 @@
       this.teams = (net.welcome.teams || []); this.invites = (net.welcome.invites || []).slice(); this.board = new InviteBoard(this); this.lastOpen = null; this.lastBroken = null; this.lastHit = 0;
       this.start(net.welcome, true); this.makeChatBox(); this.board.render();
     }
-    start(w, first) { if (w.clock) { this.net.clock = w.clock; this.net.offset = w.clock.now - Date.now(); } if (this.g.weather && w.weather) this.g.weather.setFromServer(w.weather); if (!first) this.avatars.clear(); for (const p of w.players || []) this.avatars.add(p); this.world.snapshot(w); this.syncStores(w.stores || []); if (!this.g.resume) this.net.send({ t: 'save', data: null }); }
+    start(w, first) { if (w.clock) { this.net.clock = w.clock; this.net.offset = w.clock.now - Date.now(); } if (this.g.weather && w.weather) this.g.weather.setFromServer(w.weather); if (!first) this.avatars.clear(); for (const p of w.players || []) this.avatars.add(p); this.world.snapshot(w); this.farms.apply(w.world && w.world.farms); this.syncStores(w.stores || []); if (!this.g.resume) this.net.send({ t: 'save', data: null }); }
     /** tell the server what you already have on your plot (a game from before multiplayer, or one saved on this device) */
     uploadMine() {
       const g = this.g, tiles = [], d = g.play.doc, h0 = g.persist.h0, t0 = g.persist.t0;
@@ -345,6 +347,7 @@
       for (let k = 0; k < d.height.length; k++) if (d.height[k] !== h0[k] || d.terrain[k] !== t0[k]) { tiles.push([k % d.w, (k / d.w) | 0, d.height[k], d.terrain[k]]); if (tiles.length >= 400) { this.op({ k: 'tiles', list: tiles.splice(0) }); } }
       if (tiles.length) this.op({ k: 'tiles', list: tiles });
       for (const e of g.forest.nodes) if (!g.forest.live(e)) this.op({ k: 'node', id: e.id, st: 'felled' });
+      this.farms.publish();
     }
     /** [phase index, seconds into it, day number] from the server's clock */
     cycleState() { const c = this.net.clock, tot = c.day + c.night, el = Math.max(0, (this.net.now() - c.epoch) / 1000), n = Math.floor(el / tot) + 1, tin = el % tot; return tin < c.day ? [0, tin, n] : [1, tin - c.day, n]; }
@@ -402,6 +405,7 @@
       if (m.players) { const ids = new Set(m.players.map((p) => p.id)); for (const p of m.players) this.avatars.add(p); for (const id of [...this.avatars.by.keys()]) if (!ids.has(id)) this.avatars.remove(id); }
       if (m.teams) this.setTeams(m.teams);
       const serverPieces = this.world.reconcile(m);
+      if (m.world && m.world.farms) this.farms.apply(m.world.farms);
       if (serverPieces) {   // anything of mine the server never heard about goes up again
         const have = new Set(serverPieces); for (const p of g.castle.pieces) if (!have.has(this.pieceId(p))) this.op({ k: 'piece+', id: this.pieceId(p), type: p.type, x: p.x, z: p.z, rot: p.rot || 0 });
         if (g.home.built && !(m.claimed || []).some((c) => c.slot === g.L.slot)) this.announceHome();
@@ -422,8 +426,10 @@
     castMobs() {
       const g = this.g, list = [];
       for (const a of g.play.actors) {
-        if (a.remote || a === g.play.me || !a.hostile || !(a.wolf || a.bear || a.thief || a.gameKind)) continue;
-        const d = a.view.dir; list.push([a.id, a.gameKind || (a.bear ? 'bear' : a.wolf ? 'wolf' : 'raider'), +a.x.toFixed(2), +a.z.toFixed(2), +(a.y || 0).toFixed(2), +Math.atan2(d.z, d.x).toFixed(2), a.alive ? a.view.state : 'dead', Math.round(a.hp), a.hpMax, a.name]);
+        const townsperson = !!a.worker || (a.role === 'npc' && String(a.id).startsWith('kin:'));
+        if (a.remote || a === g.play.me || (!townsperson && (!a.hostile || !(a.wolf || a.bear || a.thief || a.gameKind)))) continue;
+        const d = a.view.dir, kind = townsperson ? 'person:' + a.spriteId : a.gameKind || (a.bear ? 'bear' : a.wolf ? 'wolf' : 'raider');
+        list.push([a.id, kind, +a.x.toFixed(2), +a.z.toFixed(2), +(a.y || 0).toFixed(2), +Math.atan2(d.z, d.x).toFixed(2), a.alive ? a.view.state : 'dead', Math.round(a.hp), a.hpMax, a.name]);
         if (list.length >= 40) break;
       }
       if (list.length || this.hadMobs) this.net.send({ t: 'mobs', list }); this.hadMobs = list.length > 0;
@@ -433,7 +439,7 @@
     /** one of your creatures bit another player */
     mobBite(a, b) { this.net.send({ t: 'mobbite', to: b.pid, mob: a.id, name: a.name, dmg: Math.round(a.atk || 5) }); }
     onMobHurt(m) {
-      const g = this.g, a = g.play.actors.find((x) => x.id === m.id && !x.remote); if (!a || !a.alive) return;
+      const g = this.g, a = g.play.actors.find((x) => x.id === m.id && !x.remote); if (!a || !a.alive || !a.hostile) return;
       a.hp -= m.dmg; a.aggro = true; a.lastFight = g.play.t; g.play.float(a, String(m.dmg), 'dealt'); if (a.view.flash) a.view.flash('hit'); if (a.hp <= 0) g.play.kill(a);
     }
     /** you built your cottage: everyone gets to see it, and its door is yours */
@@ -459,6 +465,7 @@
         const p = this.g.castle.pieces.find((q) => this.pieceId(q) === op.id); if (p) { this.quiet = true; this.g.demolishPiece(p, { refund: false }); this.quiet = false; this.g.cui.toast('One of your walls was broken down!'); } return;
       }
       this.world.apply(op, m.from);
+      if (op.k === 'piece-') this.farms.herds.removePiece(op.id);
     }
     mineGate(id, open) { const p = this.g.castle.pieces.find((q) => q.bridge && this.pieceId(q) === id); if (p && p.bridge.open !== open) { p.bridge.open = open; p.bridge.apply(); } }
     gate(p, open) { this.net.send({ t: 'open', id: this.pieceId(p), open }); }
@@ -547,7 +554,7 @@
     op(o) { this.net.op(o); }
     pieceId(p) { return this.net.id + ':' + p.uid; }
     update(dt) {
-      this.t += dt; this.avatars.update(dt); this.world.flush(); this.stores.flush(); this.exits();
+      this.t += dt; this.avatars.update(dt); this.world.flush(); this.stores.flush(); this.farms.update(dt); this.exits();
       if ((this.syncT -= dt) <= 0) { this.syncT = 12; this.net.send({ t: 'sync', v: this.ver }); }   // catch up on anything missed
       if ((this.mobT -= dt) <= 0) { this.mobT = 0.2; this.castMobs(); }
       for (const r of this.world.doors.values()) r.door.update(dt);
@@ -568,7 +575,7 @@
     closeChat() { this.chat.hidden = true; this.chat.querySelector('input').value = ''; }
     key(e) { if (e.key === 'Enter' && this.chat.hidden) { this.chat.hidden = false; setTimeout(() => this.chat.querySelector('input').focus(), 0); return true; } return false; }
     get chatOpen() { return !this.chat.hidden; }
-    dispose() { this.net.close(); this.avatars.dispose(); this.mobs.dispose(); this.chat.remove(); this.board.dispose(); }
+    dispose() { this.net.close(); this.avatars.dispose(); this.mobs.dispose(); this.farms.dispose(); this.chat.remove(); this.board.dispose(); }
   }
 
   Object.assign(K, { Identity, NameGate, Net, RemoteWorld, RemoteStores, Avatars, InviteBoard, RemoteMobs, Multiplayer });

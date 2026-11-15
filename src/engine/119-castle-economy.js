@@ -46,16 +46,18 @@
     }
     key(i, j) { return i + ',' + j; }
     has(i, j) { return this.tiles.has(this.key(i, j)); }
-    add(i, j, age = 0) { if (this.tiles.size >= this.max) return false; this.tiles.set(this.key(i, j), { i, j, age }); this.dirty = true; return true; }
+    add(i, j, age = 0, owner = this.eco.ownerId || null) { if (this.tiles.size >= this.max) return false; this.tiles.set(this.key(i, j), { i, j, age, owner }); this.dirty = true; return true; }
     remove(i, j) { this.tiles.delete(this.key(i, j)); this.dirty = true; }
     stage(t) { return Math.min(2, Math.floor(t.age / (GROW / 3))); }
     /** grow everything; a square that turns ripe gives its wheat to the nearest farm with room */
     grow(dt) {
+      let changed = false;
       for (const t of this.tiles.values()) {
         const s0 = this.stage(t); t.age += dt;
-        if (t.age >= GROW) { const x = (t.i + 0.5) * TILE, z = (t.j + 0.5) * TILE, farm = this.eco.nearestFarm(x, z); if (farm && this.eco.ledger(farm).add('wheat', 1)) { t.age = 0; this.dirty = true; } else t.age = GROW; continue; }   // a full barn: it waits ripe
-        if (this.stage(t) !== s0) this.dirty = true;
+        if (t.age >= GROW && (!this.eco.ownerId || t.owner === this.eco.ownerId)) { const x = (t.i + 0.5) * TILE, z = (t.j + 0.5) * TILE, farm = this.eco.nearestFarm(x, z); if (farm && this.eco.ledger(farm).add('wheat', 1)) { t.age = 0; this.dirty = true; changed = true; } else t.age = GROW; continue; }
+        if (this.stage(t) !== s0) { this.dirty = true; changed = true; }
       }
+      if (changed) this.eco.changed('fields');
     }
     draw() {
       if (!this.dirty) return; this.dirty = false; const nav = this.eco.g.play.nav; let n = 0;
@@ -135,6 +137,7 @@
       if (h.length >= s.max) { g.cui.toast(`This ${p.type === 'coop' ? 'coop' : 'barn'} is full (${s.max} ${kind}s).`); return false; }
       if (!this.eco.takeWheat(s.price)) { g.cui.toast(`A ${kind} costs ${s.price} wheat. Grow more wheat first.`); g.sound.play('clank'); return false; }
       if (!this.spawn(kind, p)) { this.eco.ledger(p).add('wheat', s.price); g.cui.toast('There is no room around the building for it.'); return false; }
+      this.eco.changed('herds');
       g.sound.play('thunk'); if (!opts.quiet) g.cui.toast(`You bought a ${kind} (${h.length} now).`); g.changed(); return true;
     }
     butcher(p) {
@@ -142,7 +145,7 @@
       const got = this.eco.ledger(p).add('beef', 6); if (!got) { g.cui.toast('The barn has no room for the beef.'); return false; }
       this.remove(b); g.cui.toast(`You butchered a cow: ${got} beef in the barn.`); g.changed(); return true;
     }
-    remove(b) { const h = this.herds.get(b.home.uid); if (h) { const i = h.indexOf(b); if (i >= 0) h.splice(i, 1); } b.dispose(); }
+    remove(b) { const h = this.herds.get(b.home.uid); if (h) { const i = h.indexOf(b); if (i >= 0) h.splice(i, 1); } b.dispose(); this.eco.changed('herds'); }
     /** once a second: lay, milk, eat */
     tick(dt) {
       for (const b of this.all) {
@@ -185,7 +188,9 @@
   }
 
   class Economy {
-    constructor(game) { this.g = game; this.ledgers = new Map(); this.carts = []; this.piles = new Map(); this.fields = new Fields(this); this.t = 0; this.drawT = 0; this.vaults = new Map(); this.stock = new K.Livestock(this); }
+    constructor(game) { this.g = game; this.ledgers = new Map(); this.listeners = new Set(); this.ownerId = null; this.carts = []; this.piles = new Map(); this.fields = new Fields(this); this.t = 0; this.drawT = 0; this.vaults = new Map(); this.stock = new K.Livestock(this); }
+    onChange(listener) { this.listeners.add(listener); return () => this.listeners.delete(listener); }
+    changed(kind) { for (const listener of this.listeners) listener(kind); }
     get pieces() { return this.g.castle.pieces; }
     of(type) { return this.pieces.filter((p) => p.type === type); }
     ledger(p) {
@@ -215,7 +220,7 @@
       const blk = c.blocker('field'); if (blk) { if (!quiet) g.cui.toast(blk[0].toUpperCase() + blk.slice(1) + '.'); return false; }
       if (!c.spend(c.buildCost('field'))) { if (!quiet) g.cui.toast('You need wood to plough a field.'); return false; }
       const d = g.play.doc, [i, j] = d.tileOf(x, z), k = j * d.w + i; d.terrain[k] = K.T.DIRT; g.R.tilesChanged(i, j, i + 1, j + 1); if (g.tools.editor) g.tools.editor.version++;
-      this.fields.add(i, j, Math.random() * 20); g.xp.built('field'); g.sound.play('thunk'); g.changed(); return true;
+      this.fields.add(i, j, Math.random() * 20); this.changed('fields'); g.xp.built('field'); g.sound.play('thunk'); g.changed(); return true;
     }
     /* ---------- the day's work ---------- */
     update(dt) {
