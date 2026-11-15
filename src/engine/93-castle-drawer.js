@@ -35,7 +35,7 @@ const BUILDABLE = new Set(['dirt', 'palisade', 'gate', 'stone_wall', 'stone_gate
       return K.CastleUI.RES_ORDER.map((r) => {
         const full = c.amount(r) >= caps[r], rate = rates[r] || 0;
         return `<div class="res ${full ? 'full' : ''}" data-r="${r}" role="button" tabindex="0" title="${esc(K.CastleData.resName(r))}: ${c.amount(r)} of ${caps[r]}">${Ic.img(ICON[r], 1)}<b>${c.amount(r)}</b><small>/${caps[r]}</small>${rate ? `<i>+${rate}/min</i>` : ''}${full ? '<em>FULL</em>' : ''}</div>`;
-      }).join('') + (c.amount('troll_heart') ? `<div class="res heart">${Ic.img('heart', 1)}<b>Troll’s heart</b></div>` : '');
+      }).join('') + (c.amount('troll_heart') ? `<div class="res heart" data-r="troll_heart" role="button" tabindex="0">${Ic.img('heart', 1)}<b>Troll’s heart</b></div>` : '');
     }
     chips(cost) { const ICON = K.CastleUI.ICON; return Object.entries(cost).map(([r, k]) => `<span class="chip ${this.c.amount(r) >= k ? '' : 'bad'}">${K.Icons.img(ICON[r], 1)}${k}</span>`).join(''); }
     row(x) {
