@@ -54,6 +54,8 @@
   }
 
   class PlayMode {
+    /** action ids that only show information: they belong on right click, never on a left (action) click */
+    static INFO_ACTIONS = new Set(['inspect']);
     constructor(app) {
       this.app = app; this.reg = K.Interactions; this.items = new K.ItemCatalog(); this.active = false; this.player = null; this.flags = new Set();
       this.ext = null;   // an optional game mode layered on play (K.CastleGame): it gets enter/exit/update/input hooks
@@ -304,7 +306,9 @@
     rightClick(sx, sy) {
       if (!this.me.alive) return;
       this.ui.close('ctx'); this.ui.close('card'); this.ui.tip(null);
-      const e = this.pick(sx, sy); if (!e || e === this.me) { if (this.ext && this.ext.rightClick) this.ext.rightClick(sx, sy); return; }   // empty ground: a game mode may use it (drop a pile)
+      const e = this.pick(sx, sy);
+      if (e === this.me) { if (!(this.ext && this.ext.rightClick && this.ext.rightClick(sx, sy))) this.ui.toggleHud(); return; }   // right-click yourself: your gear and bag
+      if (!e) { if (this.ext && this.ext.rightClick) this.ext.rightClick(sx, sy); return; }   // empty ground: a game mode may use it (drop a pile)
       if (e.remote && !this.reg.has(e.type) && this.ext && this.ext.playerMenu) { this.ext.playerMenu(e); return; }   // right-click another player: invite, demand tribute
       const acts = this.reg.actions(e, this); if (acts.length) this.ui.openMenu(e, acts, sx, sy);
     }
@@ -315,15 +319,17 @@
       this.lastClick = dbl ? null : { t: now, sx, sy };
       this.ui.close('ctx'); this.ui.close('card'); this.ui.tip(null);
       let e = this.pick(sx, sy);
-      if (e === this.me) { this.ui.toggleHud(); return; }
+      if (e === this.me) e = null;   // clicking yourself walks to the ground under the cursor (right-click yourself for your gear)
       const up = this.rampartClick(sx, sy, e);
       if (up) e = null;
       if (up && dbl && this.me.path) { this.me.run = true; return; }
       if (up) { this.walkTo(up.x, up.z, dbl, true); return; }
       if (e) {
-        const acts = this.reg.actions(e, this);
-        if (acts.length) { this.doAction(e, acts[0], dbl); return; }   // Diablo: one click does the main action (walk over, then chop / mine / attack / talk)
-        return;
+        // Left click is for playing: the main action only (walk over, then chop / mine / attack / talk).
+        // Info-only actions (Inspect and the like) live on the right-click menu, never on a left click.
+        const acts = this.reg.actions(e, this).filter(a => !PlayMode.INFO_ACTIONS.has(a.id));
+        if (acts.length) { this.doAction(e, acts[0], dbl); return; }
+        // nothing to do with it: walk there instead of swallowing the click
       }
       const p = this.app.pickGround(sx, sy); if (!p) return;
       if (dbl && this.me.path) { this.me.run = true; return; }   // second click of a double-click: same target, now running
@@ -343,7 +349,7 @@
         if (ent && ent.view && ent.view.setHighlight && ent !== this.me) ent.view.setHighlight(0x6f7280);
         this.ov.ring(this.ov.hov, ent && ent !== this.me ? ent : null, ent ? this.reg.color(ent) : 0xffffff);
       }
-      if (ent === this.me) { el.style.cursor = Icons.cursor('bag', 'pointer'); this.ui.tip('<b>You</b> · click for gear and bag', sx, sy); return; }
+      if (ent === this.me) { el.style.cursor = Icons.cursor('bag', 'pointer'); this.ui.tip('<b>You</b> · right-click for gear and bag', sx, sy); return; }
       if (ent) {
         const acts = this.reg.actions(ent, this), spec = this.reg.get(ent.type), nm = spec && spec.name ? spec.name(ent) : ent.name;
         el.style.cursor = Icons.cursor(this.reg.cursor(ent, this), 'pointer');
