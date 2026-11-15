@@ -77,13 +77,14 @@
     }
 
     populationImpact(card) {
-      const mouths = { cottage: 1, bunkhouse: 0, woodcutter: 1, quarry: 1, farm: 1, mill: 1, storehouse: 1,
-        bakery: 1, coop: 1, barn: 1, market: 1 }[card.id];
-      if (!mouths) return '';
-      const demand = mouths;
+      const mouths = { cottage: 1, woodcutter: 1, quarry: 1, farm: 1, mill: 1, storehouse: 1,
+        bakery: 1, barn: 1, market: 1 }[card.id];
+      const demand = mouths || 0;
       const feeds = { bakery: 'Bread feeds up to 12 people', coop: 'Each chicken feeds 1 person',
         barn: 'Each cow produces milk for 1 person', farm: 'Every 3 wheat fields feed 1 person' }[card.id] || '';
-      return `<p>+${mouths} mouths (−${demand} food/min)${feeds ? ` · ${feeds}` : ''}</p>`;
+      if (!mouths && !feeds) return '';
+      const impact = mouths ? `+${mouths} mouths (−${demand} food/min)` : '';
+      return `<p>${impact}${impact && feeds ? ' · ' : ''}${feeds}</p>`;
     }
 
     art(card) {

@@ -1901,5 +1901,24 @@
     "subject": "a large heart-shaped stone of frost-blue rock cracked open with warm red-gold light inside"
    }
   ]
+ },
+ "townFood": {
+  "secondsPerRation": 60,
+  "rationOrder": [
+   "bread",
+   "beef",
+   "egg",
+   "milk",
+   "food",
+   "wheat"
+  ],
+  "unitsPerRation": {
+   "bread": 1,
+   "beef": 1,
+   "egg": 2,
+   "milk": 2,
+   "food": 1,
+   "wheat": 3
+  }
  }
 }

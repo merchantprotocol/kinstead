@@ -8,7 +8,8 @@
       this.economy = economy;
       this.elapsed = 0;
       this.emptyFor = 0;
-      this.rationOrder = ['bread', 'beef', 'egg', 'milk', 'food', 'wheat'];
+      this.policy = K.CASTLE_DATA.townFood;
+      this.rationOrder = this.policy.rationOrder;
     }
 
     get game() { return this.economy.g; }
@@ -21,9 +22,10 @@
       const sources = this.sources();
       let fed = 0;
       for (let person = 0; person < personCount; person++) {
-        const source = this.rationOrder.find((good) => sources.amount(good) >= 1);
+        const source = this.rationOrder.find((good) =>
+          sources.amount(good) >= this.policy.unitsPerRation[good]);
         if (!source) break;
-        sources.take(source);
+        sources.take(source, this.policy.unitsPerRation[source]);
         fed++;
       }
       this.emptyFor = fed === personCount ? 0 : this.emptyFor + 60;
@@ -35,7 +37,7 @@
       const castle = this.game.castle;
       return {
         amount: (good) => this.amount(good),
-        take: (good) => this.take(castle, good),
+        take: (good, amount) => this.take(castle, good, amount),
       };
     }
 
@@ -46,21 +48,21 @@
       return amount;
     }
 
-    take(castle, good) {
-      if (castle.amount(good) > 0) {
-        castle.stores[good]--;
+    take(castle, good, amount) {
+      if (castle.amount(good) >= amount) {
+        castle.stores[good] -= amount;
         return true;
       }
       for (const piece of this.economy.pieces) {
-        if (this.economy.ledger(piece).take(good, 1)) return true;
+        if (this.economy.ledger(piece).take(good, amount)) return true;
       }
       return false;
     }
 
     update(dt) {
       this.elapsed += dt;
-      while (this.elapsed >= 60) {
-        this.elapsed -= 60;
+      while (this.elapsed >= this.policy.secondsPerRation) {
+        this.elapsed -= this.policy.secondsPerRation;
         this.consume();
       }
     }
@@ -77,9 +79,11 @@
       const netWheat = Math.max(0, fieldWheat - milk);
       const bread = Math.min(bakeries * 12, netWheat / 1.5);
       const wheatLeft = Math.max(0, netWheat - bread * 1.5);
-      const made = (rates.food || 0) + eggs + milk + bread + wheatLeft;
+      const policy = this.policy.unitsPerRation;
+      const made = (rates.food || 0) / policy.food + eggs / policy.egg + milk / policy.milk + bread + wheatLeft / policy.wheat;
       const eaten = this.population;
-      const available = this.rationOrder.reduce((total, good) => total + this.amount(good), 0);
+      const available = this.rationOrder.reduce((total, good) =>
+        total + this.amount(good) / this.policy.unitsPerRation[good], 0);
       return { made, eaten, minutesLeft: eaten ? available / eaten : Infinity, population: this.population,
         starving: this.starving() };
     }

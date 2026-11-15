@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-const K = {};
+const K = { CASTLE_DATA: JSON.parse(readFileSync(new URL('../src/data/game-data-castle.json', import.meta.url), 'utf8')) };
 const context = { K, globalThis: { K } };
 vm.runInNewContext(readFileSync(new URL('../src/engine/119b-castle-food-demand.js', import.meta.url), 'utf8'), context);
 
@@ -21,13 +21,13 @@ class FoodFixture {
 test('rations consume preferred food for each resident and player once per minute', () => {
   // risk: data accuracy — household consumption must include every worker plus the hero and use food preference order.
   const game = new FoodFixture();
-  game.castle.stores.wheat = 2;
+  game.castle.stores.wheat = 3;
   const result = game.food.consume();
   assert.equal(result.fed, 3);
   assert.equal(result.hungry, 0);
   assert.equal(game.castle.stores.bread, 0);
   assert.equal(game.castle.stores.beef, 0);
-  assert.equal(game.castle.stores.wheat, 1);
+  assert.equal(game.castle.stores.wheat, 0);
 });
 
 test('empty stores progress from slow work to stopped work and recover when fed', () => {
