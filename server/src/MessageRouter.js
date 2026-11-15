@@ -45,7 +45,8 @@ export class MessageRouter {
     Object.assign(p, { cid, id: cid.slice(0, 8), name, slot, mobsV2: m.mv === 2, mobView: null, x: ServerConfig.PLOTS[slot].x, z: ServerConfig.PLOTS[slot].z, joined: true });
     const save = await this.state.storage.get('save:' + cid);
     const evicted = this.plots[cid].evicted;
-    if (evicted) { delete this.plots[cid].evicted; this.state.storage.put('plots', this.plots); }
+    if (evicted) delete this.plots[cid].evicted;
+    this.touch(cid);
     this.send(ws, {
       t: 'welcome', id: p.id, slot, evicted: !!evicted, max: ServerConfig.MAX_PLAYERS,
       players: this.online().filter((q) => q !== p).map((q) => this.pub(q)), claimed: this.claimed(), world: this.world,

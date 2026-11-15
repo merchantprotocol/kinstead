@@ -1,4 +1,5 @@
 import { ServerConfig } from './ServerConfig.js';
+import { PieceHp } from './PieceHp.js';
 
 // Copyright (c) 2026 Merchant Protocol. All rights reserved.
 export class WorldState {
@@ -9,7 +10,7 @@ export class WorldState {
     if (op.k === 'piece+') { const old = w.pieces[op.id];
     if (old && !this.mayUse(p,
     old.owner)) return false;
-    const hpMax = ServerConfig.HP[op.type] || ServerConfig.HP.default;
+    const hpMax = PieceHp.shared.of(op.type);
     w.pieces[op.id] = { id: op.id,
     type: op.type,
     x: op.x,
