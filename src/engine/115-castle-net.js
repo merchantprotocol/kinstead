@@ -73,7 +73,7 @@
     op(o) { this.send({ t: 'op', op: o }); }
     close() { this.closed = true; try { this.ws.close(); } catch (e) { /* already closed */ } }
   }
-  Net.DEFAULT = '';   // set to the deployed realtime server, e.g. wss://kinstead-rooms.<account>.workers.dev (or pass ?server=…)
+  Net.DEFAULT = 'wss://kinstead-rooms.merchantprotocol.workers.dev';   // set to the deployed realtime server, e.g. wss://kinstead-rooms.<account>.workers.dev (or pass ?server=…)
 
   /** other people's edits, applied to your map */
   class RemoteWorld {
