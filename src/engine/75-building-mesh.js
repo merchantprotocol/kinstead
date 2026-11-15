@@ -732,19 +732,18 @@
       if (this.smoke) this.smoke.update(t, viewH); if (this.embers) this.embers.update(t, viewH);
     }
     labels() { return this.list.flatMap((b) => b.labels); }
-    /* one-line hookup for K.WorldRenderer: adds the group, feeds building lights into the shared light pool every frame */
+    /* hookup for K.WorldRenderer: adds the group; the renderer calls frame() from its update */
     attach(R) {
       R.scene.add(this.group); this.R = R;
-      const upd = R.update.bind(R), self = this;
-      R.update = function (t, camera, viewH, target, dist, pitch) {
-        // dt from the app clock (so stepped/test time also drives the roof fades), clamped for frame hitches
-        const dt = self._lastT != null ? Math.max(0, Math.min(0.1, t - self._lastT)) : 0.016; self._lastT = t;
-        self.update(t, dt, camera, viewH);
-        const base = this.lightSrc.filter((s) => !s.building);
-        this.lightSrc = base.concat(self.lightSources());
-        return upd(t, camera, viewH, target, dist, pitch);
-      };
       return this;
+    }
+    /* per frame, before the renderer lights the world: animate buildings and feed their lights into the shared pool */
+    frame(t, camera, viewH, R) {
+      // dt from the app clock (so stepped/test time also drives the roof fades), clamped for frame hitches
+      const dt = this.lastT != null ? Math.max(0, Math.min(0.1, t - this.lastT)) : 0.016;
+      this.lastT = t;
+      this.update(t, dt, camera, viewH);
+      R.lightSrc = R.lightSrc.filter((s) => !s.building).concat(this.lightSources());
     }
   }
 
