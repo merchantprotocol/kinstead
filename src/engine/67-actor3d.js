@@ -153,6 +153,7 @@
           const want = Math.atan2(this.dir.x, this.dir.z); let d = want - this.yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
           if (st !== 'dead') this.yaw += d * Math.min(1, dt * (st === 'run' ? 14 : 10));
           this.anim.apply(this.state, this.stateT, t, Math.min(dt, 0.05));
+          if (this.poser) this.poser.pose(this, t);   // a worker's trade on top of the base pose (hammering, stirring, carrying a sack…)
           let lunge = 0;
           if (this.state === 'attack') { const p = Math.min(1, this.stateT / 0.42); lunge = p < 0.35 ? -0.04 * (p / 0.35) : p < 0.6 ? -0.04 + 0.2 * ((p - 0.35) / 0.25) : 0.16 * (1 - (p - 0.6) / 0.4); }
           else if (this.state === 'hurt') lunge = -0.07 * Math.max(0, 1 - this.stateT / 0.25);
@@ -194,6 +195,7 @@
     Archer: { sprite: 'archer', tint: null }, Stablehand: { sprite: 'stablehand', tint: null }, Storekeeper: { sprite: 'storekeeper', tint: null },
     Henwife: { sprite: 'henwife', tint: null }, Cowherd: { sprite: 'cowherd', tint: null }, Baker: { sprite: 'baker', tint: null },
     Butcher: { sprite: 'butcher', tint: null }, Alchemist: { sprite: 'alchemist', tint: null },
+    Miller: { sprite: 'storekeeper', tint: null },
   };
   Object.assign(K, { VoxelActorViews, VoxelRoles, VoxelModelCache, OrbitDemo, OrbitButton, ContactShadow });
 })(typeof window !== 'undefined' ? window : globalThis);

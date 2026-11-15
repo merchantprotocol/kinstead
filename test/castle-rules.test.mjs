@@ -200,3 +200,11 @@ test('goals: an objective finished early drops out of the goal list', () => {   
   assert.deepEqual(ids, ['o2', 'o4', 'o5']);
   assert.equal(c.currentGoals(20).some((o) => o.id === 'o3'), false);
 });
+
+test('demolition refund includes half the actual Level 2 upgrade cost', () => { // risk: money
+  const c = fresh(); c.hearthCap = 5; give(c, { wood: 1000, stone: 1000 });
+  assert.equal(c.build('gatehouse').ok, true); assert.equal(c.build('woodcutter').ok, true);
+  const lodge = c.pieces.find((p) => p.type === 'woodcutter'); assert.equal(c.cl(), 2);
+  assert.equal(c.upgrade(lodge).ok, true);
+  assert.deepEqual({ ...c.refundFor(lodge) }, { wood: 55, stone: 35 });
+});

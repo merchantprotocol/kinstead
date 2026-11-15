@@ -23,6 +23,7 @@ export class WorldState {
     if (pc && !this.mayUse(p,
     pc.owner)) return false;
     delete w.pieces[op.id];
+    for (const [id, herd] of Object.entries((w.farms || {}).herds || {})) if (herd.piece === op.id) delete w.farms.herds[id];
     delete this.gates[op.id];
     }
     else if (op.k === 'tile') w.tiles[op.i + ',' + op.j] = [op.i, op.j, op.h, op.te];

@@ -121,6 +121,19 @@
       },
       interact: { type: 'bed', label: 'Bed', actions: [{ id: 'sleep', label: 'Sleep (8 h · full health)' }, { id: 'rest', label: 'Rest 1 hour' }] },
     },
+    /** a two-high bunk bed for the bunkhouse: workers sleep here at night (no interaction: it is theirs, not yours) */
+    bunk: {
+      name: 'Bunk bed', group: 'Bedroom', size: [2, 3],
+      build(k) {
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) k.box('timber', sx * 0.44, 0, sz * 0.68, 0.08, 1.62, 0.08);
+        for (const y of [0.18, 0.96]) {
+          k.box('wood', 0, y, 0, 0.9, 0.08, 1.42); k.box('linen', 0, y + 0.08, 0, 0.82, 0.1, 1.34);
+          k.box('cloth', 0, y + 0.18, 0.16, 0.86, 0.05, 0.92); k.box('linen', 0, y + 0.18, -0.5, 0.5, 0.09, 0.24);
+          for (const sz of [-1, 1]) k.box('wood', 0, y + 0.2, sz * 0.7, 0.86, 0.14, 0.04);
+        }
+        for (let i = 0; i < 4; i++) k.box('timber', 0.46, 0.35 + i * 0.22, 0.6, 0.05, 0.04, 0.22);   // ladder rungs
+      },
+    },
     wardrobe: {
       name: 'Wardrobe', group: 'Bedroom', size: [2, 1],
       build(k) {

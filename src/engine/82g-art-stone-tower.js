@@ -16,6 +16,7 @@
       for (const [sx, sz] of K.RampartPlan.DOORS) this.doorHead(k, sx * (HALF - GAP / 2), sz * (HALF - GAP / 2), top);
       this.stair(k);
       this.deck(k, top);
+      this.bowman(k, top);
       return k;
     }
     /* one face wall between the two corner doors, f quarter turns round the tower */
@@ -43,6 +44,30 @@
         }
       }
     }
+
+    /* a visible archer holds the lookout on the stone tower's open deck */
+    bowman(k, top) {
+      const y = top + 0.2;
+      k.box('paintBlue', 0.24, y + 0.42, -0.12, 0.2, 0.42, 0.16);
+      k.box('paintWhite', 0.24, y + 0.78, -0.12, 0.19, 0.19, 0.19);
+      k.box('paintRed', 0.24, y + 0.91, -0.12, 0.24, 0.07, 0.22);
+      k.box('paintBlue', 0.12, y + 0.43, -0.02, 0.1, 0.34, 0.1, 0, 0, -0.45);
+      k.box('woodDark', -0.08, y + 0.45, 0.12, 0.04, 0.82, 0.04, 0, 0, -0.2);
+      k.box('woodLight', -0.02, y + 0.46, 0.12, 0.025, 0.68, 0.025);
+    }
+
+
+    /* a visible archer holds the lookout on the stone tower's open deck */
+    bowman(k, top) {
+      const y = top + 0.2;
+      k.box('paintBlue', 0.24, y + 0.42, -0.12, 0.2, 0.42, 0.16);
+      k.box('paintWhite', 0.24, y + 0.78, -0.12, 0.19, 0.19, 0.19);
+      k.box('paintRed', 0.24, y + 0.91, -0.12, 0.24, 0.07, 0.22);
+      k.box('paintBlue', 0.12, y + 0.43, -0.02, 0.1, 0.34, 0.1, 0, 0, -0.45);
+      k.box('woodDark', -0.08, y + 0.45, 0.12, 0.04, 0.82, 0.04, 0, 0, -0.2);
+      k.box('woodLight', -0.02, y + 0.46, 0.12, 0.025, 0.68, 0.025);
+    }
+
     /* the open deck, its hatch over the stair head, a merlon on each corner and a pennant */
     deck(k, top) {
       k.box('stoneMid', 0, top - 0.16, 0, 1.6, 0.1, 1.6);                // corbel band

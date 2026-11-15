@@ -21,6 +21,7 @@ export class MessageRouter {
       mobs: () => this.broadcast({ t: 'mobs', from: p.id, list: (m.list || []).slice(0, 40) }, ws),
       mobhit: () => this.routeMobHit(ws, p, m), mobbite: () => this.routeMobBite(p, m),
       banner: () => this.onBanner(p, m), team: () => this.onTeam(p, m),
+      farm: () => this.farmSync.snapshot(p.id, m.farm),
       open: () => this.onOpen(p, m), hit: () => this.onHit(p, m), install: () => this.onInstall(p, m),
       demand: () => this.onTribute(p, m), pay: () => this.onTribute(p, m),
       refuse: () => this.onTribute(p, m), ping: () => this.send(ws, { t: 'pong', n: m.n }),
@@ -108,7 +109,7 @@ export class MessageRouter {
     const versions = m.v || {};
     const out = { t: 'resync', ver: this.ver, players: this.online().filter((q) => q !== p).map((q) => this.pub(q)) };
     if (versions.p !== this.ver.p) {
-      out.world = { pieces: this.world.pieces, buildings: this.world.buildings, doors: this.world.doors };
+      out.world = { pieces: this.world.pieces, buildings: this.world.buildings, doors: this.world.doors, farms: this.world.farms };
       out.claimed = this.claimed(); out.gates = this.gates; out.teams = this.teamList();
     }
     if (versions.s !== this.ver.s) out.stores = Object.values(this.stores);

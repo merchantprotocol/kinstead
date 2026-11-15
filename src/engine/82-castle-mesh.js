@@ -29,7 +29,7 @@
   /* piece footprints (m): w along the piece's local x, d along local z; used for nav blocking, raider collision and placement */
   const SIZE = {
     keep: [4.2, 4.2], palisade: [0.5, 0.5], stone_wall: [0.5, 0.5], stone_tower: [1.5, 1.5], dirt: [0.5, 0.5], gate: [2, 0.5], stone_gate: [4, 1.5], blacksmith: [6, 4.5], cottage: [5, 3.5], gatehouse: [3.6, 1.6], watchtower: [1.5, 1.5], ember_brazier: [0.8, 0.8], fire_pot: [0.8, 0.8], farm: [3, 2.5], silo: [1.6, 1.6], coop: [1.6, 1.4], barn: [3.4, 2.6], market: [1, 1], market_stalls: [3.8, 2.6], market_pavilion: [3.8, 2.6], market_wagons: [3.8, 2.6], field: [0.5, 0.5],
-    woodcutter: [2.6, 2.2], quarry: [2.6, 2.2], mine: [2.6, 2.4], great_hall: [5.2, 3.2], chapel: [2.2, 2.6], storehouse: [2.8, 2.2],
+    woodcutter: [2.6, 2.2], quarry: [2.6, 2.2], mine: [2.6, 2.4], great_hall: [5.2, 3.2], chapel: [2.2, 2.6], storehouse: [4.8, 2.6],
     smithy: [3.2, 2.6], ember_forge: [1.8, 1.6], barracks: [4.2, 2.2],
   };
 
@@ -45,10 +45,14 @@
       const k = painter ? painter.draw(kit, opts) || kit : this.draw(kit, type, opts);
       const g = new THREE.Group(); g.name = 'castle:' + type;
       for (const m of kit.meshes(this.mats)) g.add(m);
+      if (kit.roof) g.userData.roof = this.part(g, 'roof', kit.roof);   // a roof you can stand under: it lifts away when you do
+      if (kit.spin) { g.userData.spin = this.part(g, 'spin', kit.spin.kit); g.userData.spin.position.set(...kit.spin.at); }   // turns while someone works it
       if (k && k.flames) for (const f of k.flames) g.add(this.flame(f));
       if (opts.level >= 2 && !opts.ruin) this.levelFlag(g, type);
       return g;
     }
+    /** a separately movable part of a piece (its roof, its millstone) drawn from its own kit */
+    part(g, name, kit) { const grp = new THREE.Group(); grp.name = name; for (const m of kit.meshes(this.mats)) grp.add(m); g.add(grp); return grp; }
     flame([x, y, z, s]) {
       const m = new THREE.Mesh(new THREE.ConeGeometry(0.16 * s, 0.5 * s, 6), new THREE.MeshBasicMaterial({ color: new THREE.Color(3.2, 1.6, 0.5) }));
       m.position.set(x, y + 0.25 * s, z); m.userData.flame = true; return m;

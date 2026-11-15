@@ -304,7 +304,7 @@
    "requiresCastleLevel": 1,
    "castlePoints": 4,
    "hp": 300,
-   "effect": "A lookout with a bowman. It shoots wolves, bears and raiders within 12 m, day and night. Needs a quarry.",
+   "effect": "A lookout with a bowman. It shoots wolves, bears and raiders within 24 m, day and night. Needs a quarry.",
    "artPrompt": "a tall square timber watchtower on a stone base with a roofed archer platform and a ladder",
    "dps": 4,
    "dpsManned": 6,
@@ -909,6 +909,24 @@
     "storehouse"
    ],
    "description": "Full of books"
+  },
+  "bunkhouse": {
+   "id": "bunkhouse",
+   "name": "Bunkhouse",
+   "category": "building",
+   "cost": {
+    "wood": 120,
+    "stone": 60
+   },
+   "requiresCastleLevel": 1,
+   "castlePoints": 0,
+   "hp": 400,
+   "effect": "Bunks for your townsfolk. At dusk your workers walk in and sleep here; at dawn they walk out to work.",
+   "artPrompt": "a long timber bunkhouse with a thatched roof, rows of wooden bunk beds and a stove inside",
+   "buildRequires": [
+    "cottage"
+   ],
+   "description": "Where your workers sleep at night"
   }
  },
  "keepUpgrade": {
