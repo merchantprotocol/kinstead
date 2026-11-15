@@ -43,7 +43,7 @@
         for (const y of [0.42, 1.12]) k.geo('rope', CYL8, x, y, 0.02, 0, 0, 0, 0.09, 0.06, 0.09);
       }
       // Each connected arm is a short rail that meets the neighbouring tile exactly; the centre logs form the post.
-      for (const [bit, x, z, sx, sz, ry] of [[1, 0, -0.19, 0.14, 0.28, 0], [2, 0.19, 0, 0.28, 0.14, Math.PI / 2], [4, 0, 0.19, 0.14, 0.28, 0], [8, -0.19, 0, 0.28, 0.14, Math.PI / 2]]) if (mask & bit) {
+      for (const [bit, x, z, sx, sz, ry] of [[1, 0, -0.15, 0.14, 0.2, 0], [2, 0.15, 0, 0.2, 0.14, Math.PI / 2], [4, 0, 0.15, 0.14, 0.2, 0], [8, -0.15, 0, 0.2, 0.14, Math.PI / 2]]) if (mask & bit) {
         for (const y of [0.36, 1.06]) {
           k.box('woodDark', x, y, z, sx, 0.1, sz, 0, ry);
           k.box('woodLight', x, y + 0.08, z, sx, 0.045, sz, 0, ry);
