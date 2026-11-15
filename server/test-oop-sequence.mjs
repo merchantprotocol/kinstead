@@ -11,6 +11,8 @@ class FakeSocket {
 class RoomHarness {
   constructor() {
     this.records = new Map();
+    // pin the room's weather seed so the welcome/weather messages are deterministic (seed 1 = 'clear' in period 0)
+    this.records.set('epoch', { epoch: Date.now(), seed: 1 });
     const storage = {
       get: async (key) => this.records.get(key),
       put: (key, value) => this.records.set(key, value),
