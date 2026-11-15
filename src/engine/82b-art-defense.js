@@ -32,17 +32,23 @@
 
   const ART = {
     /* a stockade run: three fresh-cut logs per tile, pale sharpened points, rope lashings, rails behind */
-    palisade(k) {
+    palisade(k, opts = {}) {
+      const mask = opts.wallMask || 0;
       k.box('roofBrown', 0, 0, 0, 0.5, 0.06, 0.42);                                       // packed earth along the foot
-      const logs = [[-0.167, 1.46, 'woodMid'], [0, 1.6, 'woodLight'], [0.167, 1.5, 'woodMid']];
+      const logs = [[-0.075, 1.46, 'woodMid'], [0.075, 1.6, 'woodLight']];
       for (const [x, h, mat] of logs) {
         k.geo(mat, CYL8, x, h / 2, 0.02, 0, 0.3, 0, 0.083, h, 0.083, 0.5, 1);
         k.geo('paintWhite', CONE6, x, h + 0.14, 0.02, 0, 0, 0, 0.083, 0.28, 0.083);      // pale fresh-cut point
         k.geo('woodDark', CYL8, x, h - 0.01, 0.02, 0, 0.3, 0, 0.086, 0.03, 0.086);         // bark ring under the point
         for (const y of [0.42, 1.12]) k.geo('rope', CYL8, x, y, 0.02, 0, 0, 0, 0.09, 0.06, 0.09);
       }
-      for (const y of [0.36, 1.06]) k.box('woodDark', 0, y, -0.11, 0.5, 0.1, 0.07);          // rails on the inside
-      for (const y of [0.36, 1.06]) k.box('ironDark', 0, y + 0.03, -0.152, 0.06, 0.04, 0.02); // a nail plate per tile
+      // Each connected arm is a short rail that meets the neighbouring tile exactly; the centre logs form the post.
+      for (const [bit, x, z, sx, sz, ry] of [[1, 0, -0.19, 0.14, 0.28, 0], [2, 0.19, 0, 0.28, 0.14, Math.PI / 2], [4, 0, 0.19, 0.14, 0.28, 0], [8, -0.19, 0, 0.28, 0.14, Math.PI / 2]]) if (mask & bit) {
+        for (const y of [0.36, 1.06]) {
+          k.box('woodDark', x, y, z, sx, 0.1, sz, 0, ry);
+          k.box('woodLight', x, y + 0.08, z, sx, 0.045, sz, 0, ry);
+        }
+      }
     },
 
     /* a curtain wall run: pale dressed blocks in staggered courses, a walkway slab and one merlon per tile */

@@ -331,12 +331,24 @@
       p.ent.name = this.data.piece(p.type).name + (p.level >= 2 ? ' · Level 2' : ''); return p.ent;
     }
     pieceRadius(p) { const [w, d] = CastleArt.size(p.type); return Math.max(w, d) / 2; }
+    wallPieces() { return [...this.castle.pieces, ...[...(this.net && this.net.pieces ? this.net.pieces.values() : [])].map((r) => r.p)]; }
+    wallMask(p, pieces = this.wallPieces()) { return K.WallConnections ? K.WallConnections.mask(p, pieces) : 0; }
+    refreshWallConnections(changedPiece = null) {
+      const pieces = this.wallPieces(), walls = pieces.filter((p) => !p.broken && (p.type === 'palisade' || p.type === 'stone_wall') && (!changedPiece || (Math.abs(p.x - changedPiece.x) + Math.abs(p.z - changedPiece.z) <= 0.51)));
+      for (const p of walls) {
+        const opts = { level: p.level || 1, wallMask: this.wallMask(p, pieces) };
+        const local = this.castle.pieces.includes(p), rec = !local && this.net && [...this.net.pieces.values()].find((r) => r.p === p);
+        if (local) this.redrawPiece(p, opts);
+        else if (rec) { this.group.remove(rec.mesh); rec.mesh = this.art.piece(p.type, opts); this.place(rec.mesh, p.x, p.z, 0); rec.mesh.userData.piece = p; }
+      }
+    }
     addPieceMesh(p) {
-      const m = this.art.piece(p.type, { level: p.level }); this.place(m, p.x, p.z, p.rot); this.meshes.set('p' + p.uid, m); m.userData.piece = p;
+      const opts = { level: p.level }; if (p.type === 'palisade' || p.type === 'stone_wall') opts.wallMask = this.wallMask(p);
+      const m = this.art.piece(p.type, opts); this.place(m, p.x, p.z, p.type === 'palisade' || p.type === 'stone_wall' ? 0 : p.rot); this.meshes.set('p' + p.uid, m); m.userData.piece = p;
       if (p.frosted || this.castle.isFrosted(p)) this.setFrost(p, true);
       if (K.Breacher.GATES.has(p.type) && !p.bridge) p.bridge = p.type === 'gate' ? new K.WoodGate(this, p) : new K.Drawbridge(this, p);
       if (K.Breacher.GATES.has(p.type) && this.flags) { const lx = p.type === 'gate' ? 1.05 : 2.25; this.flags.flag('g' + p.uid, p.x + lx * Math.cos(p.rot || 0), p.z - lx * Math.sin(p.rot || 0), this.banners.meId, p.type === 'gate' ? 2.6 : 3.8); }   // your colours on your gate
-      this.blockPiece(p); return m;
+      this.blockPiece(p); if (['palisade', 'stone_wall', 'gate', 'stone_gate', 'stone_tower'].includes(p.type)) this.refreshWallConnections(p); return m;
     }
     /* a piece's footprint blocks the ground (walls a hair longer so a run of them has no gaps) */
     /* tiles wolves may never step on: the house, and every gate (you walk through a gate; a wolf does not) */
@@ -377,11 +389,11 @@
       if (this.flags) this.flags.unflag('g' + p.uid);
       this.unblockRect(p.x, p.z, this.walls.handles(p.type) ? w + 0.04 : w, d, p.rot); if (K.Breacher.GATES.has(p.type)) this.gateTilesOf(p).forEach((k) => this.gateTiles.delete(k));
       for (const q of c.pieces) if (Math.hypot(q.x - p.x, q.z - p.z) < Math.max(w, d) + 6) this.blockPiece(q);   // a neighbour sharing a corner tile keeps it blocked
-      this.sound.play('crack'); this.shake(0.12); this.puff(p.x, p.z); fx.burst(p.type === 'stone_wall' || p.type === 'stone_gate' ? 'stone' : 'wood', p.x, y + 0.6, p.z, 12, 3.2);
+      this.refreshWallConnections(p); this.sound.play('crack'); this.shake(0.12); this.puff(p.x, p.z); fx.burst(p.type === 'stone_wall' || p.type === 'stone_gate' ? 'stone' : 'wood', p.x, y + 0.6, p.z, 12, 3.2);
       if (opts.refund !== false) for (const [res, n] of Object.entries(r.refund)) { const k = Math.min(n, 6); for (let i = 0; i < k; i++) fx.spawnPickup(res, Math.floor(n / k) + (i < n % k ? 1 : 0), p.x + (Math.random() - 0.5) * w * 0.5, y + 0.6, p.z + (Math.random() - 0.5) * d, 2.6, true); }
       this.play.refreshProps(); this.changed(); return true;
     }
-    redrawPiece(p) { const old = this.meshes.get('p' + p.uid); if (old) this.group.remove(old); const m = this.art.piece(p.type, { level: p.level }); this.place(m, p.x, p.z, p.rot); this.meshes.set('p' + p.uid, m); m.userData.piece = p; if (this.castle.isFrosted(p)) this.setFrost(p, true); return m; }
+    redrawPiece(p, opts = { level: p.level }) { const old = this.meshes.get('p' + p.uid); if (old) this.group.remove(old); if (p.type === 'palisade' || p.type === 'stone_wall') opts = { ...opts, wallMask: this.wallMask(p) }; const m = this.art.piece(p.type, opts); this.place(m, p.x, p.z, p.type === 'palisade' || p.type === 'stone_wall' ? 0 : p.rot); this.meshes.set('p' + p.uid, m); m.userData.piece = p; if (this.castle.isFrosted(p)) this.setFrost(p, true); return m; }
     setFrost(p, on) {
       const m = this.meshes.get('p' + p.uid); if (!m) return; const cur = m.children.find((c) => c.userData.frost);
       if (on && !cur) { const f = this.art.frostShell(p.type); f.userData.frost = true; m.add(f); } else if (!on && cur) m.remove(cur);
@@ -749,7 +761,7 @@
       p.hp -= n; this.sound.play('hit');
       const m = this.meshes.get('p' + p.uid); if (m) { m.userData.shake = 0.25; }
       this.play.ui.float(p.x, 1.6, p.z, '-' + n, 'hurt');
-      if (p.hp <= 0 && !p.broken) { p.broken = true; if (m) m.visible = false; this.puff(p.x, p.z); this.cui.toast(`A ${this.data.piece(p.type).name.toLowerCase()} is broken! (It rebuilds free at dawn.)`); }
+      if (p.hp <= 0 && !p.broken) { p.broken = true; if (m) m.visible = false; this.refreshWallConnections(p); this.puff(p.x, p.z); this.cui.toast(`A ${this.data.piece(p.type).name.toLowerCase()} is broken! (It rebuilds free at dawn.)`); }
     }
     hurtKeep(n) {
       const r = this.raid; if (!r || r.lost) return; r.keepHp -= n; this.play.ui.float(this.L.keep.x, 4.5, this.L.keep.z, '-' + n, 'hurt'); this.sound.play('hit');
@@ -795,7 +807,7 @@
     }
     onDawn(night) {
       const c = this.castle; c.flags.add('dawn:' + night.id); c.thawAtDawn();
-      for (const p of c.pieces) { p.hp = this.pieceHpMax(p); if (p.broken) { p.broken = false; const m = this.meshes.get('p' + p.uid); if (m) { m.visible = true; this.pop(m, 0.5); } } }
+      for (const p of c.pieces) { p.hp = this.pieceHpMax(p); if (p.broken) { p.broken = false; const m = this.meshes.get('p' + p.uid); if (m) { m.visible = true; this.pop(m, 0.5); } } } this.refreshWallConnections();
       for (const z of this.data.raw.zones) if (z.opensAfter === night.id && !c.zoneOpen(z.id)) { c.flags.add('zone:' + z.id); this.openBarrier(z.id); }
       for (const p of c.pieces) this.setFrost(p, c.isFrosted(p));
       this.play.refreshProps();

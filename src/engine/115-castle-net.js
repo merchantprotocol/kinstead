@@ -152,11 +152,11 @@
       const m = g.art.piece(p.type, { level: 1 }); g.place(m, p.x, p.z, p.rot); const [w, d] = K.CastleArt.size(p.type), rec = { p, mesh: m, w, d, hp: p.hp, hpMax: p.hpMax, gate: null };
       if (K.Breacher.GATES.has(p.type)) { const o = { x: p.x, z: p.z, rot: p.rot || 0, type: p.type, uid: 'r' + p.id }; rec.gate = p.type === 'gate' ? new K.WoodGate(g, o) : new K.Drawbridge(g, o); rec.gate.remote = true; rec.gate.apply(); const lx = p.type === 'gate' ? 1.05 : 2.25; g.flags.flag('rg' + p.id, p.x + lx * Math.cos(p.rot || 0), p.z - lx * Math.sin(p.rot || 0), p.owner, p.type === 'gate' ? 2.6 : 3.8); }   // their gate: shut to you unless you hold the key
       else g.blockRect(p.x, p.z, g.walls.handles(p.type) ? w + 0.04 : w, d, p.rot, false);
-      this.pieces.set(p.id, rec); if (p.type === 'fire_pot') g.R.placeDynamics();
+      this.pieces.set(p.id, rec); if (p.type === 'fire_pot') g.R.placeDynamics(); if (['palisade', 'stone_wall', 'gate', 'stone_gate', 'stone_tower'].includes(p.type)) g.refreshWallConnections(p);
     }
     removePiece(id) {
       const r = this.pieces.get(id); if (!r) return; this.g.group.remove(r.mesh); this.pieces.delete(id); if (r.gate) { r.gate.dispose(); this.g.flags.unflag('rg' + id); }
-      const g = this.g, p = r.p; g.unblockRect(p.x, p.z, K.Breacher.GATES.has(p.type) ? r.w : g.walls.handles(p.type) ? r.w + 0.04 : r.w, r.d, p.rot);
+      const g = this.g, p = r.p; g.unblockRect(p.x, p.z, K.Breacher.GATES.has(p.type) ? r.w : g.walls.handles(p.type) ? r.w + 0.04 : r.w, r.d, p.rot); if (['palisade', 'stone_wall', 'gate', 'stone_gate', 'stone_tower'].includes(p.type)) g.refreshWallConnections(p);
       for (const q of g.castle.pieces) if (Math.hypot(q.x - p.x, q.z - p.z) < 6) g.blockPiece(q);
       for (const o of this.pieces.values()) if (!o.gate && Math.hypot(o.p.x - p.x, o.p.z - p.z) < 6) g.blockRect(o.p.x, o.p.z, g.walls.handles(o.p.type) ? o.w + 0.04 : o.w, o.d, o.p.rot, false);
     }
