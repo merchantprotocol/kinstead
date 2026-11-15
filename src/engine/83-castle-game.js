@@ -596,7 +596,7 @@
       if (show || a.dmgAcc >= 4) { this.play.float(a, String(Math.round(a.dmgAcc)), src === 'glow' || src === 'burn' ? 'loot' : 'dealt'); a.dmgAcc = 0; a.view.flash('hit'); }
       if (a.hp <= 0) this.play.kill(a);
     }
-    onHurt() { this.xp.taken(); }
+    onHurt(a) { this.xp.taken(); this.sweep.defend(a); }
     onKill(a) {
       const c = this.castle; this.wild.onKill(a); this.xp.killed(a);
       if (a.raider) {

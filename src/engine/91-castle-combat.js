@@ -31,7 +31,7 @@
   }
 
   class SweepAttack {
-    constructor(game) { this.g = game; this.arc = new SwingArc(game.group); this.lastSwing = -9; this.lastClick = -9; }
+    constructor(game) { this.g = game; this.arc = new SwingArc(game.group); this.lastSwing = -9; this.lastClick = -9; this.guard = null; }
     get play() { return this.g.play; }
     /** the tool in hand decides how hard, how fast and how wide you can fight */
     get combat() { return this.g.tools.tool.combat; }
@@ -63,7 +63,16 @@
       if (P.t - this.lastSwing >= tool.combat.gap) this.swing(e);
       return true;
     }
-    update(dt) { this.arc.update(dt); }
+    /** you were hit: from now on you fight back at whoever did it, without a click (not while you are walking away) */
+    defend(attacker) { if (this.isFoe(attacker)) this.guard = { foe: attacker, until: this.play.t + 3 }; }
+    update(dt) {
+      this.arc.update(dt); const g = this.guard, P = this.play, me = P.me; if (!g) return;
+      if (!me.alive || P.t > g.until || !this.isFoe(g.foe)) { this.guard = null; return; }
+      if (me.path || P.t - this.lastSwing < this.combat.gap) return;                       // walking away, or still recovering
+      const d = P.dist(me, g.foe) - (g.foe.r || 0.3), tool = this.g.tools.tool;
+      if (tool.ranged && this.g.castle.amount('arrow') > 0) { if (d < 14) { this.g.tools.archery.shoot(g.foe.x, g.foe.z); this.lastSwing = P.t; } return; }
+      if (d <= this.combat.radius) { P.cancelChannel(); this.swing(g.foe); g.until = P.t + 3; }   // keeps going while it keeps fighting you
+    }
     dispose() { this.arc.dispose(); }
   }
 
