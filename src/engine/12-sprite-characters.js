@@ -17,25 +17,7 @@
       const b = [0, 0, 1, 1][f];            // breath: upper body drop
       const s = [0, 1, 1, 0][f];            // cape / fur sway
       const c = new this.SpriteCanvas(32, 48);
-      c.add(this.shapes.poly([[10,
-        17 + b],
-        [22,
-        17 + b],
-        [25,
-        40],
-        [22 + s,
-        44],
-        [16,
-        43],
-        [10 + s,
-        44],
-        [7.5,
-        40]],
-        1.5,
-        [0.1,
-        0]),
-        this.palette.redDark,
-        { bias: -0.05 });
+      c.add(this.shapes.poly([[10, 17 + b], [22, 17 + b], [25, 40], [22 + s, 44], [16, 43], [10 + s, 44], [7.5, 40]], 1.5, [0.1, 0]), this.palette.redDark, { bias: -0.05 });
       c.add(this.shapes.cap(13.6, 33, 12.8, 43, 2.3, 2.1), this.palette.steel, { bias: -0.05, spec: 0.9 });
       c.add(this.shapes.cap(18.4, 33, 19.4, 43, 2.3, 2.1), this.palette.steel, { bias: -0.12 });
       c.add(this.shapes.ell(12.2, 44.6, 3.2, 1.9), this.palette.leather);
@@ -51,53 +33,14 @@
       c.add(this.shapes.cap(8.6, 25 + b, 9.6, 29 + b, 2.2, 2.0), this.palette.steel);
       c.add(this.shapes.ell(9.4, 29.6 + b, 2.3, 2.1), this.palette.steel, { spec: 0.9 });
       // fur mantle
-      c.add(this.shapes.ell(16,
-        18.8 + b,
-        8.8,
-        4.3),
-        this.palette.fur,
-        { tex: this.furTexture(0.34,
-        5 + s),
-        clip: this.jaggedEdge(20.5 + b,
-        3,
-        9 + s),
-        dither: 0.2 });
+      c.add(this.shapes.ell(16, 18.8 + b, 8.8, 4.3), this.palette.fur, { tex: this.furTexture(0.34, 5 + s), clip: this.jaggedEdge(20.5 + b, 3, 9 + s), dither: 0.2 });
       // great helm
       c.add(this.shapes.ell(16, 6 + b, 4.3, 2.6), this.palette.steel, { spec: 0.9 });
       c.add(this.shapes.poly([[11.8, 5.6 + b], [20.2, 5.6 + b], [20.6, 14.4 + b], [11.4, 14.4 + b]], 2.2, [-0.05, 0], 0), this.palette.steel, { spec: 0.93 });
       c.add(this.shapes.cap(17, 4.2 + b, 21.8, 1.8 + b + s * 0.5, 1.5, 0.6), this.palette.red, { bias: 0.05 });
       // kite shield
-      c.add(this.shapes.poly([[18.2,
-        19.6 + b],
-        [28.2,
-        20 + b],
-        [28.2,
-        29 + b],
-        [23.2,
-        41 + b],
-        [18.2,
-        29.5 + b]],
-        1.4,
-        [0.12,
-        -0.05]),
-        this.palette.steel,
-        { spec: 0.9 });
-      c.add(this.shapes.poly([[19.6,
-        21 + b],
-        [26.8,
-        21.3 + b],
-        [26.8,
-        28.7 + b],
-        [23.2,
-        37.8 + b],
-        [19.6,
-        29.2 + b]],
-        1.2,
-        [0.12,
-        -0.05]),
-        this.palette.red,
-        { sep: false,
-        outline: false });
+      c.add(this.shapes.poly([[18.2, 19.6 + b], [28.2, 20 + b], [28.2, 29 + b], [23.2, 41 + b], [18.2, 29.5 + b]], 1.4, [0.12, -0.05]), this.palette.steel, { spec: 0.9 });
+      c.add(this.shapes.poly([[19.6, 21 + b], [26.8, 21.3 + b], [26.8, 28.7 + b], [23.2, 37.8 + b], [19.6, 29.2 + b]], 1.2, [0.12, -0.05]), this.palette.red, { sep: false, outline: false });
       return c.rasterizeAnd((d) => {
         const st = this.palette.steel, sv = this.palette.whiteFur;
         // visor slit + breaths + eye glint
@@ -112,21 +55,7 @@
         d.px(cx - 1, cy - 1, pale[1]); d.px(cx + 1, cy + 1, pale[2]); d.px(cx + 1, cy - 1, pale[1]); d.px(cx - 1, cy + 1, pale[2]);
         [[20, 22], [26, 22], [26, 28], [20, 28]].forEach(([x, y]) => d.px(x, y + b, st[5]));
         // tabard emblem stripe + hem
-        d.px(16,
-          24 + b,
-          this.palette.gold[3]);
-          d.px(15,
-          25 + b,
-          this.palette.gold[2]);
-          d.px(17,
-          25 + b,
-          this.palette.gold[2]);
-          d.px(16,
-          26 + b,
-          this.palette.gold[2]);
-          d.px(16,
-          25 + b,
-          this.palette.gold[4]);
+        d.px(16, 24 + b, this.palette.gold[3]); d.px(15, 25 + b, this.palette.gold[2]); d.px(17, 25 + b, this.palette.gold[2]); d.px(16, 26 + b, this.palette.gold[2]); d.px(16, 25 + b, this.palette.gold[4]);
         // belt buckle
         d.px(16, 31 + b, this.palette.gold[3]); d.px(17, 31 + b, this.palette.gold[2]);
         // mace flanges + spike
@@ -134,14 +63,7 @@
         d.px(3, 12, st[6]); d.px(3, 11, st[5]);
         // snow on helm top & mantle
         [[14, 4], [15, 4], [16, 4], [17, 3 + 1]].forEach(([x, y]) => d.has(x, y + b) && d.px(x, y + b, this.palette.snow[3]));
-        for (let x = 8; x < 24; x++) if (K.hash2(x,
-          3,
-          77) < 0.45) { const y = 15 + b + (x < 12 || x > 20 ? 1 : 0);
-          if (d.has(x,
-          y)) d.px(x,
-          y,
-          this.palette.snow[x % 3 ? 2 : 3]);
-          }
+        for (let x = 8; x < 24; x++) if (K.hash2(x, 3, 77) < 0.45) { const y = 15 + b + (x < 12 || x > 20 ? 1 : 0); if (d.has(x, y)) d.px(x, y, this.palette.snow[x % 3 ? 2 : 3]); }
         // knee + gauntlet highlights
         d.px(12, 37, st[6]); d.px(18, 37, st[5]); d.px(8, 28 + b, st[6]);
       });
@@ -152,61 +74,15 @@
       const c = new this.SpriteCanvas(32, 48);
       const fold = (x, y, v) => v + Math.sin(x * 1.35 + y * 0.08) * 0.09;
       c.add(this.shapes.cap(8.2, 46.5, 8.8, 9, 0.9, 1.0), this.palette.wood, { tex: (x, y, v) => v + (y % 7 === 0 ? -0.15 : 0) });
-      c.add(this.shapes.poly([[10.6,
-        18 + b],
-        [21.4,
-        18 + b],
-        [24.6 + s * 0.5,
-        43],
-        [21,
-        46],
-        [16,
-        45],
-        [11,
-        46],
-        [7.8 + s * 0.5,
-        43]],
-        1.6),
-        this.palette.robe,
-        { tex: fold });
-      c.add(this.shapes.poly([[8,
-        41.5],
-        [24.2 + s * 0.5,
-        41.5],
-        [24.8 + s * 0.5,
-        43.5],
-        [21,
-        46.2],
-        [16,
-        45.4],
-        [11,
-        46.2],
-        [7.4,
-        43.5]],
-        1.2,
-        [0,
-        -0.2]),
-        this.palette.whiteFur,
-        { tex: this.furTexture(0.3,
-        3 + s),
-        dither: 0.2 });
+      c.add(this.shapes.poly([[10.6, 18 + b], [21.4, 18 + b], [24.6 + s * 0.5, 43], [21, 46], [16, 45], [11, 46], [7.8 + s * 0.5, 43]], 1.6), this.palette.robe, { tex: fold });
+      c.add(this.shapes.poly([[8, 41.5], [24.2 + s * 0.5, 41.5], [24.8 + s * 0.5, 43.5], [21, 46.2], [16, 45.4], [11, 46.2], [7.4, 43.5]], 1.2, [0, -0.2]), this.palette.whiteFur, { tex: this.furTexture(0.3, 3 + s), dither: 0.2 });
       c.add(this.shapes.poly([[12, 27 + b], [20, 27 + b], [20.2, 29 + b], [11.8, 29 + b]], 0.7), this.palette.robeLight, { bias: 0.15 });
       c.add(this.shapes.cap(18.5, 29 + b, 19 + s * 0.4, 36, 0.8), this.palette.robeLight, { bias: 0.05 });
       // far arm raised with frost mote
       c.add(this.shapes.cap(21, 19.5 + b, 23.6, 25.5 + b, 2.2, 2.8), this.palette.robe, { bias: -0.05 });
       c.add(this.shapes.ell(24, 27.2 + b, 1.6, 1.5), this.palette.skinPale);
       // capelet
-      c.add(this.shapes.ell(16,
-        19.6 + b,
-        7.4,
-        4.6),
-        this.palette.robeLight,
-        { tex: (x,
-        y,
-        v) => v + Math.sin(x * 1.6) * 0.07,
-        clip: this.jaggedEdge(21 + b,
-        2,
-        4) });
+      c.add(this.shapes.ell(16, 19.6 + b, 7.4, 4.6), this.palette.robeLight, { tex: (x, y, v) => v + Math.sin(x * 1.6) * 0.07, clip: this.jaggedEdge(21 + b, 2, 4) });
       // staff arm
       c.add(this.shapes.cap(11, 19.5 + b, 9.4, 24 + b, 2.3, 2.8), this.palette.robe);
       c.add(this.shapes.ell(8.8, 25 + b, 1.7, 1.6), this.palette.skinPale);
@@ -217,21 +93,7 @@
       c.add(this.shapes.ell(15.5, 15 + b, 2.6, 1.9), this.palette.skinPale, { sep: false, outline: false, bias: -0.12 });
       // crystal head of staff (emissive)
       const cy = 6 - (pulse > 1 ? 1 : 0);
-      c.add(this.shapes.poly([[8.6,
-        cy - 5],
-        [11,
-        cy],
-        [8.6,
-        cy + 4.5],
-        [6.2,
-        cy]],
-        1.1,
-        [-0.2,
-        -0.1]),
-        this.palette.crystal,
-        { emis: true,
-        spec: 0.7,
-        bias: 0.1 });
+      c.add(this.shapes.poly([[8.6, cy - 5], [11, cy], [8.6, cy + 4.5], [6.2, cy]], 1.1, [-0.2, -0.1]), this.palette.crystal, { emis: true, spec: 0.7, bias: 0.1 });
       c.add(this.shapes.poly([[11.4, cy - 3], [12.8, cy - 0.5], [11.6, cy + 2], [10.4, cy - 0.5]], 0.8), this.palette.crystal, { emis: true, bias: 0.15 });
       c.add(this.shapes.poly([[5.4, cy - 1.5], [6.4, cy + 0.5], [5.4, cy + 2.6], [4.4, cy + 0.5]], 0.8), this.palette.crystal, { emis: true, bias: 0.05 });
       return c.rasterizeAnd((d) => {
@@ -239,42 +101,11 @@
         d.px(14, 13 + b, this.color('#a8f4ff'), true); d.px(17, 13 + b, this.color('#a8f4ff'), true);
         d.px(14, 12 + b, this.palette.hoodIn[2]); d.px(17, 12 + b, this.palette.hoodIn[2]);
         d.px(15, 16 + b, this.palette.skinPale[2]);
-        [[12,
-          13],
-          [12,
-          14],
-          [12,
-          15],
-          [13,
-          16],
-          [19,
-          13],
-          [19,
-          14],
-          [19,
-          15],
-          [18,
-          16]].forEach(([x,
-          y],
-          i) => d.px(x,
-          y + b,
-          this.palette.hair[i % 4 === 0 ? 3 : 2]));
+        [[12, 13], [12, 14], [12, 15], [13, 16], [19, 13], [19, 14], [19, 15], [18, 16]].forEach(([x, y], i) => d.px(x, y + b, this.palette.hair[i % 4 === 0 ? 3 : 2]));
         d.px(12, 16 + b, this.palette.hair[1]); d.px(19, 16 + b, this.palette.hair[1]);
         // hood rim highlight + frost brooch
         [[11, 8], [12, 6], [13, 5], [14, 5]].forEach(([x, y]) => d.px(x, y + b, this.palette.robe[5]));
-        d.px(16,
-          22 + b,
-          this.palette.crystal[5],
-          true);
-          d.px(15,
-          22 + b,
-          this.palette.crystal[3]);
-          d.px(17,
-          22 + b,
-          this.palette.crystal[3]);
-          d.px(16,
-          23 + b,
-          this.palette.crystal[2]);
+        d.px(16, 22 + b, this.palette.crystal[5], true); d.px(15, 22 + b, this.palette.crystal[3]); d.px(17, 22 + b, this.palette.crystal[3]); d.px(16, 23 + b, this.palette.crystal[2]);
         // staff claw prongs
         d.px(7, 10, this.palette.wood[3]); d.px(10, 10, this.palette.wood[2]); d.px(7, 9, this.palette.wood[2]); d.px(10, 9, this.palette.wood[1]);
         // core glints + floating motes
@@ -325,21 +156,7 @@
         [6, 8, 10].forEach((x) => d.px(x, 18 + b, this.palette.bone[3])); [7, 9].forEach((x) => d.px(x, 21 + b, this.palette.bone[2]));
         // claws on both hands
         const hx = Math.round(7 - a * 0.5), hy = Math.round(34.4 + b * 0.5);
-        d.px(hx - 2,
-          hy + 1,
-          this.palette.bone[3]);
-          d.px(hx - 3,
-          hy + 2,
-          this.palette.bone[2]);
-          d.px(hx - 1,
-          hy + 2,
-          this.palette.bone[3]);
-          d.px(hx - 1,
-          hy + 3,
-          this.palette.bone[1]);
-          d.px(hx + 1,
-          hy + 2,
-          this.palette.bone[2]);
+        d.px(hx - 2, hy + 1, this.palette.bone[3]); d.px(hx - 3, hy + 2, this.palette.bone[2]); d.px(hx - 1, hy + 2, this.palette.bone[3]); d.px(hx - 1, hy + 3, this.palette.bone[1]); d.px(hx + 1, hy + 2, this.palette.bone[2]);
         d.px(12 + a, 34, this.palette.bone[1]); d.px(13 + a, 35, this.palette.bone[1]); d.px(11 + a, 35, this.palette.bone[1]);
         // vertebrae along the hump + frost crust
         [[16, 10], [19, 9], [22, 10], [24, 13], [25, 16]].forEach(([x, y]) => { d.px(x, y + b, sk[6]); d.px(x + 1, y + b, sk[3]); });
@@ -365,68 +182,19 @@
       // ice crags (behind body silhouette, poke above)
       const crag = (x0, y0, x1, y1, w) => {
         const dx = x1 - x0, dy = y1 - y0, m = Math.hypot(dx, dy), px = (-dy / m) * w, py = (dx / m) * w;
-        c.add(this.shapes.poly([[x0 - px,
-          y0 - py],
-          [x0 + dx * 0.55 - px * 0.8,
-          y0 + dy * 0.55 - py * 0.8],
-          [x1,
-          y1],
-          [x0 + dx * 0.6 + px * 0.9,
-          y0 + dy * 0.6 + py * 0.9],
-          [x0 + px,
-          y0 + py]],
-          1.4,
-          [-0.1,
-          -0.1]),
-          this.palette.crystal,
-          { spec: 0.75,
-          outlineCol: this.color('#0a2238') });
+        c.add(this.shapes.poly([[x0 - px, y0 - py], [x0 + dx * 0.55 - px * 0.8, y0 + dy * 0.55 - py * 0.8], [x1, y1], [x0 + dx * 0.6 + px * 0.9, y0 + dy * 0.6 + py * 0.9], [x0 + px, y0 + py]], 1.4, [-0.1, -0.1]), this.palette.crystal, { spec: 0.75, outlineCol: this.color('#0a2238') });
       };
       crag(28, 26 + b, 25, 7 + b, 3.2); crag(37, 24 + b, 40.5, 4 + b, 3.6); crag(45, 28 + b, 54, 13 + b, 3.0);
       crag(32, 25 + b, 32.5, 12 + b, 2.4); crag(50, 34 + b, 58, 27 + b, 2.2); crag(22, 28 + b, 18, 17 + b, 2.0);
       // body
       c.add(this.shapes.ell(33, 38 + b, 17.5, 16.4), sk, { tex: mott, spec: 0.97 });
       c.add(this.shapes.ell(29, 46 + b, 12, 9.6), this.palette.trollBelly, { tex: mott, bias: 0.04 });
-      c.add(this.shapes.poly([[19.6,
-        50 + b],
-        [42.6,
-        50 + b],
-        [44.6,
-        58.5],
-        [38.6,
-        57.4],
-        [33,
-        60.6],
-        [27.6,
-        57.4],
-        [21.6,
-        58.6]],
-        1.4),
-        this.palette.fur,
-        { tex: this.furTexture(0.32,
-        8 + s),
-        dither: 0.2,
-        bias: -0.12,
-        clip: (x,
-        y) => y < 56 + Math.floor(K.hash2(x,
-        0,
-        12 + s) * 4) });
+      c.add(this.shapes.poly([[19.6, 50 + b], [42.6, 50 + b], [44.6, 58.5], [38.6, 57.4], [33, 60.6], [27.6, 57.4], [21.6, 58.6]], 1.4), this.palette.fur, { tex: this.furTexture(0.32, 8 + s), dither: 0.2, bias: -0.12, clip: (x, y) => y < 56 + Math.floor(K.hash2(x, 0, 12 + s) * 4) });
       c.add(this.shapes.poly([[19.6, 49.2 + b], [42.6, 49.2 + b], [42.6, 51.2 + b], [19.6, 51.2 + b]], 0.7), this.palette.leather);
       c.add(this.shapes.cap(25, 54, 22.6, 65.5, 6.6, 6), sk, { tex: mott });
       c.add(this.shapes.ell(21, 67.8, 8, 3.5), sk, { bias: -0.04 });
       // club behind the fist
-      c.add(this.shapes.cap(13.4,
-        44 + b,
-        7.5,
-        67,
-        3.0,
-        4.6),
-        this.palette.bark,
-        { tex: (x,
-        y,
-        v) => v + (y % 6 === 0 ? -0.18 : 0) + (K.hash2(x,
-        y >> 2,
-        3) - 0.5) * 0.12 });
+      c.add(this.shapes.cap(13.4, 44 + b, 7.5, 67, 3.0, 4.6), this.palette.bark, { tex: (x, y, v) => v + (y % 6 === 0 ? -0.18 : 0) + (K.hash2(x, y >> 2, 3) - 0.5) * 0.12 });
       // head
       c.add(this.shapes.ell(17, 26.4 + b, 7.8, 7.2), sk, { tex: mott, spec: 0.95 });
       c.add(this.shapes.ell(15.4, 22.8 + b, 6.6, 2.6), sk, { bias: 0.1, line: true });
@@ -452,22 +220,7 @@
         // snow on head/shoulders
         for (let x = 10; x < 52; x++) {
           for (let y = 5; y < 40; y++) {
-            if (d.has(x,
-              y) && !d.has(x,
-              y - 1)) { const p = d.partAt(x,
-              y);
-              if (p >= 0 && c.parts[p].pal === sk && K.hash2(x,
-              y,
-              9) < 0.6) { d.px(x,
-              y,
-              this.palette.snow[2]);
-              if (K.hash2(x,
-              y,
-              4) < 0.5) d.px(x,
-              y + 1,
-              this.palette.snow[1]);
-              } break;
-              }
+            if (d.has(x, y) && !d.has(x, y - 1)) { const p = d.partAt(x, y); if (p >= 0 && c.parts[p].pal === sk && K.hash2(x, y, 9) < 0.6) { d.px(x, y, this.palette.snow[2]); if (K.hash2(x, y, 4) < 0.5) d.px(x, y + 1, this.palette.snow[1]); } break; }
           }
         }
         // crag glints

@@ -33,48 +33,8 @@
       k.box('woodDark', bx, 1.42, front + 0.005, 0.5, 0.48, 0.02);
       for (const [y, h] of [[1.36, 0.06], [1.9, 0.06]]) k.box('paintWhite', bx, y, front + 0.02, 0.62, h, 0.04);
       for (const s of [-1, 1]) k.box('paintWhite', bx + s * 0.28, 1.36, front + 0.02, 0.06, 0.6, 0.04);
-      k.box('hay',
-        bx,
-        1.42,
-        front + 0.04,
-        0.46,
-        0.2,
-        0.14);
-        k.box('hay',
-        bx + 0.05,
-        1.62,
-        front + 0.02,
-        0.32,
-        0.1,
-        0.08);
-        k.box('wheatGold',
-        bx - 0.12,
-        1.42,
-        front + 0.12,
-        0.1,
-        0.08,
-        0.06);
-      k.box('woodDark',
-        bx,
-        2.13,
-        front + 0.12,
-        0.08,
-        0.08,
-        0.42);
-        k.box('rope',
-        bx,
-        1.75,
-        front + 0.29,
-        0.02,
-        0.38,
-        0.02);
-        k.box('ironDark',
-        bx,
-        1.7,
-        front + 0.28,
-        0.06,
-        0.06,
-        0.04);
+      k.box('hay', bx, 1.42, front + 0.04, 0.46, 0.2, 0.14); k.box('hay', bx + 0.05, 1.62, front + 0.02, 0.32, 0.1, 0.08); k.box('wheatGold', bx - 0.12, 1.42, front + 0.12, 0.1, 0.08, 0.06);
+      k.box('woodDark', bx, 2.13, front + 0.12, 0.08, 0.08, 0.42); k.box('rope', bx, 1.75, front + 0.29, 0.02, 0.38, 0.02); k.box('ironDark', bx, 1.7, front + 0.28, 0.06, 0.06, 0.04);
       // a side window and a small side door on the right wall
       K.FarmingArtHelpers.at(k, bx + W, 0, bz - 0.35, Math.PI / 2, () => K.FarmingArtHelpers.win(k, 0, 0.6, 0.01, 0.34, 0.34));
       K.FarmingArtHelpers.at(k, bx + W, 0, bz + 0.35, Math.PI / 2, () => K.FarmingArtHelpers.leaf(k, 0, 0.14, 0.01, 0.34, 0.8));
@@ -96,26 +56,7 @@
       // a plough on the right: beam, handles, iron share and mouldboard, front wheel
       K.FarmingArtHelpers.at(k, 1.2, 0, -0.4, 0, () => {
         k.box('woodMid', 0, 0.3, 0.1, 0.09, 0.09, 1.0, 0, -0.12);
-        for (const s of [-1,
-          1]) { k.box('woodMid',
-          s * 0.1,
-          0.4,
-          -0.52,
-          0.05,
-          0.05,
-          0.6,
-          s * 0.12,
-          0.7,
-          0);
-          k.box('woodLight',
-          s * 0.135,
-          0.6,
-          -0.74,
-          0.05,
-          0.05,
-          0.1,
-          s * 0.12);
-          }
+        for (const s of [-1, 1]) { k.box('woodMid', s * 0.1, 0.4, -0.52, 0.05, 0.05, 0.6, s * 0.12, 0.7, 0); k.box('woodLight', s * 0.135, 0.6, -0.74, 0.05, 0.05, 0.1, s * 0.12); }
         k.box('woodMid', 0, 0, -0.32, 0.07, 0.34, 0.07);   // the standard down to the share
         k.box('steel', 0, 0, -0.18, 0.12, 0.05, 0.36); k.box('steel', 0.08, 0.03, -0.3, 0.04, 0.2, 0.3, 0.45);   // share and mouldboard
         k.box('steel', 0, 0.06, 0.18, 0.025, 0.28, 0.06, 0, -0.3);   // coulter knife
@@ -130,50 +71,10 @@
         for (const s of [-1, 1]) { k.box('wheatGold', s * 0.31, 0.95, 0, 0.07, 0.07, 0.07); k.box('wheatGold', s * 0.33, 0.92, 0.02, 0.05, 0.04, 0.03); }
         k.box('wheatGold', 0, 0.6, 0, 0.12, 0.08, 0.2);
         k.box('canvas', 0, 1.08, 0, 0.22, 0.22, 0.2); k.box('wheatGold', 0, 1.06, 0, 0.26, 0.04, 0.24);
-        k.box('ironDark',
-          -0.05,
-          1.19,
-          0.101,
-          0.04,
-          0.04,
-          0.01);
-          k.box('ironDark',
-          0.05,
-          1.19,
-          0.101,
-          0.04,
-          0.04,
-          0.01);
-          k.box('paintOrange',
-          0,
-          1.15,
-          0.105,
-          0.03,
-          0.03,
-          0.02);
+        k.box('ironDark', -0.05, 1.19, 0.101, 0.04, 0.04, 0.01); k.box('ironDark', 0.05, 1.19, 0.101, 0.04, 0.04, 0.01); k.box('paintOrange', 0, 1.15, 0.105, 0.03, 0.03, 0.02);
         k.box('ironDark', 0, 1.12, 0.101, 0.12, 0.015, 0.01);
         k.box('straw', 0, 1.3, 0, 0.36, 0.03, 0.34); k.box('straw', 0, 1.33, 0, 0.2, 0.12, 0.2); k.box('paintRed', 0, 1.34, 0, 0.21, 0.035, 0.21);
-        k.box('ironDark',
-          -0.24,
-          1.05,
-          0,
-          0.06,
-          0.07,
-          0.11);
-          k.box('ironDark',
-          -0.24,
-          1.1,
-          0.06,
-          0.05,
-          0.05,
-          0.05);
-          k.box('paintYellow',
-          -0.24,
-          1.11,
-          0.095,
-          0.02,
-          0.02,
-          0.03);
+        k.box('ironDark', -0.24, 1.05, 0, 0.06, 0.07, 0.11); k.box('ironDark', -0.24, 1.1, 0.06, 0.05, 0.05, 0.05); k.box('paintYellow', -0.24, 1.11, 0.095, 0.02, 0.02, 0.03);
       });
       new K.WorkShedArt(k).draw('farm');   // an open hay shed in front of the barn, where the farmer forks the hay
     }
@@ -206,19 +107,7 @@
         const a = i / N * Math.PI * 2, sa = Math.sin(a), ca = Math.cos(a);
         k.box('paintRed', sa * R, H0, ca * R, seg(R + 0.05), H1 - H0, 0.1, a);
         k.box('bookRed', sa * (R + 0.05), H0, ca * (R + 0.05), 0.015, H1 - H0, 0.01, a);   // stave seams
-        for (const y of [0.45,
-          1.15,
-          1.85,
-          2.55,
-          3.12]) k.box('paintWhite',
-          sa * (R + 0.06),
-          y,
-          ca * (R + 0.06),
-          seg(R + 0.075),
-          0.07,
-          0.03,
-          a);
-          // white hoops
+        for (const y of [0.45, 1.15, 1.85, 2.55, 3.12]) k.box('paintWhite', sa * (R + 0.06), y, ca * (R + 0.06), seg(R + 0.075), 0.07, 0.03, a);   // white hoops
       }
       // roof: a silver-grey dome cap with a vent
       k.geo('paintWhite', CYL, 0, H1 + 0.03, 0, 0, 0, 0, 0.8, 0.06, 0.8);
@@ -238,31 +127,7 @@
       // a big gold wheat-sheaf sign, front-right, at eye height
       K.FarmingArtHelpers.at(k, 0, 0, 0, 0.56, () => {
         k.box('paintWhite', 0, 1.0, R + 0.06, 0.48, 0.56, 0.03); k.box('signBoard', 0, 1.03, R + 0.075, 0.42, 0.5, 0.03);
-        for (const s of [-2,
-          -1,
-          0,
-          1,
-          2]) { k.box('wheatGold',
-          s * 0.03,
-          1.08,
-          R + 0.1,
-          0.022,
-          0.26,
-          0.02,
-          0,
-          0,
-          s * 0.14);
-          k.box('gold',
-          s * 0.055,
-          1.32,
-          R + 0.105,
-          0.045,
-          0.12,
-          0.02,
-          0,
-          0,
-          s * 0.14);
-          }
+        for (const s of [-2, -1, 0, 1, 2]) { k.box('wheatGold', s * 0.03, 1.08, R + 0.1, 0.022, 0.26, 0.02, 0, 0, s * 0.14); k.box('gold', s * 0.055, 1.32, R + 0.105, 0.045, 0.12, 0.02, 0, 0, s * 0.14); }
         k.box('paintRed', 0, 1.2, R + 0.11, 0.16, 0.04, 0.02);
       });
       // a grain chute at the bottom on the left, pouring into an open sack
@@ -283,36 +148,7 @@
       for (let z = -0.66; z < 0.66; z += 0.1) picket(0.76, z);
       for (let x = 0.2; x < 0.76; x += 0.1) picket(x, -0.66);
       for (let z = 0.12; z < 0.66; z += 0.1) picket(-0.76, z);
-      for (const y of [0.1,
-        0.26]) { k.box('woodLight',
-        0,
-        y,
-        0.64,
-        1.56,
-        0.04,
-        0.02);
-        k.box('woodLight',
-        0.74,
-        y,
-        0,
-        0.02,
-        0.04,
-        1.32);
-        k.box('woodLight',
-        0.48,
-        y,
-        -0.64,
-        0.56,
-        0.04,
-        0.02);
-        k.box('woodLight',
-        -0.74,
-        y,
-        0.39,
-        0.02,
-        0.04,
-        0.54);
-        }
+      for (const y of [0.1, 0.26]) { k.box('woodLight', 0, y, 0.64, 1.56, 0.04, 0.02); k.box('woodLight', 0.74, y, 0, 0.02, 0.04, 1.32); k.box('woodLight', 0.48, y, -0.64, 0.56, 0.04, 0.02); k.box('woodLight', -0.74, y, 0.39, 0.02, 0.04, 0.54); }
       for (const [x, z] of [[-0.76, 0.66], [0.76, 0.66], [0.76, -0.66], [0.2, -0.66], [-0.76, 0.12]]) k.box('woodMid', x, 0, z, 0.07, 0.42, 0.07);
       // the hen house on legs
       for (const [x, z] of [[-0.31, -0.3], [0.31, -0.3], [-0.31, 0.3], [0.31, 0.3]]) k.box('woodMid', hx + x, 0, hz + z, 0.07, fy, 0.07);
@@ -322,91 +158,15 @@
       K.FarmingArtHelpers.gable(k, 'paintYellow', prof, hx, hz, hw, false, 0.04);
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) k.box('paintWhite', hx + sx * (hw / 2 - 0.02), fy, hz + sz * (hd / 2 - 0.02), 0.06, wallH, 0.06);
       const ey = fy + wallH - 0.05, ez = hd / 2 + 0.08, RL = hw + 0.14;
-      K.FarmingArtHelpers.slabZ(k,
-        'roofRed',
-        hz - ez,
-        ey,
-        hz,
-        fy + wallH + 0.3,
-        hx,
-        RL,
-        0.06);
-        K.FarmingArtHelpers.slabZ(k,
-        'roofRed',
-        hz,
-        fy + wallH + 0.3,
-        hz + ez,
-        ey,
-        hx,
-        RL,
-        0.06);
-      for (const s of [-1,
-        1]) { K.FarmingArtHelpers.slabZ(k,
-        'paintWhite',
-        hz - ez,
-        ey - 0.01,
-        hz,
-        fy + wallH + 0.29,
-        hx + s * (RL / 2 + 0.01),
-        0.03,
-        0.08);
-        K.FarmingArtHelpers.slabZ(k,
-        'paintWhite',
-        hz,
-        fy + wallH + 0.29,
-        hz + ez,
-        ey - 0.01,
-        hx + s * (RL / 2 + 0.01),
-        0.03,
-        0.08);
-        }
+      K.FarmingArtHelpers.slabZ(k, 'roofRed', hz - ez, ey, hz, fy + wallH + 0.3, hx, RL, 0.06); K.FarmingArtHelpers.slabZ(k, 'roofRed', hz, fy + wallH + 0.3, hz + ez, ey, hx, RL, 0.06);
+      for (const s of [-1, 1]) { K.FarmingArtHelpers.slabZ(k, 'paintWhite', hz - ez, ey - 0.01, hz, fy + wallH + 0.29, hx + s * (RL / 2 + 0.01), 0.03, 0.08); K.FarmingArtHelpers.slabZ(k, 'paintWhite', hz, fy + wallH + 0.29, hz + ez, ey - 0.01, hx + s * (RL / 2 + 0.01), 0.03, 0.08); }
       k.box('woodDark', hx, fy + wallH + 0.3, hz, RL + 0.02, 0.04, 0.07);
       K.FarmingArtHelpers.vane(k, hx + 0.2, fy + wallH + 0.32, hz, 0.6);
       // front: a pop hole with a green frame, a window, an egg sign
       k.box('woodDark', hx + 0.15, fy, front + 0.005, 0.18, 0.24, 0.02);
-      for (const [x,
-        y,
-        w,
-        h] of [[0.15,
-        fy + 0.24,
-        0.26,
-        0.04],
-        [0.05,
-        fy,
-        0.04,
-        0.26],
-        [0.25,
-        fy,
-        0.04,
-        0.26]]) k.box('paintGreen',
-        hx + x,
-        y,
-        front + 0.015,
-        w,
-        h,
-        0.03);
+      for (const [x, y, w, h] of [[0.15, fy + 0.24, 0.26, 0.04], [0.05, fy, 0.04, 0.26], [0.25, fy, 0.04, 0.26]]) k.box('paintGreen', hx + x, y, front + 0.015, w, h, 0.03);
       K.FarmingArtHelpers.win(k, hx - 0.17, fy + 0.2, front + 0.005, 0.18, 0.18);
-      k.box('signBoard',
-        hx + 0.15,
-        fy + 0.31,
-        front + 0.02,
-        0.2,
-        0.17,
-        0.03);
-        k.box('eggWhite',
-        hx + 0.15,
-        fy + 0.335,
-        front + 0.04,
-        0.06,
-        0.11,
-        0.02);
-        k.box('eggWhite',
-        hx + 0.15,
-        fy + 0.355,
-        front + 0.04,
-        0.09,
-        0.06,
-        0.02);
+      k.box('signBoard', hx + 0.15, fy + 0.31, front + 0.02, 0.2, 0.17, 0.03); k.box('eggWhite', hx + 0.15, fy + 0.335, front + 0.04, 0.06, 0.11, 0.02); k.box('eggWhite', hx + 0.15, fy + 0.355, front + 0.04, 0.09, 0.06, 0.02);
       // the ramp down to the run, with cleats
       K.FarmingArtHelpers.slabZ(k, 'woodLight', front, fy - 0.02, front + 0.42, 0, hx + 0.15, 0.16, 0.03);
       for (let i = 1; i < 5; i++) { const t = i / 5; k.box('woodMid', hx + 0.15, fy - 0.02 - (fy - 0.02) * t + 0.03, front + 0.42 * t, 0.16, 0.02, 0.02); }
@@ -415,39 +175,12 @@
       k.box('paintYellow', nx, fy + 0.06, hz, 0.22, 0.26, 0.56); k.box('paintWhite', nx - 0.11, fy + 0.06, hz, 0.02, 0.26, 0.58);
       k.box('straw', nx, fy + 0.3, hz, 0.18, 0.03, 0.52);
       for (const z of [-0.18, 0, 0.18]) { if (z) k.box('woodMid', nx, fy + 0.3, hz + z - 0.09 * Math.sign(z), 0.2, 0.05, 0.02); }
-      for (const [dz,
-        n] of [[-0.18,
-        2],
-        [0,
-        1],
-        [0.18,
-        3]]) for (let e = 0; e < n; e++) k.box('eggWhite',
-        nx - 0.03 + e * 0.04,
-        fy + 0.33,
-        hz + dz + (e % 2 ? 0.03 : -0.02),
-        0.04,
-        0.05,
-        0.035);
+      for (const [dz, n] of [[-0.18, 2], [0, 1], [0.18, 3]]) for (let e = 0; e < n; e++) k.box('eggWhite', nx - 0.03 + e * 0.04, fy + 0.33, hz + dz + (e % 2 ? 0.03 : -0.02), 0.04, 0.05, 0.035);
       K.FarmingArtHelpers.at(k, hx - hw / 2, fy + 0.34, hz, 0, () => k.box('roofRed', -0.06, 0, 0, 0.03, 0.32, 0.6, 0, 0, 0.4));
       // feeder with grain, water dish, and a couple of hens
       k.box('woodMid', 0.48, 0.02, -0.32, 0.36, 0.1, 0.12); k.box('wheatGold', 0.48, 0.12, -0.32, 0.32, 0.015, 0.08);
       k.geo('stoneLight', CYL, 0.5, 0.05, 0.3, 0, 0, 0, 0.09, 0.06, 0.09); k.geo('waterBlue', CYL, 0.5, 0.075, 0.3, 0, 0, 0, 0.075, 0.01, 0.075);
-      K.FarmingArtHelpers.hen(k,
-        0.3,
-        0.02,
-        0.38,
-        0.9);
-        K.FarmingArtHelpers.hen(k,
-        0.5,
-        0.02,
-        -0.08,
-        -2.2,
-        'paintOrange');
-        K.FarmingArtHelpers.hen(k,
-        hx + 0.15,
-        0.13,
-        front + 0.24,
-        2.9);
+      K.FarmingArtHelpers.hen(k, 0.3, 0.02, 0.38, 0.9); K.FarmingArtHelpers.hen(k, 0.5, 0.02, -0.08, -2.2, 'paintOrange'); K.FarmingArtHelpers.hen(k, hx + 0.15, 0.13, front + 0.24, 2.9);
     }
 
     /* ---------- a cattle barn: green roof, red X doors (one slid open, a cow looking out), cow-head sign, paddock with trough ---------- */
@@ -458,83 +191,16 @@
       k.box('whitewash', cx, P, cz, w, wallH - P, d);
       K.FarmingArtHelpers.gable(k, 'whitewash', prof, cx, cz, w, false);
       // dark timber framing: sill, mid rail and wall plate, posts and braces (front and right gable)
-      for (const y of [P,
-        1.0,
-        wallH - 0.08]) { k.box('woodDark',
-        cx,
-        y,
-        front + 0.005,
-        w + 0.02,
-        0.08,
-        0.02);
-        k.box('woodDark',
-        right + 0.005,
-        y,
-        cz,
-        0.02,
-        0.08,
-        d + 0.02);
-        }
+      for (const y of [P, 1.0, wallH - 0.08]) { k.box('woodDark', cx, y, front + 0.005, w + 0.02, 0.08, 0.02); k.box('woodDark', right + 0.005, y, cz, 0.02, 0.08, d + 0.02); }
       for (const x of [cx - w / 2 + 0.04, cx - 0.82, cx + 0.82, right - 0.04]) k.box('woodDark', x, P, front + 0.006, 0.08, wallH - P, 0.02);
       for (const z of [cz - d / 2 + 0.04, cz, cz + d / 2 - 0.04]) k.box('woodDark', right + 0.006, P, z, 0.02, z === cz ? 2.1 - P : wallH - P, 0.08);
       for (const s of [-1, 1]) k.box('woodDark', right + 0.007, 1.04 + 0.3, cz + s * 0.42, 0.02, 0.06, 0.95, 0, s * 0.7);   // gable braces
       // roof: green, white bargeboards on the gable ends, ridge cap, two little vents
       const ez = d / 2 + 0.05, ey = wallH - 0.05 * (ridge - wallH) / (d / 2), RL = w + 0.1;
-      K.FarmingArtHelpers.slabZ(k,
-        'roofGreen',
-        cz - ez,
-        ey,
-        cz,
-        ridge,
-        cx,
-        RL,
-        0.08);
-        K.FarmingArtHelpers.slabZ(k,
-        'roofGreen',
-        cz,
-        ridge,
-        cz + ez,
-        ey,
-        cx,
-        RL,
-        0.08);
-      for (const s of [-1,
-        1]) { K.FarmingArtHelpers.slabZ(k,
-        'paintWhite',
-        cz - ez,
-        ey - 0.01,
-        cz,
-        ridge - 0.01,
-        cx + s * (RL / 2 + 0.01),
-        0.04,
-        0.11);
-        K.FarmingArtHelpers.slabZ(k,
-        'paintWhite',
-        cz,
-        ridge - 0.01,
-        cz + ez,
-        ey - 0.01,
-        cx + s * (RL / 2 + 0.01),
-        0.04,
-        0.11);
-        }
+      K.FarmingArtHelpers.slabZ(k, 'roofGreen', cz - ez, ey, cz, ridge, cx, RL, 0.08); K.FarmingArtHelpers.slabZ(k, 'roofGreen', cz, ridge, cz + ez, ey, cx, RL, 0.08);
+      for (const s of [-1, 1]) { K.FarmingArtHelpers.slabZ(k, 'paintWhite', cz - ez, ey - 0.01, cz, ridge - 0.01, cx + s * (RL / 2 + 0.01), 0.04, 0.11); K.FarmingArtHelpers.slabZ(k, 'paintWhite', cz, ridge - 0.01, cz + ez, ey - 0.01, cx + s * (RL / 2 + 0.01), 0.04, 0.11); }
       k.box('woodDark', cx, ridge + 0.01, cz, RL + 0.02, 0.05, 0.12);
-      for (const x of [cx - 0.6,
-        cx + 0.6]) { k.box('paintWhite',
-        x,
-        ridge - 0.1,
-        cz,
-        0.18,
-        0.28,
-        0.18);
-        k.box('roofGreen',
-        x,
-        ridge + 0.18,
-        cz,
-        0.26,
-        0.04,
-        0.26);
-        }
+      for (const x of [cx - 0.6, cx + 0.6]) { k.box('paintWhite', x, ridge - 0.1, cz, 0.18, 0.28, 0.18); k.box('roofGreen', x, ridge + 0.18, cz, 0.26, 0.04, 0.26); }
       // the doors: a dark opening, the left leaf closed, the right one slid open along its iron track
       const DH = 1.0;
       k.box('soot', cx, P, front - 0.08, 1.16, DH, 0.1); k.box('hay', cx + 0.3, P, front - 0.2, 0.5, 0.2, 0.2);
@@ -543,71 +209,9 @@
       // a cow looking out of the open half
       K.FarmingArtHelpers.at(k, cx + 0.28, P, front - 0.05, 0, () => {
         k.box('paintWhite', 0, 0.42, 0, 0.3, 0.3, 0.3); k.box('ironDark', 0.07, 0.54, 0.03, 0.17, 0.19, 0.28);
-        k.box('potionPink',
-          0,
-          0.42,
-          0.15,
-          0.22,
-          0.13,
-          0.08);
-          k.box('ironDark',
-          -0.05,
-          0.48,
-          0.195,
-          0.03,
-          0.025,
-          0.01);
-          k.box('ironDark',
-          0.05,
-          0.48,
-          0.195,
-          0.03,
-          0.025,
-          0.01);
-        k.box('ironDark',
-          -0.1,
-          0.62,
-          0.151,
-          0.04,
-          0.04,
-          0.01);
-          k.box('paintWhite',
-          0.1,
-          0.62,
-          0.152,
-          0.04,
-          0.04,
-          0.01);
-          k.box('ironDark',
-          0.1,
-          0.63,
-          0.155,
-          0.025,
-          0.025,
-          0.01);
-        for (const s of [-1,
-          1]) { k.box('canvas',
-          s * 0.2,
-          0.7,
-          0,
-          0.12,
-          0.04,
-          0.04);
-          k.box('canvas',
-          s * 0.25,
-          0.72,
-          0,
-          0.04,
-          0.08,
-          0.04);
-          k.box(s < 0 ? 'paintWhite' : 'ironDark',
-          s * 0.2,
-          0.6,
-          -0.04,
-          0.1,
-          0.06,
-          0.08);
-          }
+        k.box('potionPink', 0, 0.42, 0.15, 0.22, 0.13, 0.08); k.box('ironDark', -0.05, 0.48, 0.195, 0.03, 0.025, 0.01); k.box('ironDark', 0.05, 0.48, 0.195, 0.03, 0.025, 0.01);
+        k.box('ironDark', -0.1, 0.62, 0.151, 0.04, 0.04, 0.01); k.box('paintWhite', 0.1, 0.62, 0.152, 0.04, 0.04, 0.01); k.box('ironDark', 0.1, 0.63, 0.155, 0.025, 0.025, 0.01);
+        for (const s of [-1, 1]) { k.box('canvas', s * 0.2, 0.7, 0, 0.12, 0.04, 0.04); k.box('canvas', s * 0.25, 0.72, 0, 0.04, 0.08, 0.04); k.box(s < 0 ? 'paintWhite' : 'ironDark', s * 0.2, 0.6, -0.04, 0.1, 0.06, 0.08); }
         k.box('paintYellow', 0, 0.3, 0.06, 0.08, 0.1, 0.06);   // a bell
       });
       // the cow-head sign above the doors
@@ -616,159 +220,25 @@
         k.box('paintWhite', 0, 0.03, 0.03, 0.2, 0.22, 0.03); k.box('ironDark', 0.04, 0.13, 0.04, 0.1, 0.1, 0.03);
         k.box('potionPink', 0, 0.03, 0.055, 0.16, 0.07, 0.02);
         k.box('ironDark', -0.05, 0.16, 0.045, 0.03, 0.03, 0.02); k.box('paintWhite', 0.05, 0.15, 0.06, 0.03, 0.03, 0.01);
-        for (const s of [-1,
-          1]) { k.box('canvas',
-          s * 0.14,
-          0.21,
-          0.03,
-          0.1,
-          0.035,
-          0.03);
-          k.box('canvas',
-          s * 0.19,
-          0.22,
-          0.03,
-          0.035,
-          0.06,
-          0.03);
-          k.box('paintWhite',
-          s * 0.15,
-          0.13,
-          0.03,
-          0.08,
-          0.05,
-          0.03);
-          }
+        for (const s of [-1, 1]) { k.box('canvas', s * 0.14, 0.21, 0.03, 0.1, 0.035, 0.03); k.box('canvas', s * 0.19, 0.22, 0.03, 0.035, 0.06, 0.03); k.box('paintWhite', s * 0.15, 0.13, 0.03, 0.08, 0.05, 0.03); }
       });
       // the hayloft on the right gable, hay spilling out, and two windows
       K.FarmingArtHelpers.at(k, right, 0, cz, Math.PI / 2, () => {
         k.box('woodDark', 0, 1.74, 0.01, 0.42, 0.42, 0.02);
-        for (const [x,
-          y,
-          ww,
-          h] of [[0,
-          1.7,
-          0.52,
-          0.05],
-          [0,
-          2.16,
-          0.52,
-          0.05],
-          [-0.235,
-          1.7,
-          0.05,
-          0.5],
-          [0.235,
-          1.7,
-          0.05,
-          0.5]]) k.box('paintWhite',
-          x,
-          y,
-          0.025,
-          ww,
-          h,
-          0.03);
+        for (const [x, y, ww, h] of [[0, 1.7, 0.52, 0.05], [0, 2.16, 0.52, 0.05], [-0.235, 1.7, 0.05, 0.5], [0.235, 1.7, 0.05, 0.5]]) k.box('paintWhite', x, y, 0.025, ww, h, 0.03);
         k.box('hay', 0, 1.74, 0.04, 0.38, 0.2, 0.14); k.box('hay', 0.04, 1.94, 0.02, 0.26, 0.08, 0.08);
         K.FarmingArtHelpers.win(k, -0.45, 0.55, 0.012, 0.26, 0.26); K.FarmingArtHelpers.win(k, 0.45, 0.55, 0.012, 0.26, 0.26);
       });
       // hay bales and milk churns, front left
       K.FarmingArtHelpers.bale(k, -1.42, 0, 0.82, 0.08); K.FarmingArtHelpers.bale(k, -1.4, 0, 1.15, -0.06); K.FarmingArtHelpers.bale(k, -1.41, 0.28, 0.98, 0.0);
-      for (const [x,
-        z] of [[-1.0,
-        0.72],
-        [-0.84,
-        0.8]]) { k.geo('stoneLight',
-        CYL,
-        x,
-        0.13,
-        z,
-        0,
-        0,
-        0,
-        0.07,
-        0.26,
-        0.07);
-        k.geo('stoneLight',
-        CYL,
-        x,
-        0.29,
-        z,
-        0,
-        0,
-        0,
-        0.045,
-        0.06,
-        0.045);
-        k.geo('stoneMid',
-        CYL,
-        x,
-        0.33,
-        z,
-        0,
-        0,
-        0,
-        0.055,
-        0.025,
-        0.055);
-        k.box('paintBlue',
-        x,
-        0.1,
-        z + 0.065,
-        0.06,
-        0.04,
-        0.01);
-        }
+      for (const [x, z] of [[-1.0, 0.72], [-0.84, 0.8]]) { k.geo('stoneLight', CYL, x, 0.13, z, 0, 0, 0, 0.07, 0.26, 0.07); k.geo('stoneLight', CYL, x, 0.29, z, 0, 0, 0, 0.045, 0.06, 0.045); k.geo('stoneMid', CYL, x, 0.33, z, 0, 0, 0, 0.055, 0.025, 0.055); k.box('paintBlue', x, 0.1, z + 0.065, 0.06, 0.04, 0.01); }
       // the paddock: posts and rails with an open gap, water trough, hay rack, a muddy patch
       k.box('woodDark', 0.95, 0, 0.75, 0.6, 0.015, 0.5);
       const post = (x, z) => k.box('woodMid', x, 0, z, 0.08, 0.62, 0.08);
       for (const x of [0.0, 0.55, 1.1, 1.64]) post(x, 1.24); for (const z of [-1.24, -0.62, 0, 0.62]) post(1.64, z); post(0.0, 0.62);
-      for (const y of [0.24,
-        0.48]) { k.box('woodLight',
-        0.82,
-        y,
-        1.24,
-        1.64,
-        0.06,
-        0.04);
-        k.box('woodLight',
-        1.64,
-        y,
-        0,
-        0.04,
-        0.06,
-        2.48);
-        k.box('woodLight',
-        0.0,
-        y,
-        0.93,
-        0.04,
-        0.06,
-        0.62);
-        }
+      for (const y of [0.24, 0.48]) { k.box('woodLight', 0.82, y, 1.24, 1.64, 0.06, 0.04); k.box('woodLight', 1.64, y, 0, 0.04, 0.06, 2.48); k.box('woodLight', 0.0, y, 0.93, 0.04, 0.06, 0.62); }
       K.FarmingArtHelpers.at(k, 1.15, 0, 0.08, 0, () => {   // trough: a hollow box of water
-        k.box('woodMid',
-          0,
-          0,
-          0,
-          0.3,
-          0.06,
-          0.74);
-          for (const s of [-1,
-          1]) { k.box('woodMid',
-          s * 0.13,
-          0.06,
-          0,
-          0.04,
-          0.2,
-          0.74);
-          k.box('woodMid',
-          0,
-          0.06,
-          s * 0.35,
-          0.3,
-          0.2,
-          0.04);
-          }
+        k.box('woodMid', 0, 0, 0, 0.3, 0.06, 0.74); for (const s of [-1, 1]) { k.box('woodMid', s * 0.13, 0.06, 0, 0.04, 0.2, 0.74); k.box('woodMid', 0, 0.06, s * 0.35, 0.3, 0.2, 0.04); }
         k.box('waterBlue', 0, 0.06, 0, 0.22, 0.15, 0.66); for (const z of [-0.26, 0.26]) k.box('ironDark', 0, 0.1, z, 0.32, 0.04, 0.76 - 0.74 + 0.03);
       });
       K.FarmingArtHelpers.at(k, 1.2, 0, -0.85, 0, () => {   // hay rack: a V of slats heaped with hay
@@ -783,13 +253,6 @@
     constructor(drawer) { this.drawer = drawer; }
     draw(kit, options = {}) { return this.drawer(kit, options) || kit; }
   }
-  for (const [type,
-    drawer] of ['farm',
-    'field',
-    'silo',
-    'coop',
-    'barn'].map((type) => [type,
-    FarmingArtPieces[type]])) K.CastleArt.register(type,
-    new CastleArtPiecePainter(drawer));
+  for (const [type, drawer] of ['farm', 'field', 'silo', 'coop', 'barn'].map((type) => [type, FarmingArtPieces[type]])) K.CastleArt.register(type, new CastleArtPiecePainter(drawer));
   void CYL; void CYL8; void CONE6;
 })(typeof window !== 'undefined' ? window : globalThis);
