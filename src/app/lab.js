@@ -70,6 +70,7 @@
   /* ---------------- lighting presets ---------------- */
   class LabLighting {
     static STUDIO_BG = '#d3d5d9';
+    static GROK = { hemi: 3.2, sun: 2.4, rim: 4 };
     constructor(world) {
       this.world = world; const S = world.scene;
       this.hemi = S.children.find((o) => o.isHemisphereLight); this.rim = S.children.find((o) => o.isDirectionalLight && o !== world.sun);
@@ -99,9 +100,10 @@
         w.sun.color.set('#fff1dc'); w.sun.intensity = 2.0; w.sunOff.set(-7, 11, 8);
         if (this.rim) { this.rim.color.set('#ffffff'); this.rim.intensity = 0.55; this.rim.position.set(30, 12, -10); }
         if (name === 'grok' && this.rim) {
-          /* the Grok refs glow: a warm orange back-rim from behind-left-above, slightly softer key */
-          this.hemi.intensity = 1.1; w.sun.intensity = 1.8;
-          this.rim.color.set('#ff8a2a'); this.rim.intensity = 2.6; this.rim.position.set(-14, 16, -22);
+          /* the Grok refs: bright, soft studio (strong sky fill, so a voxel's colour reads at about its albedo; three's
+             physical Lambert divides by pi, hence the high intensities) and a warm orange back-rim from behind-left-above */
+          this.hemi.color.set('#f4f6fb'); this.hemi.groundColor.set('#9a9da4'); this.hemi.intensity = LabLighting.GROK.hemi; w.sun.intensity = LabLighting.GROK.sun;
+          this.rim.color.set('#ff8a2a'); this.rim.intensity = LabLighting.GROK.rim; this.rim.position.set(-14, 16, -22);
         }
       } else if (name === 'night') {
         S.background.set('#080b14'); S.fog.color.set('#0c1222');
@@ -232,14 +234,25 @@
       if (subject.anim) subject.anim.apply('idle', 0, 0, 0.016);
       this.state = 'idle'; this.stateT = 0;
     }
-    frameTo(view, refBox) { this.view = view; this.orbitYaw = 0; this.fit = RefFramer.fit(this.camera, this.subject.object3d, view, refBox); return this.fit; }
+    /* view.lock { target [x, y, z] m from the subject's origin, dist m }: the camera the reconstruction was calibrated with,
+       placed exactly (no bbox re-fit, which shifts with stray voxels); otherwise fit the subject onto the ref's opaque box */
+    frameTo(view, refBox) {
+      this.view = view; this.orbitYaw = 0;
+      if (view.lock) {
+        this.camera.fov = view.fov; this.camera.updateProjectionMatrix();
+        const o = this.subject.object3d.position, t = new THREE.Vector3(o.x + view.lock.target[0], o.y + view.lock.target[1], o.z + view.lock.target[2]);
+        this.fit = { target: t, dist: view.lock.dist };
+      } else this.fit = RefFramer.fit(this.camera, this.subject.object3d, view, refBox);
+      return this.fit;
+    }
     setAnim(state) { this.state = state; this.stateT = 0; }
     fireSpot() { return [this.centre.x - 1.1, 0, this.centre.z + 1.3]; }
     /* one frame; dt in seconds. Callable by hand (hidden tabs have no requestAnimationFrame) */
     frame(dt = 1 / 60) {
       this.time += dt; this.stateT += dt;
       const s = this.subject;
-      if (s && s.anim) {
+      if (s && s.rig && this.rest) s.rig.resetPose();   // scoring: the exact rest pose (= the ref's pose), no breathing/sway
+      else if (s && s.anim) {
         if (this.state === 'attack' && this.stateT > 0.75) this.stateT = 0;   // loop the swing in the lab
         s.anim.apply(this.state, this.stateT, this.time, dt);
       }
@@ -383,7 +396,7 @@
     /* silhouette match at the ref framing: ref mask = alpha > 40, model mask = a flat white render of the subject alone. -> { iou, refOnly, renderOnly, diff (PNG data URL:
        grey both, red ref only, blue render only) } */
     silhouette() {
-      this.stage.frame(1 / 60);
+      const keep = this.stage.rest; this.stage.rest = true; this.stage.frame(1 / 60);
       const W = this.stage.w, H = this.stage.h, mk = () => { const c = this.doc.createElement('canvas'); c.width = W; c.height = H; return [c, c.getContext('2d', { willReadFrequently: true })]; };
       const [, gr] = mk(), [, gm] = mk(), [dc, gd] = mk();
       if (this.ref && this.ref.img) gr.drawImage(this.ref.img, 0, 0, W, H);
@@ -396,8 +409,38 @@
         O[i] = c[0]; O[i + 1] = c[1]; O[i + 2] = c[2]; O[i + 3] = 255;
         if (r && m) both++; else if (r) ro++; else if (m) mo++;
       }
-      gd.putImageData(out, 0, 0);
+      gd.putImageData(out, 0, 0); this.stage.rest = keep;
       return { iou: both / Math.max(1, both + ro + mo), refOnly: ro / Math.max(1, both + ro), renderOnly: mo / Math.max(1, both + mo), diff: dc.toDataURL('image/png') };
+    }
+    /* the full scorecard at the ref camera: silhouette IoU (ref alpha > 200 vs the flat mask), mean CIELAB dE and luminance
+       SSIM (8 px windows) over the overlap of the normal render, and the mean linear RGB gain ref / render there (feed it
+       to tools/lab/recon as "gain" to de-light the palette). */
+    scorecard() {
+      const keep = this.stage.rest; this.stage.rest = true; this.stage.frame(1 / 60);
+      const W = this.stage.w, H = this.stage.h, cv = () => { const c = this.doc.createElement('canvas'); c.width = W; c.height = H; return c.getContext('2d', { willReadFrequently: true }); };
+      const gr = cv(), gn = cv(), gm = cv();
+      if (this.ref && this.ref.img) gr.drawImage(this.ref.img, 0, 0, W, H);
+      gn.drawImage(this.stage.canvas, 0, 0, W, H); gm.drawImage(this.stage.maskCanvas(), 0, 0, W, H); this.stage.frame(1 / 60);
+      const R = gr.getImageData(0, 0, W, H).data, N = gn.getImageData(0, 0, W, H).data, M = gm.getImageData(0, 0, W, H).data;
+      const lin = (c) => { c /= 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+      const lab = (i, D) => { const r = lin(D[i]), g = lin(D[i + 1]), b = lin(D[i + 2]), f = (t) => (t > 216 / 24389 ? Math.cbrt(t) : (841 / 108) * t + 4 / 29);
+        const x = f((0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047), y = f(0.2126 * r + 0.7152 * g + 0.0722 * b), z = f((0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883); return [116 * y - 16, 500 * (x - y), 200 * (y - z)]; };
+      let both = 0, uni = 0, de = 0; const gain = [0, 0, 0, 0, 0, 0], LR = new Float32Array(W * H), LN = new Float32Array(W * H), ov = new Uint8Array(W * H);
+      for (let p = 0, i = 0; p < W * H; p++, i += 4) {
+        const r = R[i + 3] > 200, m = M[i] > 127; if (r || m) uni++; if (!(r && m)) continue;
+        both++; ov[p] = 1; const a = lab(i, R), b = lab(i, N); de += Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]); LR[p] = a[0]; LN[p] = b[0];
+        for (let k = 0; k < 3; k++) { gain[k] += lin(R[i + k]); gain[k + 3] += lin(N[i + k]); }
+      }
+      let ss = 0, sn = 0;
+      for (let y = 0; y + 8 <= H; y += 8) for (let x = 0; x + 8 <= W; x += 8) {
+        let n = 0, ma = 0, mb = 0; for (let yy = y; yy < y + 8; yy++) for (let xx = x; xx < x + 8; xx++) { const p = yy * W + xx; if (ov[p]) { n++; ma += LR[p]; mb += LN[p]; } }
+        if (n < 48) continue; ma /= n; mb /= n; let va = 0, vb = 0, cab = 0;
+        for (let yy = y; yy < y + 8; yy++) for (let xx = x; xx < x + 8; xx++) { const p = yy * W + xx; if (ov[p]) { va += (LR[p] - ma) ** 2; vb += (LN[p] - mb) ** 2; cab += (LR[p] - ma) * (LN[p] - mb); } }
+        va /= n; vb /= n; cab /= n; const c1 = 1, c2 = 9;   // L* is 0..100: (0.01*100)^2, (0.03*100)^2
+        ss += ((2 * ma * mb + c1) * (2 * cab + c2)) / ((ma * ma + mb * mb + c1) * (va + vb + c2)); sn++;
+      }
+      this.stage.rest = keep;
+      return { iou: both / Math.max(1, uni), dE: de / Math.max(1, both), ssim: ss / Math.max(1, sn), gain: [0, 1, 2].map((k) => +(gain[k] / Math.max(1e-6, gain[k + 3])).toFixed(3)) };
     }
     downloadSnapshot() {
       const a = this.doc.createElement('a'); a.href = this.snapshot(); a.download = `compare-${this.id}-${new Date().toISOString().replace(/[:.]/g, '-')}.png`; a.click();

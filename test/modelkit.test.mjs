@@ -120,7 +120,8 @@ test('every model in src/models builds; heroes keep the bones the animator drive
       for (const b of ['hips', 'torso', 'head', 'armR', 'armL', 'legR', 'legL', 'weapon']) assert.ok(m.parts.has(b), `${id} has bone ${b}`);
       for (const p of m.parts.values()) if (p.parent) assert.ok(m.parts.has(p.parent), `${id}.${p.name} parent ${p.parent}`);
       let y0 = 1e9, y1 = -1e9; for (const p of m.parts.values()) { const b = p.bounds(); y0 = Math.min(y0, b.y0); y1 = Math.max(y1, b.y1); }
-      assert.ok(y1 - y0 + 1 >= 80 && y1 - y0 + 1 <= 110, `${id} is ${y1 - y0 + 1} voxels tall (want 80-110)`);
+      // 64 (Grok block rhythm, reconstructed heroes) up to ~100 (hand sculpts); below ~56 the faces stop reading
+      assert.ok(y1 - y0 + 1 >= 56 && y1 - y0 + 1 <= 110, `${id} is ${y1 - y0 + 1} voxels tall (want 56-110)`);
     }
   }
 });

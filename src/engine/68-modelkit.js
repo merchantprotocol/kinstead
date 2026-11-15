@@ -198,8 +198,15 @@
   class ReconModel {
     /* base64 of int8 x, y, z + uint8 palette index per voxel -> [[x, y, z, i], ...] */
     static unpack(b64) {
-      const bin = typeof atob === 'function' ? atob(b64) : Buffer.from(b64, 'base64').toString('binary'), out = [];
-      for (let i = 0; i + 3 < bin.length; i += 4) { const s = (c) => (c > 127 ? c - 256 : c); out.push([s(bin.charCodeAt(i)), s(bin.charCodeAt(i + 1)), s(bin.charCodeAt(i + 2)), bin.charCodeAt(i + 3)]); }
+      const b = ReconModel.bytes(b64), s = (c) => (c > 127 ? c - 256 : c), out = [];
+      for (let i = 0; i + 3 < b.length; i += 4) out.push([s(b[i]), s(b[i + 1]), s(b[i + 2]), b[i + 3]]);
+      return out;
+    }
+    /* base64 -> bytes without atob/Buffer (the node tests run the engine in a bare vm context) */
+    static bytes(b64) {
+      const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/', T = new Int16Array(128).fill(-1); for (let i = 0; i < 64; i++) T[A.charCodeAt(i)] = i;
+      const out = []; let acc = 0, bits = 0;
+      for (let i = 0; i < b64.length; i++) { const v = T[b64.charCodeAt(i)]; if (v < 0) continue; acc = (acc << 6) | v; bits += 6; if (bits >= 8) { bits -= 8; out.push((acc >> bits) & 255); } }
       return out;
     }
     static data(id) { return (K.ModelData && K.ModelData[id]) || null; }

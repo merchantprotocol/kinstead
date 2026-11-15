@@ -63,8 +63,11 @@ export class RigSplitter {
   static pack(list) { const b = Buffer.alloc(list.length * 4); list.forEach((v, i) => { b.writeInt8(v[0], i * 4); b.writeInt8(v[1], i * 4 + 1); b.writeInt8(v[2], i * 4 + 2); b.writeUInt8(v[3], i * 4 + 3); }); return b.toString('base64'); }
   write(file) {
     const R = this.rig, hex = (c) => '#' + c.map((v) => v.toString(16).padStart(2, '0')).join('');
+    /* the locked ref camera, from recon voxel space into model metres (mesher cubes span [v, v + 1], recon cubes [v - .5, v + .5]) */
+    const size = (R.heightM || 1.56) / this.r.height, view = { ...this.r.view };
+    if (view.lockVox) { view.lock = { target: view.lockVox.target.map((v, i) => +((v - this.off[i] + 0.5) * size).toFixed(4)), dist: +(view.lockVox.dist * size).toFixed(4) }; delete view.lockVox; }
     const pivots = R.pivots, data = {
-      id: this.r.id, height: R.heightM || 1.56, voxels: this.r.height, view: this.r.view, palette: this.r.palette.map(hex),
+      id: this.r.id, height: R.heightM || 1.56, voxels: this.r.height, view, palette: this.r.palette.map(hex),
       parts: Object.fromEntries(RigSplitter.ORDER.filter((n) => this.parts[n]).map((n) => [n, { pivot: pivots[n] || [0, 0, 0], parent: (R.parents || {})[n] || null, data: RigSplitter.pack(this.parts[n]), n: this.parts[n].length }])),
     };
     const body = `/* Copyright (c) 2026 Merchant Protocol. All rights reserved. */

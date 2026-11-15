@@ -118,5 +118,61 @@
       "legR": "hips",
       "legL": "hips"
     }
+  },
+  "gain": [
+    1,
+    1,
+    1
+  ],
+  "brightFrac": 0.7,
+  "materials": {
+    "steel": {
+      "rule": "grey",
+      "tones": [
+        "#303135",
+        "#4f5155",
+        "#6b6c6e",
+        "#7b7a78",
+        "#8c8b88",
+        "#a3a19d",
+        "#b6b7b8",
+        "#c3c4c6"
+      ]
+    },
+    "red": {
+      "rule": "red",
+      "tones": [
+        "#4a0f0b",
+        "#6c1912",
+        "#86221a",
+        "#9a281e",
+        "#b5372a"
+      ]
+    },
+    "gold": {
+      "rule": "gold",
+      "tones": [
+        "#a8681c",
+        "#c98a2a",
+        "#e3a43a",
+        "#ffd263"
+      ]
+    },
+    "leather": {
+      "rule": "brown",
+      "tones": [
+        "#43271a",
+        "#5a3522",
+        "#6a4029",
+        "#7d5236"
+      ]
+    },
+    "black": {
+      "rule": "black",
+      "tones": [
+        "#121214",
+        "#1d1e21"
+      ]
+    }
   }
 }

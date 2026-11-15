@@ -9,6 +9,34 @@ import path from 'node:path';
 import { PngImage } from './png.mjs';
 import { V3, Camera, RefImage, Score, MeshPrior, VoxelGrid, Lab, PaletteFit } from './recon-kit.mjs';
 
+/* a curated material palette: each sample is classified by chroma/hue into a material (steel, cloth, gold, leather, black...),
+   then snapped to that material's tone with the nearest lightness. Keeps cubes in clean flat Grok colours instead of k-means
+   mush, and keeps hue (a lit gold never drifts to a lit steel). cfg.materials: { name: { tones: [hex...], rule } } with rule
+   one of 'grey' (chroma < 12), 'red' (a* > 20, a* > b*), 'gold' (b* > 25, L > 45), 'brown' (the rest with chroma), 'black' (L < 16) */
+export class MaterialPalette {
+  constructor(spec) {
+    this.mats = []; this.labs = []; this.rgb = [];
+    for (const [name, m] of Object.entries(spec)) {
+      const first = this.labs.length;
+      for (const h of m.tones) { const rgb = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); this.rgb.push(rgb); this.labs.push(Lab.fromRgb(rgb)); }
+      this.mats.push({ name, rule: m.rule || name, lift: m.lift || 0, from: first, to: this.labs.length });
+    }
+  }
+  classify([L, a, b]) {
+    const C = Math.hypot(a, b), has = (r) => this.mats.find((m) => m.rule === r);
+    if (L < 16 && has('black')) return has('black');
+    if (a > 20 && a > b && has('red')) return has('red');
+    if (b > 25 && L > 45 && has('gold')) return has('gold');
+    if (C < 12 && has('grey')) return has('grey');
+    return has('brown') || has('grey');
+  }
+  snap(lab) {
+    const m = this.classify(lab); let best = m.from, bd = Infinity;
+    for (let j = m.from; j < m.to; j++) { const d = Math.abs(this.labs[j][0] - (lab[0] + m.lift)); if (d < bd) { bd = d; best = j; } }
+    return best;
+  }
+}
+
 export class Reconstruction {
   constructor(cfg, log = console.log) { this.cfg = { height: 93, palette: 28, pitch: 0.15, fit: 'height', ...cfg }; this.log = log; }
 
@@ -54,7 +82,26 @@ export class Reconstruction {
     this.log(`facing: world turned ${(best.b * 180 / Math.PI).toFixed(1)} deg (symmetry ${best.s.toFixed(3)}); ref camera yaw ${best.b.toFixed(3)} rad`);
     return best;
   }
-  refCam(w = this.ref.w, h = this.ref.h) { return this.cam(w, h, this.yaw, this.calib.p, this.calib.f, 3); }
+  refCam(w = this.ref.w, h = this.ref.h) {
+    if (this.lock) { const L = this.lock, c = new Camera(w, h, { yaw: L.yaw, pitch: L.pitch, fov: L.fov, fit: this.cfg.fit }); return c.place(L.target, L.dist); }
+    return this.cam(w, h, this.yaw, this.calib.p, this.calib.f, 3);
+  }
+  /* 5b. refine the camera on the voxel grid itself (what the game renders): yaw, pitch, fov, target shift, distance;
+     coordinate descent on IoU at half resolution, then lock it (the lab places its camera from the lock, no bbox re-fit) */
+  refineCamera() {
+    const W = Math.round(this.ref.w / 2), H = Math.round(this.ref.h / 2), rm = this.ref.mask(W, H), c0 = this.refCam(W, H);
+    let x = { yaw: this.yaw, pitch: this.calib.p, fov: this.calib.f, tr: 0, tu: 0, k: 1 };
+    const cam = (q) => { const c = new Camera(W, H, { yaw: q.yaw, pitch: q.pitch, fov: q.fov }); c.place(c0.target, c0.dist); const t = V3.add(c0.target, V3.add(V3.scale(c.r, q.tr), V3.scale(c.u, q.tu))); return c.place(t, c0.dist * q.k * Math.tan((this.calib.f * Math.PI) / 360) / Math.tan((q.fov * Math.PI) / 360)); };
+    const ev = (q) => Score.iou(this.grid.render(cam(q)).mask(), rm);
+    let s = ev(x); const s0 = s, st = { yaw: 0.04, pitch: 0.03, fov: 4, tr: 1.5, tu: 1.5, k: 0.03 };
+    for (let it = 0; it < 7; it++) {
+      for (const k of Object.keys(st)) for (const d of [-1, 1]) { const y = { ...x, [k]: x[k] + d * st[k] }; if (y.fov < 4) continue; const t = ev(y); if (t > s) { s = t; x = y; } }
+      for (const k in st) st[k] *= 0.6;
+    }
+    const c = cam(x); this.lock = { yaw: x.yaw, pitch: x.pitch, fov: x.fov, target: c.target, dist: c.dist };
+    this.log(`refineCamera: grid IoU ${s0.toFixed(3)} -> ${s.toFixed(3)} (yaw ${x.yaw.toFixed(3)}, pitch ${x.pitch.toFixed(3)}, fov ${x.fov.toFixed(1)})`);
+    return this.lock;
+  }
 
   /* 3-5. volume + lifted visible shell, carved to the ref silhouette */
   build() {
@@ -99,12 +146,18 @@ export class Reconstruction {
     for (let i = 0; i < W * Hh; i++) if (ok[i] && near[i]) { const l = Lab.fromRgb([A[i * 4], A[i * 4 + 1], A[i * 4 + 2]]); if (l[1] < 22 && (l[2] > 8 || l[0] > gL)) { fix.set(i, [Math.min(gL, l[0] * 0.85), gA, gB]); glow++; } }
     for (let i = 0; i < R.id.length; i++) {
       const id = R.id[i]; if (id < 0 || !ok[i]) continue;
-      const lab = fix.get(i) || Lab.fromRgb([A[i * 4], A[i * 4 + 1], A[i * 4 + 2]]), k = R.keys[id], s = acc.get(k) || [0, 0, 0, 0];
-      s[0] += lab[0]; s[1] += lab[1]; s[2] += lab[2]; s[3]++; acc.set(k, s);
+      const lab = fix.get(i) || Lab.fromRgb([A[i * 4], A[i * 4 + 1], A[i * 4 + 2]]), k = R.keys[id];
+      if (!acc.has(k)) acc.set(k, []); acc.get(k).push(lab);
     }
-    const seen = new Map(); for (const [k, s] of acc) if (s[3] >= 3) seen.set(k, [s[0] / s[3], s[1] / s[3], s[2] / s[3]]);
-    const pf = new PaletteFit(this.cfg.palette), C = pf.fit([...seen.values()]);
-    const idx = new Map(); for (const [k, lab] of seen) idx.set(k, pf.nearest(C, lab));
+    /* each voxel's colour: the median of the brighter half of its samples (the face, not Grok's dark bevel seams/shadows) */
+    const med = (a) => { a.sort((p, q) => p - q); return a[a.length >> 1]; }, seen = new Map();
+    for (const [k, list] of acc) {
+      if (list.length < 3) continue; list.sort((p, q) => q[0] - p[0]); const top = list.slice(0, Math.max(2, Math.ceil(list.length * (this.cfg.brightFrac || 0.5))));
+      seen.set(k, [med(top.map((v) => v[0])), med(top.map((v) => v[1])), med(top.map((v) => v[2]))]);
+    }
+    const mats = this.cfg.materials ? new MaterialPalette(this.cfg.materials) : null, pf = new PaletteFit(this.cfg.palette);
+    const C = mats ? mats.labs : pf.fit([...seen.values()]);
+    const idx = new Map(); for (const [k, lab] of seen) idx.set(k, mats ? mats.snap(lab) : pf.nearest(C, lab));
     /* unseen voxels: first grow the seen colours 2 voxels into their neighbours (silhouette rims, recesses), then the rest by
        the prior's own colour matched to per-palette prototypes (mean prior colour of the seen voxels that took that entry) */
     for (let ring = 0; ring < (this.cfg.grow == null ? 6 : this.cfg.grow); ring++) {
@@ -124,6 +177,16 @@ export class Reconstruction {
       if (idx.has(k)) continue; unseen++;
       const pc = this.prior.colourAt(VoxelGrid.unk(k)); if (!pc) { idx.set(k, 0); continue; }
       const l = Lab.fromRgb(pc); let b = 0, bd = Infinity; P.forEach((q, j) => { if (q) { const d = Lab.dE(l, q); if (d < bd) { bd = d; b = j; } } }); idx.set(k, b);
+    }
+    /* salt-and-pepper clean-up: a voxel that no face neighbour shares its colour with, while 3+ share another, takes that one */
+    for (let pass = 0; pass < (this.cfg.modePasses == null ? 1 : this.cfg.modePasses); pass++) {
+      const ch = [];
+      for (const [k, j] of idx) {
+        const [x, y, z] = VoxelGrid.unk(k), votes = new Map(); let same = 0;
+        for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) { const n = idx.get(VoxelGrid.k(x + dx, y + dy, z + dz)); if (n == null) continue; if (n === j) same++; else votes.set(n, (votes.get(n) || 0) + 1); }
+        if (!same && votes.size) { const [b, c] = [...votes].sort((p, q) => q[1] - p[1])[0]; if (c >= 3) ch.push([k, b]); }
+      }
+      for (const [k, b] of ch) idx.set(k, b);
     }
     this.palette = C.map((c) => Lab.toRgb(c)); this.idx = idx;
     this.log(`colour: ${glow} glow pixels de-lit, ${seen.size} seen voxels, ${unseen} unseen (prior colour prototypes), palette ${C.length}`);
@@ -147,14 +210,17 @@ export class Reconstruction {
   }
   save(file) {
     const vox = []; for (const [k, j] of this.idx) { const [x, y, z] = VoxelGrid.unk(k); vox.push(x, y, z, j); }
-    const out = { id: this.cfg.id, height: this.cfg.height, view: { yaw: +this.yaw.toFixed(4), pitch: +this.calib.p.toFixed(4), fov: +this.calib.f.toFixed(2), fit: this.cfg.fit }, palette: this.palette, vox };
+    /* de-light: the ref's colours already carry Grok's shading, and the game lights them again. "gain" (linear RGB, measured by
+       lab.scorecard() as ref / render over the overlap) lifts the palette so the lit render lands on the ref's values */
+    const g = this.cfg.gain || [1, 1, 1], palette = this.palette.map((c) => { const l = c.map((v, k) => Lab.lin(v) * g[k]), mx = Math.max(1, ...l); return l.map((v) => Lab.gam(v / mx)); });
+    const out = { id: this.cfg.id, height: this.cfg.height, view: this.lock ? { yaw: +this.lock.yaw.toFixed(4), pitch: +this.lock.pitch.toFixed(4), fov: +this.lock.fov.toFixed(2), fit: this.cfg.fit, lockVox: { target: this.lock.target.map((v) => +v.toFixed(3)), dist: +this.lock.dist.toFixed(3) } } : { yaw: +this.yaw.toFixed(4), pitch: +this.calib.p.toFixed(4), fov: +this.calib.f.toFixed(2), fit: this.cfg.fit }, palette, vox };
     fs.writeFileSync(file, JSON.stringify(out)); return out;
   }
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const cfgFile = process.argv[2], cfg = JSON.parse(fs.readFileSync(cfgFile, 'utf8')), out = cfg.out || path.dirname(cfgFile);
-  const r = new Reconstruction(cfg).load(), t0 = Date.now(); r.calibrate(); r.facing(); r.build(); r.colour(); console.log(`took ${((Date.now() - t0) / 1000).toFixed(1)} s`);
+  const r = new Reconstruction(cfg).load(), t0 = Date.now(); r.calibrate(); r.facing(); r.build(); r.refineCamera(); r.colour(); console.log(`took ${((Date.now() - t0) / 1000).toFixed(1)} s`);
   console.log('score', JSON.stringify(r.score()));
   r.preview(path.join(out, `${cfg.id}-recon.png`)); r.save(path.join(out, `${cfg.id}-recon.json`));
 }
