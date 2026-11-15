@@ -42,7 +42,8 @@ export class GameRoom {
     this.gates = {};                          // piece id -> open (not saved: gates shut when the server restarts)
     this.lastHit = {};
     this.epoch = Date.now(); this.seed = 7; this.respawns = {}; this.stores = {};   // stores: store id -> { id, owner, kind, name, res, x, z, stack, stock }
-    this.lastPeriod = -1; this.ver = { p: 1, s: 1, t: 1 };   // versions of the shared state (pieces+houses, supplies, ground) so a client can ask 'am I up to date?' this.banners = {}; this.invites = {};   // invites: player id -> [{ team, from, name, teamName, banner, at }]; banners: player id -> { name, color, logo } (their own, used when they are on no team)
+    this.lastPeriod = -1; this.ver = { p: 1, s: 1, t: 1 };   // versions of the shared state (pieces+houses, supplies, ground) so a client can ask 'am I up to date?'
+    this.banners = {}; this.invites = {};   // invites: player id -> [{ team, from, name, teamName, banner, at }]; banners: player id -> { name, color, logo } (their own, used when they are on no team)
     this.dirty = false; this.loaded = false; this.timer = null;
     state.blockConcurrencyWhile(async () => {
       this.plots = (await state.storage.get('plots')) || {};
@@ -99,10 +100,10 @@ export class GameRoom {
   async onMessage(ws, p, m) {
     if (m.t === 'hello') {
       const cid = String(m.cid || '').slice(0, 64), name = String(m.name || 'Settler').slice(0, 24); if (!cid) return;
-      for (const [other, q] of this.sockets) if (q.cid === cid && other !== ws) { try { other.close(4000, 'signed in elsewhere'); } catch (e) { /* gone */ } this.sockets.delete(other); }
+      for (const [other, q] of this.sockets) if (q.cid === cid && other !== ws) { this.broadcast({ t: 'leave', id: q.id }, other); q.joined = false; try { other.close(4000, 'signed in elsewhere'); } catch (e) { /* gone */ } this.sockets.delete(other); }
       const slot = this.claim(cid, name);
       if (slot < 0) { this.send(ws, { t: 'full' }); return; }
-      Object.assign(p, { cid, id: cid.slice(0, 8), name, slot, joined: true });
+      Object.assign(p, { cid, id: cid.slice(0, 8), name, slot, x: PLOTS[slot].x, z: PLOTS[slot].z, joined: true });
       const save = await this.state.storage.get('save:' + cid);
       const ev = this.plots[cid].evicted; if (ev) { delete this.plots[cid].evicted; this.state.storage.put('plots', this.plots); }
       this.send(ws, { t: 'welcome', id: p.id, slot, evicted: !!ev, max: MAX_PLAYERS, players: this.online().filter((q) => q !== p).map((q) => this.pub(q)), claimed: this.claimed(), world: this.world, teams: this.teamList(), gates: this.gates, ver: this.ver, save: save || null, invites: (this.invites[p.id] || []).filter((x) => this.teams[x.team]), banners: this.allBanners(), clock: this.clock(), weather: this.weather(), respawn: this.validRespawn(p), stores: Object.values(this.stores), markets: Object.values(this.markets), sales: this.takeSales(p.id) });
@@ -137,7 +138,7 @@ export class GameRoom {
     }
     if (m.t === 'mobs') { this.broadcast({ t: 'mobs', from: p.id, list: (m.list || []).slice(0, 40) }, ws); return; }   // creatures a player's game runs: shown to everyone
     if (m.t === 'mobhit') { const [tw] = this.byId(m.to); if (tw && tw !== ws) this.send(tw, { t: 'mobhurt', id: m.id, dmg: DMG[m.tool] || DMG.default, from: p.id }); return; }
-    if (m.t === 'mobbite') { const [tw] = this.byId(m.to); if (tw && tw !== ws) this.send(tw, { t: 'pvphit', from: p.id, mob: String(m.mob || '').slice(0, 40), name: String(m.name || 'Wolf').slice(0, 30), dmg: Math.max(1, Math.min(40, m.dmg | 0)), auto: true }); return; }
+    if (m.t === 'mobbite') { const [tw, target] = this.byId(m.to); if (tw && target !== p && !this.sameTeam(p.id, target.id) && this.near(p, target, 14)) this.send(tw, { t: 'pvphit', from: p.id, mob: String(m.mob || '').slice(0, 40), name: String(m.name || 'Wolf').slice(0, 30), dmg: Math.max(1, Math.min(40, m.dmg | 0)), auto: true }); return; }
     if (m.t === 'banner') { this.onBanner(p, m); return; }
     if (m.t === 'team') { this.onTeam(p, m); return; }
     if (m.t === 'open') { this.onOpen(p, m); return; }
@@ -154,13 +155,13 @@ export class GameRoom {
   /** the world edits are kept as the latest state per thing, so the log never grows without bound */
   applyOp(p, op) {
     if (!op || !op.k) return; const w = this.world;
-    if (op.k === 'piece+') { const hpMax = HP[op.type] || HP.default; w.pieces[op.id] = { id: op.id, type: op.type, x: op.x, z: op.z, rot: op.rot, owner: p.id, hp: hpMax, hpMax }; }
+    if (op.k === 'piece+') { const old = w.pieces[op.id]; if (old && !this.mayUse(p, old.owner)) return false; const hpMax = HP[op.type] || HP.default; w.pieces[op.id] = { id: op.id, type: op.type, x: op.x, z: op.z, rot: op.rot, owner: p.id, hp: hpMax, hpMax }; }
     else if (op.k === 'piece-') { const pc = w.pieces[op.id]; if (pc && !this.mayUse(p, pc.owner)) return false; delete w.pieces[op.id]; delete this.gates[op.id]; }
     else if (op.k === 'tile') w.tiles[op.i + ',' + op.j] = [op.i, op.j, op.h, op.te];
     else if (op.k === 'tiles' && Array.isArray(op.list)) { for (const t of op.list.slice(0, 500)) w.tiles[t[0] + ',' + t[1]] = [t[0], t[1], t[2], t[3]]; }
     else if (op.k === 'node') w.nodes[op.id] = { id: op.id, st: op.st, x: op.x, z: op.z };
-    else if (op.k === 'bld+') w.buildings[op.id] = { id: op.id, spec: op.spec, owner: p.id };
-    else if (op.k === 'bld-') delete w.buildings[op.id];
+    else if (op.k === 'bld+') { const old = w.buildings[op.id]; if (old && !this.mayUse(p, old.owner)) return false; w.buildings[op.id] = { id: op.id, spec: op.spec, owner: p.id }; }
+    else if (op.k === 'bld-') { const old = w.buildings[op.id]; if (old && !this.mayUse(p, old.owner)) return false; delete w.buildings[op.id]; }
     else return false;
     if (op.k === 'tile' || op.k === 'tiles' || op.k === 'node') this.ver.t++; else this.ver.p++;
     this.dirty = true;
@@ -191,19 +192,22 @@ export class GameRoom {
   takeSales(id) { const s = this.sales[id] || []; if (s.length) { delete this.sales[id]; this.state.storage.put('sales', this.sales); } return s; }
   /* ---------- supplies: everyone sees them, anyone may take ---------- */
   onStores(p, m) {
-    for (const id of Object.keys(this.stores)) if (this.stores[id].owner === p.id) delete this.stores[id];
-    for (const s of (m.list || []).slice(0, 80)) this.stores[p.id + ':' + s.id] = { id: p.id + ':' + s.id, owner: p.id, kind: s.kind, name: String(s.name || '').slice(0, 40), res: s.res, x: s.x, z: s.z, stack: s.stack || 1, stock: Math.max(0, s.stock | 0) };
+    for (const s of (m.list || []).slice(0, 80)) {
+      const id = p.id + ':' + s.id, existing = this.stores[id];
+      this.stores[id] = { id, owner: p.id, kind: s.kind, name: String(s.name || '').slice(0, 40), res: s.res, x: s.x, z: s.z, stack: s.stack || 1, stock: existing ? Math.min(existing.stock, Math.max(0, s.stock | 0)) : Math.max(0, s.stock | 0) };
+    }
+    // A reconnect snapshot may be stale. Keep server-known stores omitted by it; only explicit store-gone removes them.
     this.broadcast({ t: 'stores', owner: p.id, list: Object.values(this.stores).filter((q) => q.owner === p.id) }, this.wsOf(p)); this.storesDirty = true; this.ver.s++;
     this.send(this.wsOf(p), { t: 'stores', owner: p.id, mine: true, list: Object.values(this.stores).filter((q) => q.owner === p.id) });   // what the server holds for you (it may differ: raiders)
   }
   onStore(p, m) {   // one store appears (a pile you dropped) or goes
     const id = p.id + ':' + m.id;
     if (m.gone) { delete this.stores[id]; this.broadcast({ t: 'store', id, gone: true }); }
-    else { this.stores[id] = { id, owner: p.id, kind: m.kind, name: String(m.name || '').slice(0, 40), res: m.res, x: m.x, z: m.z, stack: m.stack || 1, stock: Math.max(0, m.stock | 0) }; this.broadcast({ t: 'store', s: this.stores[id] }, this.wsOf(p)); }
+    else { const old = this.stores[id]; this.stores[id] = { id, owner: p.id, kind: m.kind, name: String(m.name || '').slice(0, 40), res: m.res, x: m.x, z: m.z, stack: m.stack || 1, stock: old ? Math.min(old.stock, Math.max(0, m.stock | 0)) : Math.max(0, m.stock | 0) }; this.broadcast({ t: 'store', s: this.stores[id] }, this.wsOf(p)); }
     this.storesDirty = true; this.ver.s++;
   }
-  onStock(p, m) {   // the owner added or removed some of their own
-    const st = this.stores[p.id + ':' + m.id]; if (!st) return; st.stock = Math.max(0, st.stock + (m.d | 0)); this.broadcast({ t: 'stock', id: st.id, stock: st.stock }); this.storesDirty = true; this.ver.s++;
+  onStock(p, m) {   // the owner added or removed some of their own; cap each wire delta
+    const st = this.stores[p.id + ':' + m.id]; if (!st) return; const d = Math.max(-999, Math.min(999, m.d | 0)); st.stock = Math.max(0, st.stock + d); this.broadcast({ t: 'stock', id: st.id, stock: st.stock }); this.storesDirty = true; this.ver.s++;
   }
   onTake(p, m) {
     const st = this.stores[m.id]; if (!st || !this.near(p, st, 6)) return; const n = Math.min(st.stock, Math.max(1, Math.min(10, m.n | 0))); if (n <= 0) return;
@@ -284,9 +288,12 @@ export class GameRoom {
   /** put up your own door on a broken one: you hold its key now, and the old owner is out */
   onInstall(p, m) {
     const d = this.world.doors[m.slot]; if (!d || !d.broken || !this.near(p, this.cottage(m.slot), 8)) return;
-    const was = (this.world.houses[m.slot] || {}).owner; d.owner = p.id; d.hp = d.hpMax; d.broken = false; this.ver.p++;
+    const house = this.world.houses[m.slot], was = (house || {}).owner; d.owner = p.id; d.hp = d.hpMax; d.broken = false;
+    if (house) { house.owner = p.id; house.name = p.name; }
+    this.ver.p++;
     this.broadcast({ t: 'door', slot: m.slot, owner: p.id, hp: d.hp, max: d.hpMax, broken: false, open: false, captured: was && was !== p.id && !this.sameTeam(p.id, was) });
     if (was && was !== p.id && !this.sameTeam(p.id, was)) { this.evict(was); const [ws] = this.byId(was); if (ws) this.send(ws, { t: 'evicted' }); }
+    if (house) this.broadcast({ t: 'house', slot: +m.slot, owner: p.id, name: p.name, x: house.x, z: house.z, spec: house.spec, door: d });
     this.dirty = true;
   }
   /* ---------- tribute: a demand, paid or refused ---------- */
