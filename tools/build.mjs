@@ -20,6 +20,7 @@ class EngineManifest {
   /* main thread only, in dependency order (buildings need THREE, K.TexturePainter and K.WorldDoc) */
   static MAIN = [
     '12-sprites.js', '14-post.js', '30-render.js',
+    '@skinned', '64-skinned.js',                                // skinned GLB models (public/models/<id>.glb), see 64-skinned.js
     '65-voxkit3d.js', '66-characters3d.js', '67-actor3d.js',   // 3D voxel characters; play picks the view class via K.ActorViews
     '68-modelkit.js', '69-sculpt.js', '@models',                // Asset Lab model kit + K.Models registry, then every src/models/<id>.js (see ASSET-LAB.md)
     '70-building-tex.js', '71-building-data.js', '72-voxkit.js', '73-furniture.js', '74-recipes.js', '75-building-mesh.js', '76-interactions.js', '77-building-edit.js',
@@ -46,6 +47,7 @@ class SiteBuilder {
       const d = EngineManifest.DATA[f];
       if (d) return `/* ---- ${d[0]} ---- */\n(function (G) { (G.K = G.K || {}).${d[1]} = ${JSON.stringify(JSON.parse(this.read(d[0])))}; })(typeof window !== 'undefined' ? window : globalThis);`;
       if (f === '@models') return this.modelFiles().map((m) => `/* ---- models/${m} ---- */\n` + this.read('models/' + m)).join('\n');
+      if (f === '@skinned') return `/* ---- public/models manifest ---- */\n(function (G) { (G.K = G.K || {}).SKINNED_MODELS = ${JSON.stringify({ base: 'models/', ids: this.skinnedIds() })}; })(typeof window !== 'undefined' ? window : globalThis);`;
       if (f === '@castle-art') return `/* ---- public/art manifest ---- */\n(function (G) { (G.K = G.K || {}).CASTLE_ART = ${JSON.stringify({ base: 'art/', ids: this.artIds() })}; })(typeof window !== 'undefined' ? window : globalThis);`;
       return `/* ---- ${f} ---- */\n` + this.read('engine/' + f);
     };
@@ -57,6 +59,8 @@ class SiteBuilder {
   }
   /* one file per Asset Lab model, registered with K.Models (sorted, so the build is stable) */
   modelFiles() { const d = path.join(this.src, 'models'); return fs.existsSync(d) ? fs.readdirSync(d).filter((n) => n.endsWith('.js')).sort() : []; }
+  /* the skinned GLB models (public/models/<id>.glb): castle pieces, furniture and heroes drawn from them when present */
+  skinnedIds() { const d = path.join(this.root, 'public', 'models'); return fs.existsSync(d) ? fs.readdirSync(d).filter((n) => n.endsWith('.glb')).map((n) => n.slice(0, -4)).sort() : []; }
   /* the HD voxel art (public/art/<data id>.webp) shown on build cards, the Hearthbook and the end card */
   artDir() { return path.join(this.root, 'public', 'art'); }
   artIds() { return fs.existsSync(this.artDir()) ? fs.readdirSync(this.artDir()).filter((n) => n.endsWith('.webp')).map((n) => n.slice(0, -5)).sort() : []; }

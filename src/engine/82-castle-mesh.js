@@ -34,6 +34,11 @@
     static size(type) { return SIZE[type] || [2, 2]; }
     /* a THREE.Group for a piece; opts: { ruin, level, built } */
     piece(type, opts = {}) {
+      const g = this.drawnPiece(type, opts), sk = !opts.ruin && K.SkinnedModels ? K.SkinnedModels.pieceId(type, opts.level || 1) : null;
+      if (sk) K.SkinnedModels.swapInto(g, sk, { footprint: CastleArt.size(type) });   // skinned GLB replaces the drawn model once it has loaded
+      return g;
+    }
+    drawnPiece(type, opts) {
       const hd = !opts.ruin && K.Models ? K.Models.pieceFor(type, opts.level || 1) : null;   // Asset Lab model (src/models/<type>.js) when there is one
       if (hd) return this.hdPiece(type, hd, opts);
       const kit = new K.VoxKit(), k = this.draw(kit, type, opts);

@@ -98,6 +98,17 @@
       this.orbit = new OrbitDemo(win); this.button = new OrbitButton(this.orbit);
       this.shadowProxy = true;   // low-res shadow-only copy of each body (see VoxelModel.buildShadow)
     }
+    /* static-pose skinned hero (public/models/hero_<role>.glb): hides the voxel body once loaded, keeps the rig
+       (shadow proxy, glow, turning, lunges) and mirrors the rig material's tint and flashes onto its own material */
+    skin(view, role, height) {
+      const S = K.SkinnedModels, id = S && S.heroId(role), rig = view.rig; if (!id || !rig) return;
+      S.whenReady(id, (a) => {
+        if (view.rig !== rig) return;   // rebuilt or disposed while loading
+        const m = a.mesh(K.SkinnedFit.height(a.bounds, height)); m.material = a.material.clone(); view.skinMat = m.material;
+        rig.mesh.visible = false; rig.body.traverse((o) => { if (o.isMesh && o !== rig.shadow && o.parent !== rig.body) o.visible = false; });
+        rig.body.add(m); view.skinMesh = m;
+      });
+    }
     classFor(spriteId) { return this.enabled ? this.viewClass() : K.SpriteActorView; }
     roleOf(spriteId) { return this.enabled ? VoxelRoles.of(spriteId) : null; }
     viewClass() { return this.View || (this.View = VoxelActorViews.define(K.SpriteActorView, this)); }
@@ -119,6 +130,7 @@
           this.anim = new KV.VoxelAnimator(this.rig, { phase: this.phase });
           this.h = model.height * this.scale; this.w = (role === 'troll' ? 2.1 : 0.85) * this.scale;
           this.rig.group.scale.setScalar(this.scale); this.applyTint();
+          kit.skin(this, role, model.height);
           this.yaw = this.yaw != null ? this.yaw : Math.atan2(this.dir.x, this.dir.z);
           const sw = model.height * (role === 'troll' ? 0.62 : 0.5) * this.scale;
           this.blob = ContactShadow.mesh(sw, sw * 0.6);
@@ -148,6 +160,7 @@
           if (this.flashT > 0) { this.flashT -= dt; if (this.flashKind === 'heal') m.emissive.setRGB(0.15, 0.55, 0.22); else m.emissive.setRGB(0.55, 0.08, 0.06); }
           else if (this.hl) m.emissive.set(this.hl).multiplyScalar(0.35);
           else m.emissive.copy(LIFT);
+          if (this.skinMat) { this.skinMat.emissive.copy(m.emissive); this.skinMat.color.copy(m.color); }
           if (this.state === 'dead') { this.deadT += dt; this.blob.visible = this.visible && this.deadT < 0.4; } else this.deadT = 0;
         }
         screenRect(camera, W, H) {
@@ -163,7 +176,7 @@
         }
         disposeSprite() {
           if (!this.rig) return super.disposeSprite();
-          this.R.scene.remove(this.rig.group, this.blob); this.rig.dispose(); this.blob.geometry.dispose(); this.blob.material.dispose();
+          this.R.scene.remove(this.rig.group, this.blob); this.rig.dispose(); if (this.skinMat) { this.skinMat.dispose(); this.skinMat = this.skinMesh = null; } this.blob.geometry.dispose(); this.blob.material.dispose();
           kit.live.delete(this); this.rig = null;
         }
       };

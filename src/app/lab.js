@@ -28,7 +28,8 @@
 
     constructor(models, art, win) { this.models = models; this.art = art || { base: 'art/', ids: [] }; this.win = win; }
     ids() {
-      const set = new Set([...LabCatalog.HEROES.map((r) => 'hero_' + r), ...this.art.ids, ...this.models.ids()]);
+      const sk = (K.SKINNED_MODELS && K.SKINNED_MODELS.ids) || [];
+      const set = new Set([...LabCatalog.HEROES.map((r) => 'hero_' + r), ...this.art.ids, ...this.models.ids(), ...sk]);
       return [...set];
     }
     grouped() {
@@ -128,8 +129,19 @@
   class LabSubject {
     /* catalog: LabCatalog; world: K.WorldRenderer (its BuildingMaterials feed the fallback castle art) */
     constructor(catalog, world) { this.catalog = catalog; this.world = world; this.art = new K.CastleArt(world.bmats); this.cache = new K.VoxelModelCache(KV.CharacterSculptor, () => K.Models); }
-    /* -> { object3d, rig, anim, source: 'registry'|'fallback'|'none', model, height } */
+    /* the skinned GLB id for a Lab id (heroes, castle pieces with their Level 2, furniture and weapons by id) */
+    skinnedId(id) { const S = K.SkinnedModels; return S && S.has(id) ? id : null; }
+    /* a loaded skinned model at game scale: hero height, castle piece footprint, else as authored (1 m) */
+    skinned(id) {
+      const sk = this.skinnedId(id), a = sk && K.SkinnedModels.get(sk); if (!a) return null;
+      const type = id.endsWith('_lv2') ? id.slice(0, -4) : id, foot = K.CASTLE_SIZE && K.CASTLE_SIZE[type];
+      const s = this.catalog.isHero(id) ? K.SkinnedFit.height(a.bounds, this.cache.get(id.slice(5)).height) : foot ? K.SkinnedFit.footprint(a.bounds, foot) : 1;
+      const g = new THREE.Group(); g.add(a.mesh(s));
+      return { object3d: g, source: 'skinned', model: { tris: a.tris }, height: (a.bounds.max[1] - a.bounds.min[1]) * s };
+    }
+    /* -> { object3d, rig, anim, source: 'skinned'|'registry'|'fallback'|'none', model, height } */
     build(id) {
+      const sk = this.useSkinned !== false && this.skinned(id); if (sk) return sk;
       if (this.catalog.isHero(id)) {
         const role = id.slice(5), reg = K.Models.rigFor(role), model = reg || KV.CharacterSculptor.build(role);
         const rig = new KV.VoxelRig(model, { rest: (model && model.rest) || KV.CharacterSculptor.REST[role] });
@@ -332,9 +344,10 @@
       this.ref = await new RefImage(this.catalog.refUrl(id)).load();
       this.$('refImg').src = this.ref.img ? this.ref.img.src : '';
       this.$('refImg2').src = this.$('refImg').src;
+      const sk = this.subjects.skinnedId(id); if (sk) await K.SkinnedModels.load(sk);
       const s = this.subjects.build(id); this.stage.show(s);
       this.$('anims').hidden = !s.rig;
-      this.$('info').textContent = `${id} · ${s.source === 'registry' ? 'HD model (src/models/' + id + '.js)' : s.source === 'fallback' ? 'today\'s model (no src/models/' + id + '.js yet)' : 'no 3D model yet'}` + (s.model && s.model.voxelCount ? ` · ${s.model.voxelCount.toLocaleString()} voxels · ${Math.round(s.model.tris || LabView.tris(s.object3d)).toLocaleString()} tris` : '');
+      this.$('info').textContent = s.source === 'skinned' ? `${id} · skinned model (public/models/${id}.glb) · ${Math.round(s.model.tris).toLocaleString()} tris · static pose` : `${id} · ${s.source === 'registry' ? 'HD model (src/models/' + id + '.js)' : s.source === 'fallback' ? 'today\'s model (no src/models/' + id + '.js yet)' : 'no 3D model yet'}` + (s.model && s.model.voxelCount ? ` · ${s.model.voxelCount.toLocaleString()} voxels · ${Math.round(s.model.tris || LabView.tris(s.object3d)).toLocaleString()} tris` : '');
       this.layout();
       if (!this.light) this.setLight('studio'); else this.setLight(this.light);
       return s;
