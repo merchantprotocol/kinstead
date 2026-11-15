@@ -47,7 +47,8 @@
     static async join(map = 'main') {
       const base = Net.url(); if (!base) return null;
       const name = await NameGate.ask(), net = new Net(base.replace(/\/+$/, '') + '/ws/' + map, Identity.cid, name);
-      try { await net.open(); } catch (e) { console.warn('multiplayer unavailable, playing alone:', e && e.message || e); return null; }
+      const t0 = performance.now();
+      try { await net.open(); } catch (e) { console.warn('multiplayer unavailable, playing alone:', e && e.message || e, Math.round(performance.now() - t0) + ' ms', base); return null; }
       return net;
     }
     constructor(url, cid, name) { this.url = url; this.cid = cid; this.name = name; this.ws = null; this.handlers = {}; this.id = null; this.slot = 0; this.welcome = null; this.ready = false; this.closed = false; this.lastPos = 0; }
@@ -55,7 +56,7 @@
     emit(type, m) { for (const f of this.handlers[type] || []) { try { f(m); } catch (e) { console.warn('net handler', type, e); } } }
     open() {
       return new Promise((resolve, reject) => {
-        let done = false; const fail = (why) => { if (!done) { done = true; reject(new Error(why)); } }, timer = setTimeout(() => fail('timed out'), 6000);
+        let done = false; const fail = (why) => { if (!done) { done = true; reject(new Error(why)); } }, timer = setTimeout(() => fail('timed out'), 15000);   // a busy or slow machine may take a while to answer
         const ws = (this.ws = new WebSocket(this.url));
         ws.onopen = () => ws.send(JSON.stringify({ t: 'hello', cid: this.cid, name: this.name }));
         ws.onerror = () => fail('connection failed');

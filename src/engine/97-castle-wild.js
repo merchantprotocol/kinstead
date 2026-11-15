@@ -20,16 +20,17 @@
   class Difficulty {
     constructor(calendar) { this.cal = calendar; this.wolvesSpawned = 0; }
     get day() { return this.cal.n; }
-    /** the first three wolves are pups; after that wolves grow with the days */
-    nextWolf() {
-      const d = this.day, pup = this.wolvesSpawned++ < 3;
-      return pup ? { name: 'Wolf pup', hp: 10, atk: 2, speed: 2.3, cd: 1.6, scale: 0.8 } : { name: 'Wolf', hp: 18 + d * 3, atk: 3 + Math.floor(d / 2), speed: 2.8 + Math.min(0.5, d * 0.05), cd: 1.15, scale: 1 };
+    /** wolves are deadly: one can kill a new player in a handful of bites, and at night they come in a big pack */
+    nextWolf(night = true) {
+      const d = this.day; this.wolvesSpawned++;
+      return { name: 'Wolf', hp: 26 + d * 3, atk: (night ? 10 : 7) + Math.floor(d / 2), speed: 3.0 + Math.min(0.6, d * 0.05), cd: 0.9, scale: 1 };
     }
-    get packSize() { return Math.min(5, 1 + Math.ceil(this.day / 2) + (this.day > 2 ? 1 : 0)); }   // night 1: 2, night 2: 2, night 3: 3 ... up to 5
-    /** how many bites of your food a wolf takes before it is full: a few on the first night, more as the days go on */
+    get packSize() { return 10 + Math.min(5, Math.max(0, this.day - 1)); }   // 10 on the first night, up to 15
+    get smell() { return 38; }   // how far away a wolf notices you at night, and comes for you before it goes for the food
+    /** how many bites of your food a wolf takes before it is full: a few at first, more as the days go on */
     get appetite() { return Math.min(20, 3 + this.day * 2); }
     get dayCap() { return 1; }
-    get nightCap() { return this.packSize + 1; }
+    get nightCap() { return this.packSize + 3; }
     get thievesAllowed() { return this.day >= 5; }
     get armedAllowed() { return this.day >= 8; }       // armed raiders (they break gates and the door) come late
     armedInterval() { return rnd(300, 420); }
@@ -76,7 +77,7 @@
       this.cd -= dt; const d = dist(a, me);
       if (d > 80 && this.mode !== 'retreat') { if (this.plunder) this.plunder.release(); g.removeActor(a); return; }
       if (this.plunder) this.plunder.follow();
-      if (this.mode === 'retreat') { if (dist(a, this.leave) < 4) { if (this.plunder) this.plunder.escape(); g.removeActor(a); return; } this.goTo(this.leave.x, this.leave.z, a.speed, 1.5, dt); return; }
+      if (this.mode === 'retreat') { if (dist(a, g.L.keep) > 66) { if (this.plunder) this.plunder.escape(); g.removeActor(a); return; } const lp = g.wild.leavePoint(a); this.goTo(lp.x, lp.z, a.speed, 1.5, dt); return; }   // it walks away a stretch at a time
       if (g.calendar.isNight && this.forage(dt, d)) return;   // at night the smell of your food is what they came for
       if (!me.alive || g.isSanctuary(me.x, me.z) || this.pace > 0) { this.pace -= dt; this.prowl(dt); this.keepOut(); return; }   // you are in your house or at a gate: they circle outside
       this.hunt(dt, d); this.keepOut();
@@ -85,7 +86,7 @@
     /** go for your food stores and gnaw them (until full, then slink off with it). false = do something else (you are near, or it is hurt). */
     forage(dt, d) {
       const g = this.g, a = this.a, me = this.P.me, pl = this.plunder || (this.plunder = new K.Plunder(g, a, g.wild.difficulty.appetite));
-      if ((a.hp != null && a.hp < a.hpMax - 0.01) || (me.alive && d < 6 && !g.isSanctuary(me.x, me.z))) return false;   // hurt, or you came close: it fights you
+      if ((a.hp != null && a.hp < a.hpMax - 0.01) || (me.alive && d < g.wild.difficulty.smell && !g.isSanctuary(me.x, me.z) && !pl.done)) return false;   // hurt, or it smells you: it comes for you before the food
       if (pl.done) { this.retreat(); return true; }
       let st = this.food; if (!st || !st.present || st.amount < 1) { st = this.food = this.pickFood(); if (!st) { if (pl.carrying) this.retreat(); return false; } }
       const tx = st.ent.x, tz = st.ent.z;
@@ -149,8 +150,8 @@
       } else if (this.mode === 'raiding') {
         this.raid(dt);
       } else {
-        if (!this.fleeTo) this.fleeTo = this.edgeFar();
-        if (dist(a, this.fleeTo) < 3 || dist(a, g.home.center) > 60) { this.escape(); return; }
+        this.fleeTo = this.edgeFar();
+        if (dist(a, g.home.center) > 62) { this.escape(); return; }
         this.goTo(this.fleeTo.x, this.fleeTo.z, a.speed * 1.2, 1.5, dt);
       }
     }
@@ -241,7 +242,7 @@
     /** where a creature heads when it gives up and goes home: away from your homestead */
     leavePoint(a) {
       const L = this.g.L, k = L.keep, dx = a.x - k.x, dz = a.z - k.z, d = Math.hypot(dx, dz) || 1, wu = L.size.w * K.TILE, hu = L.size.h * K.TILE;
-      return { x: Math.max(6, Math.min(wu - 6, k.x + dx / d * 85)), z: Math.max(6, Math.min(hu - 6, k.z + dz / d * 85)) };
+      return { x: Math.max(6, Math.min(wu - 6, a.x + dx / d * 22)), z: Math.max(6, Math.min(hu - 6, a.z + dz / d * 22)) };   // always a short hop ahead, so the pathfinder can reach it
     }
     /** do the animals have a reason to come? Food left outside, you outside, or a way in to you. Walls up and nothing outside: they stop coming. */
     attracted() {
@@ -258,7 +259,7 @@
       if (this.cal.isNight) this.g.cui.toast(n > 1 ? 'Wolves are howling out in the dark…' : 'A wolf is howling nearby…');
     }
     spawnWolf(x, z) {
-      const g = this.g, s = this.difficulty.nextWolf();
+      const g = this.g, s = this.difficulty.nextWolf(this.cal.isNight);
       const a = g.addActor({ id: 'w' + Math.random().toString(36).slice(2, 7), role: 'enemy', spriteId: 'wolf', name: s.name, x, z, hpMax: s.hp, atk: s.atk, def: 0, speed: s.speed, cd: s.cd, reach: 0.95, r: 0.45, scale: s.scale, level: 1, info: { xp: 0, loot: [] } });
       a.hostile = true; a.aggro = true; a.wolf = true; a.enemy = { drops: [] }; a.brain = new WolfBrain(g, a); return a;
     }

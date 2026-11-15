@@ -31,6 +31,8 @@
       if (!doc) doc = new K.WorldGenerator(4242).generate(64, 48);
       this.scene.setDoc(doc); MenuPage.hideLoading();
     }
+    /** move the loading bar to pct (0-100) with a line of what is happening */
+    static progress(pct, msg) { const l = document.getElementById('loading'); if (!l) return; l.classList.add('js'); const i = l.querySelector('.ld-bar i'), m = l.querySelector('.ld-msg'); if (i) i.style.width = pct + '%'; if (m && msg) m.textContent = msg; }
     static hideLoading() { const l = document.getElementById('loading'); if (!l) return; l.classList.add('done'); setTimeout(() => l.remove(), 500); }   // the bar fills, the screen fades
   }
 
@@ -77,8 +79,9 @@
     static SAVE_EVERY_MS = 15000;
     async start() {
       document.body.classList.add('play-only'); G.KINSTEAD_NO_UNLOAD_PROMPT = true;
-      const app = (this.app = this.makeApp());
       const castleMode = (this.s.router.param('mode') || G.KINSTEAD_PLAY_MODE) === 'castle';
+      if (castleMode) G.KINSTEAD_HOLD_LOADING = true;   // no flash of the placeholder world: the loading screen stays until the castle is built
+      const app = (this.app = this.makeApp());
       if (castleMode) return await this.startCastle(app);   // the game has no Menu button: Esc leaves
       this.addBackButton(async () => { await this.saveProgress(); return true; });   // KINSTEAD_PLAY_MODE: embedders without a query string
       const id = this.s.router.param('world');
@@ -96,16 +99,31 @@
     }
     /* Castle mode (the v1.1 story): a built-in castle world with K.CastleGame layered on play; saves to localStorage */
     async startCastle(app) {
-      const net = await K.Net.join(), layout = new K.HutLayout(new K.WorldPlan(), net ? net.slot : 0);   // a plot of your own (or plot 0 when playing alone)
+      const step = (p, m) => MenuPage.progress(p, m), frame = () => new Promise((r) => requestAnimationFrame(() => r()));
+      step(8, 'Finding the others…');
+      const net = await K.Net.join(this.s.router.param('map') || 'main'), layout = new K.HutLayout(new K.WorldPlan(), net ? net.slot : Math.max(0, Math.min(29, +this.s.router.param('plot') || 0)));   // ?plot=N picks a plot when playing alone (for testing)   // a plot of your own (or plot 0 when playing alone)
+      step(25, 'Shaping the land…'); await frame();
       app.setDoc(new K.HutWorldBuilder(layout).build()); app.dirtySince = false;
+      step(55, 'Raising your homestead…'); await frame();
       this.castle = app.play.ext = new K.CastleGame(app.play, { layout, net, resume: this.s.router.param('new') !== '1' });
       const setPlay = app.setPlay.bind(app); setPlay(true);
       app.setPlay = (on) => { if (on) setPlay(true); };
       document.title = 'Kinstead';
+      step(75, 'Painting the snow…'); await this.settle(app, step);
       this.castle.onLeave = () => { this.castle.save(true); G.KINSTEAD_NO_UNLOAD_PROMPT = true; this.s.router.go('menu'); };
       document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') this.castle.save(true); });
       G.addEventListener('pagehide', () => this.castle.save(true));
       return this;
+    }
+    /** wait until the world has actually been drawn: no chunk left to build, for a few frames running (or give up after 25 s) */
+    async settle(app, step) {
+      const t0 = performance.now(); let calm = 0;
+      while (performance.now() - t0 < 25000 && calm < 12) {
+        await new Promise((r) => requestAnimationFrame(() => r()));
+        const pending = app.renderer ? app.renderer.pending || 0 : 0; calm = pending === 0 ? calm + 1 : 0;
+        step(75 + Math.min(20, 20 * (1 - Math.min(1, pending / 400))), pending ? 'Painting the snow…' : 'Almost there…');
+      }
+      step(100, 'Ready'); await new Promise((r) => setTimeout(r, 250)); MenuPage.hideLoading();
     }
     /* the Continue slot: the world with this character's progress (doc.game) */
     async saveProgress() {
@@ -124,7 +142,7 @@
       const go = () => {
         if (started) return; started = true;
         try { G.page = new Page(new PageServices()); G.pageReady = G.page.start().catch((e) => { console.error(e && e.stack || e); }); }
-        catch (e) { console.error(e && e.stack || e); const l = document.getElementById('loading'); if (l) { l.classList.remove('done'); const m = l.querySelector('.ld-msg'); if (m) m.textContent = 'Error: ' + e.message; else l.textContent = 'Error: ' + e.message; } }
+        catch (e) { console.error(e && e.stack || e); const l = document.getElementById('loading'); if (l) { l.classList.remove('done'); const m = l.querySelector('.ld-msg'); if (m) m.textContent = 'Could not start: ' + e.message + '. Reload to try again.'; else l.textContent = 'Error: ' + e.message; } }
       };
       if (document.readyState === 'complete') setTimeout(go, 30); else G.addEventListener('load', () => setTimeout(go, 30));
       setTimeout(go, 1500);

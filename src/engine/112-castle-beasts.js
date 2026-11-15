@@ -31,7 +31,7 @@
       const g = this.g, a = this.a, me = this.P.me; if (!this.tickDead(dt)) return;
       this.cd -= dt; if (this.plunder) this.plunder.follow(); const d = dist(a, me);
       if (d > 90 && this.mode !== 'leave') { this.plunder.release(); g.removeActor(a); return; }
-      if (this.mode === 'leave') { if (dist(a, this.leave) < 4) { this.plunder.escape(); g.removeActor(a); return; } this.walk(this.leave.x, this.leave.z, 1.5, dt); return; }
+      if (this.mode === 'leave') { if (dist(a, g.L.keep) > 66) { this.plunder.escape(); g.removeActor(a); return; } const lp = g.wild.leavePoint(a); this.walk(lp.x, lp.z, 1.5, dt); return; }
       if ((a.hp < a.hpMax - 0.01 || d < 4.5) && me.alive && !g.isSanctuary(me.x, me.z)) {    // hurt or crowded: it turns on you
         const reach = a.reach + (me.r || 0.3) + 0.35; if (d <= reach) { a.path = null; this.face(me); if (this.cd <= 0) this.bite(me); this.anim(false); } else this.walk(me.x, me.z, reach * 0.8, dt); this.keepOut(); return;
       }

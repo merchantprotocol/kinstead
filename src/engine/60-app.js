@@ -466,7 +466,7 @@
       this.storeReady = this.initStore();
       const loop = () => { this.frame(); this.raf = requestAnimationFrame(loop); };
       loop();
-      const l = $('loading'); if (l) { l.classList.add('done'); setTimeout(() => l.remove(), 500); }
+      if (!G.KINSTEAD_HOLD_LOADING) { const l = $('loading'); if (l) { l.classList.add('done'); setTimeout(() => l.remove(), 500); } }   // the castle page keeps the loading screen up until its own world is ready
       return this;
     }
     get doc() { return this.renderer.doc; }
