@@ -310,7 +310,10 @@
       new K.WorkShedArt(k).draw('barn');   // a little roof on posts over the hay rack
     },
   };
-  const proto = K.CastleArt.prototype, base = proto.draw;
-  proto.draw = function (k, type, opts = {}) { const f = ART[type]; if (f && !opts.ruin) return f.call(this, k, opts) || k; return base.call(this, k, type, opts); };
+  class CastleArtPiecePainter {
+    constructor(drawer) { this.drawer = drawer; }
+    draw(kit, options = {}) { return this.drawer(kit, options) || kit; }
+  }
+  for (const [type, drawer] of Object.entries(ART)) K.CastleArt.register(type, new CastleArtPiecePainter(drawer));
   void CYL; void CYL8; void CONE6;
 })(typeof window !== 'undefined' ? window : globalThis);
