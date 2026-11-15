@@ -92,12 +92,14 @@
       lam('hanging', tex(P.hanging(BP.blue), null, { mips: false, flipY: true }), { alphaTest: 0.5, side: THREE.DoubleSide });
       lam('hangingRed', tex(P.hanging(TP.cloth), null, { mips: false, flipY: true }), { alphaTest: 0.5, side: THREE.DoubleSide });
       // the bright palette: clean colours that read at a glance (signs, painted trim, roofs, goods). Each gets a faint grain so it is not plastic.
-      const grain = tex(P.plaster(), [1, 1]);
+      const gc = document.createElement('canvas'); gc.width = gc.height = 16; const gx = gc.getContext('2d'), gd = gx.createImageData(16, 16);
+      for (let i = 0; i < 256; i++) { const v = 228 + Math.floor(Math.random() * 27); gd.data.set([v, v, v, 255], i * 4); } gx.putImageData(gd, 0, 0);   // a faint, near-white grain: it keeps the colour clean
+      const grain = new THREE.CanvasTexture(gc); grain.magFilter = THREE.NearestFilter; grain.wrapS = grain.wrapT = THREE.RepeatWrapping; grain.repeat.set(2, 2); grain.colorSpace = THREE.SRGBColorSpace;
       const PAINT = { paintRed: '#c8392b', paintBlue: '#2f72c0', paintGreen: '#3f9a3a', paintYellow: '#f0bf2e', paintWhite: '#f4efe4', paintOrange: '#e8792a', paintPurple: '#7b4bb0',
         whitewash: '#ece5d3', woodLight: '#c99358', woodMid: '#94612f', woodDark: '#5e3c20', roofRed: '#b84a30', roofBlue: '#3d6696', roofGreen: '#4f8a3c', roofBrown: '#7a4a2a',
         stoneLight: '#c6c1b6', stoneMid: '#9a958c', stoneDark: '#67635c', gold: '#f0c94a', ironDark: '#3c3f47', rope: '#d2ad6e', canvas: '#f1e8d0', wheatGold: '#ecc65a',
         leafGreen: '#4ea33e', waterBlue: '#4a94d0', meatRed: '#b8443c', eggWhite: '#f8f2e4', signBoard: '#b07a42', potionPink: '#e05aa0', potionTeal: '#2ec4b0', bookRed: '#9a2e2a', bookBlue: '#2c4f8a' };
-      for (const [k, c] of Object.entries(PAINT)) this.map.set(k, new THREE.MeshLambertMaterial({ map: grain, color: new THREE.Color(c).multiplyScalar(1.05) }));
+      for (const [k, c] of Object.entries(PAINT)) this.map.set(k, new THREE.MeshLambertMaterial({ map: grain, color: new THREE.Color(c) }));
       this.paint = PAINT;
       // emissive parts: colour > 1 feeds the bloom pass
       const basic = (key, t, col) => this.map.set(key, new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(col, col * 0.92, col * 0.8) }));
