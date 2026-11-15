@@ -867,7 +867,7 @@
     set(v, snap) { Object.assign(this.goal, v); this.clamp(); if (snap) this.cur = Object.assign({}, this.goal); }
     clamp() {
       const g = this.goal, b = this.bounds;
-      g.pitch = Math.max(0.35, Math.min(1.53, g.pitch)); g.dist = Math.max(4, Math.min(Math.max(40, (b[2] - b[0]) * 1.4), g.dist));
+      g.pitch = Math.max(0.35, Math.min(1.53, g.pitch)); g.dist = Math.max(4, Math.min(this.maxDist || Math.max(40, (b[2] - b[0]) * 1.4), g.dist));
       g.tx = Math.max(b[0], Math.min(b[2], g.tx)); g.tz = Math.max(b[1], Math.min(b[3], g.tz));
     }
     update(dt, t) {
@@ -880,5 +880,5 @@
     }
   }
 
-  Object.assign(K, { CH, PPU, PropBuilder, WorldRenderer, CameraRig, Chunk, SpriteActor, GeometryBuilderW: GeometryBuilder, M4, UNIT });
+  Object.assign(K, { CH, PPU, PropBuilder, WorldRenderer, TextureBank, CameraRig, Chunk, SpriteActor, GeometryBuilderW: GeometryBuilder, M4, UNIT });
 })(typeof window !== 'undefined' ? window : globalThis);

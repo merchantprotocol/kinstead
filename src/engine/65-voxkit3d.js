@@ -317,6 +317,9 @@
           torsoY = 0.5 * e(wind) * (1 - e(rec)); headY = -0.4 * e(wind) * (1 - e(rec));
         } else if (st === 'cast') { // staff thrust forward with a flare
           armLX = -1.3 * e(wind) + 0.2 * e(strike) + 1.1 * e(rec); armRX = -0.9 * e(wind) * (1 - e(rec)); torsoX = 0.15 * e(strike) * (1 - e(rec));
+        } else if (st === 'beast') { // wolf: crouch back, then a snapping lunge with the paws forward
+          headX = -0.25 * e(wind) + 0.55 * e(strike) * (1 - e(rec)); torsoX = -0.12 * e(wind) + 0.3 * e(strike) * (1 - e(rec));
+          armRX = -0.9 * e(strike) * (1 - e(rec)); armLX = -0.9 * e(strike) * (1 - e(rec)); weapX = -0.3 * e(strike);
         } else { // slam: club overhead and down
           armRX = -2.7 * e(wind) + 2.2 * e(strike) + 0.5 * e(rec); armLX = -0.6 * e(wind) + 0.9 * e(strike) - 0.3 * e(rec);
           torsoX = -0.2 * e(wind) + 0.45 * e(strike) - 0.25 * e(rec); bodyY -= 2 * e(strike) * (1 - e(rec)) * s;

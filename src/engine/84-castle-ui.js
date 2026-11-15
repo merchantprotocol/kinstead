@@ -12,9 +12,13 @@
   /* ---------- castle icons (16x16 pixel drawings, same style as the item icons) ---------- */
   const r = K.ramp, PAL = K.PAL;
   const stoneP = r('#1c1f27', '#3a3f4b', '#5d6370', '#868c98', '#b4b9c2'), emberP = r('#3a0e04', '#8a2a08', '#d0561a', '#ff9a3a', '#ffe08a'), heartP = r('#200a10', '#5a1a28', '#a83a3a', '#ff7a4a', '#ffd08a');
+  const dirtP = r('#1c1208', '#3d2a18', '#5e4128', '#86603a', '#a9835a');
   const iceP = r('#1a3a5a', '#3f82aa', '#7fb6d6', '#cfe8f5'), woodP = PAL.wood, steelP = PAL.steel, goldP = PAL.gold;
   Object.assign(Icons.DRAW, {
     stone(c) { c.poly([[1, 13], [3, 8], [7, 7], [9, 10], [6, 14]], stoneP).poly([[7, 14], [9, 8], [13, 7], [15, 12], [13, 15]], stoneP).poly([[4, 8], [6, 3], [10, 2], [12, 6], [9, 8]], stoneP); },
+    arrow(c) { c.line(2, 14, 13, 3, woodP[3], 1).poly([[13, 1], [15, 5], [10, 4]], steelP).poly([[1, 12], [4, 12], [3, 15], [1, 15]], iceP[3]); },
+    food(c) { c.poly([[3, 9], [7, 5], [12, 6], [14, 10], [10, 12]], r('#3a1408', '#7a2a14', '#b04a26', '#e07a46', '#ffb482')).line(10, 11, 14, 14, woodP[3], 2).disc(14.5, 14.5, 1.6, goldP[3]); },
+    dirt(c) { c.poly([[1, 13], [3, 8], [8, 6], [13, 8], [15, 13], [12, 15], [4, 15]], dirtP).px(5, 9, dirtP[4]).px(9, 8, dirtP[4]).px(11, 11, dirtP[1]).px(6, 12, dirtP[1]); },
     ember(c) { c.poly([[8, 1], [12, 7], [10, 15], [6, 15], [4, 8]], emberP).px(8, 5, emberP[5]).px(7, 9, emberP[5]); },
     heart(c) { c.disc(5.5, 6, 4, heartP).disc(10.5, 6, 4, heartP).poly([[2, 7], [14, 7], [8, 15]], heartP).px(6, 5, heartP[5]).line(8, 4, 8, 11, iceP[1]); },
     stoneblade(c) { c.poly([[5, 11], [11, 2], [14, 3], [8, 12]], stoneP).line(2, 14, 6, 10, woodP[3], 2).line(3, 9, 8, 13, PAL.leather ? PAL.leather[3] : woodP[2]); },
@@ -26,9 +30,9 @@
     crown(c) { c.poly([[2, 13], [2, 5], [5, 9], [8, 3], [11, 9], [14, 5], [14, 13]], goldP).px(8, 7, emberP[4]); },
   });
 
-  const ICON = { wood: 'log', stone: 'stone', iron: 'ore', gold: 'coin', ember_shard: 'ember', troll_heart: 'heart', stoneblade: 'stoneblade', iron_sword: 'sword', ember_brand: 'brand' };
-  const RES_ORDER = ['wood', 'stone', 'iron', 'gold', 'ember_shard'];
-  const PIECE_ICON = { palisade: 'log', stone_wall: 'stone', gatehouse: 'hammer', watchtower: 'eye', ember_brazier: 'ember', woodcutter: 'axe', quarry: 'pickaxe', mine: 'ore', great_hall: 'coin', chapel: 'ember', storehouse: 'bag', smithy: 'hammer', ember_forge: 'brand', barracks: 'shield', heartfire_hearth: 'heart' };
+  const ICON = { wood: 'log', stone: 'stone', dirt: 'dirt', food: 'food', arrow: 'arrow', iron: 'ore', gold: 'coin', ember_shard: 'ember', troll_heart: 'heart', stoneblade: 'stoneblade', iron_sword: 'sword', ember_brand: 'brand' };
+  const RES_ORDER = ['wood', 'stone', 'dirt', 'food', 'arrow', 'iron', 'gold', 'ember_shard'];
+  const PIECE_ICON = { cottage: 'bed', fire_pot: 'ember', farm: 'hammer', field: 'food', silo: 'bag', coop: 'food', barn: 'food', market: 'coin', stable: 'hand', bakery: 'food', butcher: 'food', library: 'book', bunkhouse: 'bed', palisade: 'log', stone_wall: 'stone', stone_gate: 'stone', stone_tower: 'stone', gate: 'log', gatehouse: 'hammer', watchtower: 'eye', ember_brazier: 'ember', woodcutter: 'axe', quarry: 'pickaxe', mine: 'ore', great_hall: 'coin', chapel: 'ember', storehouse: 'bag', smithy: 'hammer', ember_forge: 'brand', barracks: 'shield', heartfire_hearth: 'heart' };
   const SHORT = {
     palisade: 'Blocks raiders; they must chop through it.', stone_wall: 'Blocks raiders. 2.5x a palisade’s HP.', gatehouse: 'The way in. Walls joined to it make the courtyard.',
     watchtower: 'Shoots raiders within 6 m for 4/s (6 with a hero on it).', ember_brazier: 'At night, burns frost creatures within 3 m.', storehouse: '+100 storage. Guards half your stores from raids.',
@@ -60,13 +64,18 @@
       this.g = game; this.c = game.castle; this.placing = null; this.bannerQ = []; this.hudT = 0;
       const root = (this.root = el('div', '', ''));
       root.id = 'castleui';
-      root.innerHTML = `<div id="cHud" class="cp"></div><div id="cGoals" class="cp"></div><div id="cClock" class="cp"></div><div id="cRaid" class="cp" hidden></div>
-        <div id="cBar" class="cp"><button class="cb pri" data-a="build">${Icons.img('hammer', 1)} Build <kbd>B</kbd></button><button class="cb" data-a="book">${Icons.img('book', 1)} Hearthbook <kbd>H</kbd> <b id="cPct">0%</b></button><button class="cb" data-a="bell" title="Ring the Keep bell: dusk comes now">${Icons.img('bell', 1)} Ring bell</button><span class="hint">Click: walk · gather · repair · attack · Double-click: run</span></div>
+      root.innerHTML = `<div id="cLeft"><div id="cHud" class="cp"></div></div><div id="cGoals" class="cp"></div><div id="cClock" class="cp"></div><div id="cRaid" class="cp" hidden></div>
+        <div id="cBar" class="cp"><button class="cb" data-a="book">${Icons.img('book', 1)} Hearthbook <kbd>H</kbd> <b id="cPct">0%</b></button><button class="cb" data-a="bell" title="Ring the Keep bell: dusk comes now">${Icons.img('bell', 1)} Ring bell</button><span class="hint">Click: walk · gather · repair · attack · Double-click: run</span></div>
         <div id="cRadial" hidden></div><div id="cPlace" class="cp" hidden></div><div id="cBanner" hidden></div><div id="cBook" class="cp" hidden></div><div id="cModal" hidden></div>`;
       document.body.appendChild(root);
       this.$ = (id) => root.querySelector('#' + id);
+      this.buildDetails = new K.BuildDetailsDialog(this);
       this.$('cBar').addEventListener('click', (e) => { const b = e.target.closest('[data-a]'); if (!b) return; this.g.sound.unlock(); const a = b.dataset.a; if (a === 'build') this.toggleRadial(); else if (a === 'book') this.toggleBook(); else if (a === 'bell') this.g.ringBell(); });
-      this.$('cRadial').addEventListener('click', (e) => { const b = e.target.closest('[data-card]'); if (b) this.pickCard(+b.dataset.card); else if (e.target.id === 'cRadial' || e.target.closest('[data-close]')) this.toggleRadial(false); });
+      this.$('cRadial').addEventListener('click', (event) => {
+        const card = event.target.closest('[data-card]');
+        if (card) this.pickCard(+card.dataset.card);
+        else if (event.target.id === 'cRadial' || event.target.closest('[data-close]')) this.toggleRadial(false);
+      });
       this.$('cBook').addEventListener('click', (e) => { if (e.target.closest('[data-close]')) this.toggleBook(false); });
       this.$('cPlace').addEventListener('click', (e) => { if (e.target.closest('[data-close]')) this.stopPlacing(); if (e.target.closest('[data-rot]')) this.rotate(); });
       this.render();
@@ -75,28 +84,35 @@
       const d = castle.data.piece(type); if (!d || !d.produces) return '';
       return castle.payback.line(castle.buildCost(type, opts), d.produces);
     }
-    dispose() { this.stopPlacing(); this.root.remove(); }
+    dispose() { this.buildDetails.dispose(); this.stopPlacing(); this.root.remove(); }
     toast(m) { this.g.app.toast(m); }
 
     /* ---------- HUD ---------- */
     render() {
       const c = this.c, g = this.g, cl = c.cl(), row = c.row(), caps = c.caps(), rates = c.rates(), nx = c.nextLevel();
       const p = g.play.player, hp = p.hp, hpMax = p.stats().hpMax;
-      const res = RES_ORDER.map((r) => {
-        const full = c.amount(r) >= caps[r], rate = rates[r] || 0;
-        return `<div class="res ${full ? 'full' : ''}" data-r="${r}" title="${esc(K.CastleData.resName(r))}: ${c.amount(r)} of ${caps[r]}">${Icons.img(ICON[r], 1)}<b>${c.amount(r)}</b><small>/${caps[r]}</small>${rate ? `<i>+${rate}/min</i>` : ''}${full ? '<em>FULL</em>' : ''}</div>`;
-      }).join('') + (c.amount('troll_heart') ? `<div class="res heart">${Icons.img('heart', 1)}<b>Troll’s heart</b></div>` : '');
+
       const next = !c.lit ? 'Light the Keep’s hearth to begin' : nx ? (nx.capped ? (cl >= 4 ? esc(c.data.raw.castleLevel.capMessage) : '') : `Next: CL ${nx.cl} at ${nx.need} castle points (${nx.have}/${nx.need})`) : 'The castle burns at its brightest';
       const w = c.bestWeapon();
-      this.$('cHud').innerHTML = `<div class="clrow"><div class="cl" title="Castle Level">CL<b>${cl}</b></div><div class="clfx"><b>${c.lit ? `${row.heroMaxHP} HP · +${row.heroAtkBonus} attack · +${row.gatherBonus} gather · glow ${row.glowRadiusM} m` : 'The Keep is cold'}</b><small>${next}</small></div></div>
-        <div class="hp"><i style="width:${(100 * hp / hpMax).toFixed(1)}%"></i><span>${Math.ceil(hp)} / ${hpMax} HP · ${w ? esc(w.name) + ' (' + w.atk + ')' : 'bare hands'}</span></div>
-        <div class="resl">${res}</div>
-        ${c.kin.size ? `<div class="kin">Kin: ${[...c.kin].map((k) => esc(c.data.hero(k).name)).join(' · ')}</div>` : ''}`;
-      this.renderGoals(); this.renderClock();
-      this.$('cPct').textContent = c.hearthbook().pct + '%';
-      const bell = this.root.querySelector('[data-a=bell]'); bell.hidden = !(c.lit && g.day.kind === 'day' && g.day.length() != null && g.day.idx + 1 < g.day.phases.length);
+      const pct = Math.max(0, Math.min(100, 100 * hp / hpMax));
+      const food = g.economy && g.economy.food ? g.economy.food.snapshot() : { made: 0, eaten: 0, minutesLeft: Infinity };
+      this.$('cHud').innerHTML = this.healthBar(pct, hp) + this.xpBar() + this.foodSummary(food);
+
+      if (this.g.tools) this.g.tools.drawer.update();
       if (this.radialOpen) this.renderRadial();
       if (this.bookOpen) this.renderBook();
+    }
+    healthBar(pct, hp) {
+      return `<div class="hp ${pct < 30 ? 'low' : ''}"
+        title="Strength: eat to recover fast; rest in your house to recover slowly">
+        <i style="width:${pct.toFixed(1)}%"></i><span>♥ ${Math.ceil(hp)}</span></div>`;
+    }
+    foodSummary(food) {
+      if (!food.eaten) return '';   // nobody to feed yet: no ration line
+      const tone = food.made - food.eaten < 0 ? 'low' : '';
+      const made = Number.isInteger(food.made) ? food.made : food.made.toFixed(1);
+      const left = Number.isFinite(food.minutesLeft) ? food.minutesLeft.toFixed(0) : '∞';
+      return `<div class="food ${tone}">Food: +${made}/min made, −${food.eaten}/min eaten, ${left} min left</div>`;
     }
     renderGoals() {
       const goals = this.c.currentGoals(3), warn = this.g.day.kind === 'day' && this.g.day.warned;
@@ -124,6 +140,8 @@
       e.innerHTML = `<div class="bn">${Icons.img(ic, 3)}<div><h2>${esc(b.title)}</h2><p>${esc(b.text)}</p></div></div>`; e.hidden = false; e.classList.remove('in'); void e.offsetWidth; e.classList.add('in');
       this.bannerT = 3.6;
     }
+    /** the level and how far to the next one */
+    xpBar() { const x = this.g.xp.progress(), pct = x.need ? Math.min(100, x.into / x.need * 100) : 100; return `<div class="xp" title="Level ${x.level} · ${x.need ? x.into + ' / ' + x.need + ' XP' : 'top level'}. You earn XP by building and by fighting."><i style="width:${pct.toFixed(1)}%"></i><span>Level ${x.level}</span></div>`; }
     modal(html, buttons) {
       const m = this.$('cModal'); m.innerHTML = `<div class="card">${html}<div class="acts">${buttons.map((b, i) => `<button class="cb ${b.pri ? 'pri' : ''}" data-i="${i}">${esc(b.label)}</button>`).join('')}</div></div>`; m.hidden = false;
       m.onclick = (e) => { const b = e.target.closest('[data-i]'); if (!b) return; m.hidden = true; const f = buttons[+b.dataset.i].run; if (f) f(); };
@@ -193,11 +211,10 @@
     /* ---------- the Build radial ---------- */
     toggleRadial(on) {
       this.radialOpen = on != null ? on : !this.radialOpen; this.$('cRadial').hidden = !this.radialOpen;
-      if (this.radialOpen) { this.stopPlacing(); this.toggleBook(false); this.g.play.ui.closeAll(); this.renderRadial(); this.g.sound.play('pop'); }
+      if (this.radialOpen) { this.stopPlacing(); this.toggleBook(false); this.g.play.ui.closeAll(); this.radialHtml = ''; const rd = this.$('cRadial'); rd.classList.add('opening'); clearTimeout(this.openT); this.openT = setTimeout(() => rd.classList.remove('opening'), 400); this.renderRadial(); this.g.sound.play('pop'); }
     }
     cards() {
       const c = this.c, d = c.data, out = [], locked = [];
-      if (!c.lit) return { out, locked: [{ name: 'Light the Keep’s hearth first' }] };
       for (const id of d.pieceIds().concat([d.keepUpgrade.id])) {
         if (id === 'keep') continue;
         const ruin = c.ruinOpen(id), p = d.piece(id), why = c.blocker(id, { ruin });
@@ -232,41 +249,85 @@
         return `<button class="bc ${x.best ? 'best' : ''} k-${x.kind}" data-card="${i}" style="left:${x0.toFixed(0)}px;top:${y0.toFixed(0)}px">${x.best ? `<span class="coin" title="Best payback">${Icons.img('coin', 2)}</span>` : ''}
           <div class="hd">${this.art.html(x.art || x.id, x.icon, 46)}<div><b>${esc(x.name)}</b><small>${esc(x.sub)}</small></div></div><div class="cost">${chip(x.cost)}</div><p>${esc(x.line)}</p></button>`;
       }).join('');
-      this.$('cRadial').innerHTML = `<div class="hub" style="left:${cx}px;top:${cy}px"><b>Build</b><small>${n ? n + ' you can afford' : 'nothing affordable yet'}</small><button class="cb" data-close>Close <kbd>B</kbd></button></div>${cards}
+      const html = `<div class="hub" style="left:${cx}px;top:${cy}px"><b>Build</b><small>${n ? n + ' you can afford' : 'nothing affordable yet'}</small><button class="cb" data-close>Close <kbd>B</kbd></button></div>${cards}
         ${locked.length ? `<div class="locked"><b>Not yet:</b> ${locked.slice(0, 7).map((l) => `${esc(l.name)}${l.why ? ` <i>(${esc(l.why)})</i>` : ''}`).join(' · ')}${locked.length > 7 ? ' · …' : ''}</div>` : ''}`;
+      if (html === this.radialHtml) return;   // the HUD re-renders every 0.25 s: do not rebuild (and re-animate) identical cards
+      this.radialHtml = html; this.$('cRadial').innerHTML = html;
     }
     pickCard(i) {
-      const x = this.cardList && this.cardList[i]; if (!x) return; const g = this.g, play = g.play;
-      this.toggleRadial(false);
-      if (x.kind === 'upgrade') { g.upgrade(x.piece); return; }
-      if (x.kind === 'place') { this.startPlacing(x.id); return; }
-      const walk = (ent, actId) => { const act = g.actionsFor(ent).find((a) => a.id === actId); if (act) play.doAction(ent, act); };
-      if (x.kind === 'ruin') walk(g.ruinEnts[x.id], 'repair');
-      else if (x.kind === 'site') walk(g.outcropEnt, 'mine');
-      else if (x.kind === 'heart') walk(g.keepEnt, 'bind');
-      else if (x.kind === 'craft') { const st = this.c.data.recipe(x.rid).station; if (st === 'keep') walk(g.keepEnt, 'craft'); else { const p = this.c.pieces.find((q) => q.type === st); if (p) walk(g.pieceEnt(p), 'craft'); } }
+      const x = this.cardList && this.cardList[i];
+      if (x) this.activateCard(x);
     }
+    activateCard(x) {
+      if (!x) return;
+      const g = this.g, play = g.play;
+      this.toggleRadial(false);
+      if (x.kind === 'upgrade') {
+        g.upgrade(x.piece);
+        return;
+      }
+      if (x.kind === 'place') {
+        this.startPlacing(x.id);
+        return;
+      }
+      const walk = (entity, actionId) => {
+        const action = g.actionsFor(entity).find((item) => item.id === actionId);
+        if (action) play.doAction(entity, action);
+      };
+      if (x.kind === 'ruin') {
+        walk(g.ruinEnts[x.id], 'repair');
+        return;
+      }
+      if (x.kind === 'site') {
+        walk(g.outcropEnt, 'mine');
+        return;
+      }
+      if (x.kind === 'heart') {
+        walk(g.keepEnt, 'bind');
+        return;
+      }
+      if (x.kind === 'craft') {
+        const station = this.c.data.recipe(x.rid).station;
+        if (station === 'keep') {
+          walk(g.keepEnt, 'craft');
+          return;
+        }
+        const piece = this.c.pieces.find((item) => item.type === station);
+        if (piece) walk(g.pieceEnt(piece), 'craft');
+      }
+    }
+    showBuildDetails(card) { this.buildDetails.open(card); }
 
     /* ---------- placement ---------- */
     startPlacing(type) {
       this.stopPlacing(); const g = this.g;
       this.placing = { type, ghost: g.art.ghost(type) }; g.group.add(this.placing.ghost); this.placing.ghost.visible = false;
-      this.$('cPlace').hidden = false;
-      this.$('cPlace').innerHTML = `${this.art.html(type, PIECE_ICON[type], 30)} Place the <b>${esc(this.c.data.piece(type).name)}</b> inside the glow. It faces the Keep. <button class="cb" data-rot>Turn <kbd>R</kbd></button><button class="cb" data-close>Done <kbd>Esc</kbd></button>`;
+      this.$('cPlace').hidden = false; if (g.site.handles(type)) { g.site.turns = 0; g.site.steering = false; }
+      this.$('cPlace').innerHTML = `${this.art.html(type, PIECE_ICON[type], 30)} Place the <b>${esc(this.c.data.piece(type).name)}</b> anywhere you like. ${g.site.handles(type) ? 'Press to set it down, hold and swing the mouse to turn it, let go to build. It clears trees, rocks and fences for you.' : 'It faces the Keep.'} <button class="cb" data-rot>Turn <kbd>R</kbd></button><button class="cb" data-close>Done <kbd>Esc</kbd></button>`;
     }
-    stopPlacing() { if (!this.placing) return; this.g.group.remove(this.placing.ghost); this.placing = null; this.$('cPlace').hidden = true; this.g.play.ui.tip(null); }
-    rotate() { this.g.rotExtra = ((this.g.rotExtra || 0) + Math.PI / 2) % (Math.PI * 2); if (this.lastP) this.moveGhost(this.lastP.sx, this.lastP.sy); }
+    stopPlacing() { if (!this.placing) return; if (this.g.site) this.g.site.clearGhost(); this.g.group.remove(this.placing.ghost); this.placing = null; this.$('cPlace').hidden = true; this.g.play.ui.tip(null); }
+    rotate() { if (this.g.site.active) { this.g.site.turn(); if (this.lastP) this.moveGhost(this.lastP.sx, this.lastP.sy); return; } this.g.rotExtra = ((this.g.rotExtra || 0) + Math.PI / 2) % (Math.PI * 2); if (this.lastP) this.moveGhost(this.lastP.sx, this.lastP.sy); }
+    /* where a piece snaps for the pointer at p: walls to the square, gates to a wall run, stone towers to the tile grid; null = free */
+    snapSpot(type, p) {
+      const g = this.g;
+      if (g.walls.handles(type)) return g.walls.edgeAt(type, p);
+      if (K.Breacher.GATES.has(type)) return g.gateSpot(p);
+      if (type === 'stone_tower' && g.ramparts) return g.ramparts.towerSpot(p);
+      return null;
+    }
     moveGhost(sx, sy) {
-      const P = this.placing, g = this.g, p = g.app.pickGround(sx, sy); this.lastP = { sx, sy };
+      this.lastP = { sx, sy }; if (this.g.site.active) { this.g.site.hover(sx, sy); return; }   // a building: the site draws it
+      const P = this.placing, g = this.g, p = g.app.pickGround(sx, sy);
       if (!p) { P.ghost.visible = false; return; }
-      const x = Math.round(p.x * 4) / 4, z = Math.round(p.z * 4) / 4, rot = g.autoRot(x, z), why = g.placementOk(P.type, x, z, rot);
-      P.ghost.visible = true; P.ghost.position.set(x, g.play.nav.y(x, z), z); P.ghost.rotation.y = rot; CastleArt.tintGhost(P.ghost, !why); P.at = { x, z, why };
-      g.play.ui.tip(why ? `<b>Can’t build here</b> · ${esc(why)}` : `<b>${esc(this.c.data.piece(P.type).name)}</b> · click to build (${esc(Object.entries(this.c.buildCost(P.type)).map(([r, n]) => n + ' ' + K.CastleData.resName(r)).join(', '))})`, sx, sy);
+      const e = this.snapSpot(P.type, p);
+      const x = e ? e.x : Math.round(p.x * 4) / 4, z = e ? e.z : Math.round(p.z * 4) / 4, rot = e ? e.rot : g.autoRot(x, z), why = g.placementOk(P.type, x, z, rot);
+      P.ghost.visible = true; P.ghost.position.set(x, g.play.nav.y(x, z), z); P.ghost.rotation.y = rot; CastleArt.tintGhost(P.ghost, !why); P.at = { x, z, rot, why };
+      g.play.ui.tip(why ? `<b>Can’t build here</b> · ${esc(why)}` : `<b>${esc(this.c.data.piece(P.type).name)}</b> · ${g.walls.handles(P.type) ? 'click to build, or drag to draw a wall' : 'press, hold and swing the mouse to turn it, let go to build'} (${esc(Object.entries(this.c.buildCost(P.type)).map(([r, n]) => n + ' ' + K.CastleData.resName(r)).join(', '))})`, sx, sy);
     }
     click(sx, sy) {
-      if (!this.placing) return false;
+      if (!this.placing) return false; if (this.g.site.active) { this.g.site.hover(sx, sy); return true; }
       this.moveGhost(sx, sy); const P = this.placing; if (!P.at) return true;
-      if (this.g.buildAt(P.type, P.at.x, P.at.z)) {
+      if (this.g.buildAt(P.type, P.at.x, P.at.z, P.at.rot)) {
         const again = ['palisade', 'stone_wall'].includes(P.type) && !this.c.blocker(P.type);
         if (!again) this.stopPlacing(); else this.moveGhost(sx, sy);
       }
@@ -275,16 +336,17 @@
     pointerMove(sx, sy) { if (!this.placing) return false; this.moveGhost(sx, sy); return true; }
     key(e) {
       const k = e.key.toLowerCase();
+      if (this.buildDetails.handleKey(e)) return true;
       if (!this.$('cModal').hidden) { if (e.key === 'Escape' || e.key === 'Enter') { const b = this.$('cModal').querySelector('.cb.pri'); if (b) b.click(); } return true; }
-      if (e.key === 'Escape') { if (this.placing) { this.stopPlacing(); return true; } if (this.radialOpen) { this.toggleRadial(false); return true; } if (this.bookOpen) { this.toggleBook(false); return true; } return false; }
-      if (k === 'b') { this.toggleRadial(); return true; }
+      if (e.key === 'Escape') { if (this.g.demolisher && this.g.demolisher.selling) { this.g.demolisher.setSelling(false); return true; } if (this.placing) { this.stopPlacing(); return true; } if (this.radialOpen) { this.toggleRadial(false); return true; } if (this.bookOpen) { this.toggleBook(false); return true; } return false; }
+      if (k === 'b') { this.g.tools.toggleHammer(); return true; }
       if (k === 'h') { this.toggleBook(); return true; }
       if (k === 'r' && this.placing) { this.rotate(); return true; }
       if (this.radialOpen && /^[1-9]$/.test(e.key)) { this.pickCard(+e.key - 1); return true; }
       return false;
     }
   }
-  CastleUI.ICON = ICON;
+  CastleUI.ICON = ICON; CastleUI.RES_ORDER = RES_ORDER; CastleUI.PIECE_ICON = PIECE_ICON; CastleUI.SHORT = SHORT;
   K.ArtLibrary = ArtLibrary;
 
   K.CastleUI = CastleUI;

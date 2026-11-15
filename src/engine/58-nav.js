@@ -112,13 +112,13 @@
       return t >= 0 && t <= 1 && u >= 0 && u <= 1 ? u : -1;
     }
     inside(i, j) { return i >= 0 && j >= 0 && i < this.w && j < this.h; }
-    ok(i, j) { return this.inside(i, j) && this.walk[j * this.w + i] === 1; }
+    ok(i, j) { return this.inside(i, j) && (this.walk[j * this.w + i] === 1 || (!!this.over && this.over(i, j))); }   // over: tiles a particular search may treat as open (a creature planning to break through)
     orth(i, j, di, dj) {
       const ni = i + di, nj = j + dj; if (!this.ok(ni, nj)) return false;
       const k = j * this.w + i, bit = di === 1 ? E : di === -1 ? W : dj === 1 ? S : N;
       if (this.edge[k] & (1 << bit)) return false;
       if (this.free[k] & (1 << bit)) return true;
-      return Math.abs(this.S[nj * this.w + ni] - this.S[k]) <= MAX_STEP;
+      return Math.abs(this.S[nj * this.w + ni] - this.S[k]) <= (this.ms || MAX_STEP);   // ms: this search's own climbing limit (a bear steps further than a wolf)
     }
     /* can you step from tile (i,j) to its 8-neighbour (ni,nj)? diagonals need both L-shaped routes clear */
     step(i, j, ni, nj) {
@@ -156,7 +156,12 @@
     }
     /* A* from (sx,sz) to the goal point; with range > 0 any tile whose centre is within range of the goal ends the search.
        Returns a smoothed list of [x,z] waypoints (not including the start), or null if unreachable. */
+    /* opts: range, maxNodes, blocked(i,j), maxStep (metres a walker may climb or drop), over(i,j) (extra tiles to treat as open), extra(i,j,ni,nj) (added cost of a step) */
     find(sx, sz, gx, gz, opts = {}) {
+      const pm = this.ms, po = this.over; this.ms = opts.maxStep || 0; this.over = opts.over || null;
+      try { return this._find(sx, sz, gx, gz, opts); } finally { this.ms = pm; this.over = po; }
+    }
+    _find(sx, sz, gx, gz, opts = {}) {
       const range = opts.range || 0, w = this.w, maxN = opts.maxNodes || 80000;
       let [si, sj] = this.tile(sx, sz);
       if (!this.ok(si, sj)) { const q = this.nearestOk(si, sj, 2); if (!q) return null; [si, sj] = q; }
@@ -178,7 +183,8 @@
         for (const [di, dj, c] of NB) {
           const ni = i + di, nj = j + dj; if (!this.inside(ni, nj)) continue; const nk = nj * w + ni; if (closed[nk]) continue;
           if (!this.step(i, j, ni, nj)) continue;
-          const climb = Math.abs(this.S[nk] - this.S[k]) * 0.6, ng = g[k] + c + climb;
+          if (opts.blocked && opts.blocked(ni, nj)) continue;   // tiles this walker may not enter (a gate is shut to creatures, open to you)
+          const climb = Math.abs(this.S[nk] - this.S[k]) * 0.6, ng = g[k] + c + climb + (opts.extra ? opts.extra(i, j, ni, nj) : 0);
           if (ng < g[nk]) { g[nk] = ng; from[nk] = k; open.push(nk, ng + hf(ni, nj)); }
         }
       }

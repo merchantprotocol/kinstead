@@ -1,0 +1,14 @@
+# Copyright (c) 2026 Merchant Protocol. All rights reserved.
+# Kinstead realtime: one Durable Object per map keeps the players, the plots and the shared world edits.
+# Deploy with: cd server && npx wrangler deploy
+name = "kinstead-rooms"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+
+[[durable_objects.bindings]]
+name = "ROOM"
+class_name = "GameRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["GameRoom"]

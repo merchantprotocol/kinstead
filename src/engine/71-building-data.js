@@ -8,7 +8,37 @@
 
   const WALLS = { timber: 'Timber frame', stone: 'Stone', plaster: 'Plaster' };
   const ROOF_STYLES = { gable: 'Gable', hip: 'Hip' };
-  const ROOF_MATERIALS = { thatch: 'Thatch', slate: 'Slate', shingle: 'Shingle' };
+  const ROOF_MATERIALS = { thatch: 'Thatch', slate: 'Slate', shingle: 'Shingle', tiles: 'Clay tiles' };
+  /* sign icons a building can hang by its door (drawn by K.SignIcons in 73-furniture.js) */
+  const SIGN_ICONS = ['bread', 'anvil', 'horse', 'horseshoe', 'cleaver', 'ham', 'potion', 'book', 'scales', 'coins', 'wheat', 'egg', 'sword', 'shield', 'logs', 'home'];
+  /* the look of each prefab: colours, sign and props by the door. Filled in by BuildingSpec.normalize when a spec
+     of that prefab leaves a field out, so saved worlds and the player's cottage (98-hut-world.js) pick it up too.
+       wallColor  tint of the wall infill (hex or a BuildingMaterials palette key)   trim  timber framing / corners
+       doorColor, shutterColor   roof.color tints the roof (tiles take any colour)  roof.snow true | 'light' | false
+       sign   { icon, board, text, textColor, emblem }   a hanging sign by the main door (+ a big emblem on the ridge)
+       props  [{ type, side:'l'|'r', at, out, rot }]  furniture types drawn outside the main door (decor only: not walkable data)
+       bunting [colours]  pennants along the front eave   awning [colourA, colourB]  striped awning over the main door
+       flowerBoxes  window boxes with flowers   fill  interior fill light strength (0 = none) */
+  const LOOKS = {
+    cottage: { wallColor: '#c9bfa8', trim: '#3e2a1a', doorColor: 'paintRed', shutterColor: 'paintGreen', roof: { snow: 'light' }, flowerBoxes: true, fill: 1,
+      props: [{ type: 'woodpile', side: 'l', at: 0 }, { type: 'bench', side: 'r', at: 0 }] },
+    smithy: { wallColor: '#8a847b', trim: '#2c2a2a', doorColor: 'ironDark', shutterColor: 'ironDark', roof: { snow: 'light' }, fill: 1,
+      sign: { icon: 'anvil', board: 'signBoard', emblem: true }, props: [{ type: 'forge', side: 'l', at: 0 }, { type: 'anvil', side: 'r', at: 1 }, { type: 'quench_tub', side: 'r', at: 2 }] },
+    stable: { wallColor: '#6e4c33', trim: '#3a2818', doorColor: 'paintRed', shutterColor: 'paintRed', roof: { snow: 'light' }, fill: 1,
+      sign: { icon: 'horse', emblemIcon: 'horseshoe', board: 'paintWhite', emblem: true }, props: [{ type: 'hay_bale', side: 'l', at: 0 }, { type: 'hay_bale', side: 'l', at: 1 }, { type: 'trough', side: 'r', at: 0 }] },
+    market_hall: { wallColor: '#b8ab8c', trim: '#3e2a1a', doorColor: 'paintBlue', shutterColor: 'paintBlue', roof: { snow: 'light' }, fill: 1.2,
+      sign: { icon: 'scales', board: 'paintBlue', text: 'MARKET', textColor: '#d8b45a', emblem: true }, bunting: ['#7c2f27', '#b08d3e', '#35496b', '#7c2f27', '#b08d3e'], awning: ['#7c2f27', '#cbc2ae'] },
+    bakery: { wallColor: '#c6baa0', trim: '#4a3220', doorColor: 'woodLight', shutterColor: 'paintOrange', roof: { snow: 'light' }, flowerBoxes: true, fill: 1,
+      sign: { icon: 'bread', board: 'canvas', emblem: true }, awning: ['#94552c', '#cbc2ae'], props: [{ type: 'flour_sack', side: 'l', at: 0 }, { type: 'flour_sack', side: 'l', at: 1 }, { type: 'bread_rack', side: 'r', at: 0 }] },
+    butcher: { wallColor: '#c2b9a6', trim: '#3e2a1a', doorColor: 'paintRed', shutterColor: 'paintRed', roof: { snow: 'light' }, fill: 1,
+      sign: { icon: 'cleaver', board: 'paintWhite', emblem: true }, awning: ['#7c2f27', '#cbc2ae'], props: [{ type: 'chopping_block', side: 'r', at: 0 }, { type: 'barrel', side: 'l', at: 0 }, { type: 'crate', side: 'l', at: 1 }] },
+    library: { wallColor: '#9a958a', trim: '#2e2420', doorColor: 'paintPurple', shutterColor: 'paintPurple', roof: { snow: 'light' }, fill: 1.1,
+      sign: { icon: 'potion', board: 'paintPurple', emblem: true }, props: [{ type: 'potion_crate', side: 'l', at: 0 }, { type: 'cauldron_small', side: 'r', at: 0 }] },
+    bunkhouse: { wallColor: '#b9a888', trim: '#3e2a1a', doorColor: 'paintGreen', shutterColor: 'paintGreen', roof: { snow: 'light' }, fill: 1,
+      sign: { icon: 'home', board: 'signBoard', emblem: false }, props: [{ type: 'woodpile', side: 'l', at: 0 }, { type: 'bench', side: 'r', at: 0 }] },
+    keep: { trim: '#3a2a1c', roof: { snow: true }, fill: 1 },
+  };
+  const isColor = (v) => typeof v === 'string' && /^(#[0-9a-fA-F]{6}|[a-zA-Z]+)$/.test(v);
   const FLOORS = { planks: 'Floorboards', flagstone: 'Flagstones', straw: 'Straw' };
   const ROOM_TYPES = {
     hall: { name: 'Hall', floor: 'flagstone' },
@@ -20,6 +50,11 @@
     storage: { name: 'Storage', floor: 'planks' },
     wardrobe: { name: 'Wardrobe room', floor: 'planks' },
     tack: { name: 'Tack room', floor: 'planks' },
+    bakery: { name: 'Bakehouse', floor: 'flagstone', chimney: true },
+    butcher: { name: 'Butchery', floor: 'flagstone' },
+    shop: { name: 'Shop', floor: 'planks' },
+    library: { name: 'Library', floor: 'planks' },
+    lab: { name: 'Alchemy lab', floor: 'flagstone' },
   };
   const SIDES = { n: [0, -1], s: [0, 1], w: [-1, 0], e: [1, 0] };
   const OPPOSITE = { n: 's', s: 'n', e: 'w', w: 'e' };
@@ -62,7 +97,22 @@
       let r = o.roof;
       if (typeof r === 'string') r = ROOF_MATERIALS[r] ? { material: r } : { style: r };
       r = r || {};
-      o.roof = { style: ROOF_STYLES[r.style] ? r.style : 'gable', material: ROOF_MATERIALS[r.material] ? r.material : 'thatch', snow: r.snow !== false, pitch: Math.max(0.45, Math.min(0.9, +r.pitch || 0.72)) };
+      const look = LOOKS[o.prefab] || {}, lr = look.roof || {};
+      const snow = r.snow !== undefined ? r.snow : lr.snow !== undefined ? lr.snow : true;
+      o.roof = { style: ROOF_STYLES[r.style] ? r.style : 'gable', material: 'slate',   /* every roof in the castle is the same slate */ snow: snow === 'light' ? 'light' : snow !== false, pitch: Math.max(0.45, Math.min(0.9, +r.pitch || 0.72)) };
+      /* roof colour is fixed: one slate for every building */
+      // look (all optional): explicit fields win, then the prefab's look
+      for (const k of ['wallColor', 'trim', 'doorColor', 'shutterColor']) { const v = o[k] !== undefined ? o[k] : look[k]; if (isColor(v)) o[k] = v; else delete o[k]; }
+      const sg = o.sign !== undefined ? o.sign : look.sign;
+      if (sg && typeof sg === 'object' && SIGN_ICONS.includes(sg.icon)) o.sign = { icon: sg.icon, board: isColor(sg.board) ? sg.board : 'signBoard', emblemIcon: SIGN_ICONS.includes(sg.emblemIcon) ? sg.emblemIcon : undefined, text: typeof sg.text === 'string' ? sg.text.slice(0, 14) : undefined, textColor: isColor(sg.textColor) ? sg.textColor : undefined, emblem: sg.emblem !== false };
+      else if (sg === false) o.sign = false; else delete o.sign;
+      const pr = o.props !== undefined ? o.props : look.props;
+      if (Array.isArray(pr) && pr.length) o.props = pr.filter((p) => p && typeof p.type === 'string').slice(0, 8).map((p) => ({ type: p.type, side: p.side === 'l' ? 'l' : 'r', at: Math.max(0, Math.min(12, p.at | 0)), out: Math.max(0, Math.min(3, p.out | 0)), rot: ((p.rot | 0) % 4 + 4) % 4 }));
+      else if (Array.isArray(pr)) o.props = []; else delete o.props;
+      const bt = o.bunting !== undefined ? o.bunting : look.bunting; if (Array.isArray(bt) && bt.filter(isColor).length) o.bunting = bt.filter(isColor).slice(0, 8); else delete o.bunting;
+      const aw = o.awning !== undefined ? o.awning : look.awning; if (Array.isArray(aw) && aw.length === 2 && aw.every(isColor)) o.awning = aw.slice(); else delete o.awning;
+      const fb = o.flowerBoxes !== undefined ? o.flowerBoxes : look.flowerBoxes; if (fb) o.flowerBoxes = true; else delete o.flowerBoxes;
+      const fl = o.fill !== undefined ? o.fill : look.fill; o.fill = Math.max(0, Math.min(3, fl === undefined ? 1 : +fl || 0));
       o.wallH = Math.max(1.8, Math.min(3.2, +o.wallH || 2.1));
       o.interiorFloor = FLOORS[o.interiorFloor] ? o.interiorFloor : 'planks';
       o.rooms = (o.rooms || []).filter((rm) => rm && ROOM_TYPES[rm.type]).map((rm, k) => ({ id: rm.id || 'r' + k, type: rm.type, x: rm.x | 0, z: rm.z | 0, w: Math.max(1, rm.w | 0), h: Math.max(1, rm.h | 0), floor: FLOORS[rm.floor] ? rm.floor : undefined, name: rm.name }));
@@ -241,6 +291,7 @@
           { type: 'weapon_rack', x: 0, z: 6, rot: 1 }, { type: 'barrel', x: 6, z: 7 }, { type: 'sack', x: 7, z: 7 },
           { type: 'chest', x: 10, z: 0, rot: 0 }, { type: 'shelf', x: 8, z: 0, rot: 0 }, { type: 'barrel', x: 11, z: 7 }, { type: 'barrel', x: 10, z: 7 },
           { type: 'sack', x: 11, z: 5 }, { type: 'crate', x: 8, z: 7 }, { type: 'armor_stand', x: 11, z: 2 },
+          { type: 'quench_tub', x: 1, z: 3 }, { type: 'shield_rack', x: 0, z: 4, rot: 1 }, { type: 'weapon_rack', x: 7, z: 2, rot: 3 }, { type: 'material_pile', x: 9, z: 3, state: { kind: 'ore' } },
         ],
       }),
     },
@@ -256,6 +307,89 @@
           { type: 'horse', x: 1, z: 0, rot: 0, state: { horseId: 'bramble', coat: 'bay' } }, { type: 'horse', x: 7, z: 0, rot: 0, state: { horseId: 'ash', coat: 'grey' } },
           { type: 'trough', x: 4, z: 5, rot: 0 }, { type: 'hay_bale', x: 0, z: 8 }, { type: 'hay_bale', x: 9, z: 8 }, { type: 'hay_bale', x: 9, z: 7 },
           { type: 'tack_rack', x: 11, z: 0, rot: 0 }, { type: 'chest', x: 12, z: 9, rot: 2 }, { type: 'barrel', x: 13, z: 0 }, { type: 'bench', x: 13, z: 7, rot: 3 },
+        ],
+      }),
+    },
+    market_hall: {
+      name: 'Market hall', desc: 'A big painted market hall in four sections: wheat and bread, meat and eggs, weapons, raw materials',
+      make: () => ({
+        footprint: { shape: 'rect', w: 20, h: 14 }, walls: 'plaster', roof: { style: 'gable', material: 'tiles' }, interiorFloor: 'planks', wallH: 2.4,
+        rooms: [{ id: 'grain', type: 'storage', name: 'Wheat & bread', x: 0, z: 0, w: 10, h: 6 }, { id: 'meat', type: 'kitchen', name: 'Meat & eggs', floor: 'flagstone', x: 10, z: 0, w: 10, h: 6 }, { id: 'arms', type: 'armory', name: 'Weapons', x: 0, z: 6, w: 10, h: 8 }, { id: 'goods', type: 'storage', name: 'Raw materials', floor: 'flagstone', x: 10, z: 6, w: 10, h: 8 }],
+        doors: [{ x: 4, z: 13, side: 's', w: 2 }, { x: 14, z: 13, side: 's', w: 2 }, { x: 4, z: 6, side: 'n', w: 2, kind: 'interior' }, { x: 14, z: 6, side: 'n', w: 2, kind: 'interior' }, { x: 10, z: 9, side: 'w', w: 2, kind: 'interior' }],
+        windows: [{ x: 1, z: 13, side: 's', w: 2 }, { x: 8, z: 13, side: 's', w: 1 }, { x: 17, z: 13, side: 's', w: 2 }, { x: 0, z: 3, side: 'w', w: 1 }, { x: 0, z: 10, side: 'w', w: 1 }, { x: 19, z: 3, side: 'e', w: 1 }, { x: 19, z: 10, side: 'e', w: 1 }, { x: 7, z: 0, side: 'n', w: 1 }, { x: 13, z: 0, side: 'n', w: 1 }],
+        furniture: [
+          // wheat & bread
+          { type: 'wheat_sheaf', x: 0, z: 0 }, { type: 'wheat_sheaf', x: 1, z: 0 }, { type: 'wheat_sheaf', x: 0, z: 1 }, { type: 'bread_rack', x: 2, z: 0, rot: 0 }, { type: 'bread_rack', x: 4, z: 0, rot: 0 },
+          { type: 'flour_sack', x: 0, z: 4 }, { type: 'flour_sack', x: 0, z: 5 }, { type: 'flour_sack', x: 1, z: 5 }, { type: 'hay_bale', x: 8, z: 0 }, { type: 'hay_bale', x: 9, z: 0 }, { type: 'wheat_sheaf', x: 9, z: 1 },
+          { type: 'counter', x: 2, z: 3, rot: 0, state: { goods: 'bread' } }, { type: 'counter', x: 6, z: 3, rot: 0, state: { goods: 'wheat' } }, { type: 'hanging_sign', x: 3, z: 2, state: { icon: 'bread' } }, { type: 'hanging_sign', x: 7, z: 2, state: { icon: 'wheat' } },
+          // meat & eggs
+          { type: 'meat_hooks', x: 11, z: 0, rot: 0 }, { type: 'meat_hooks', x: 13, z: 0, rot: 0 }, { type: 'chopping_block', x: 15, z: 0 }, { type: 'egg_basket', x: 18, z: 0 }, { type: 'egg_basket', x: 19, z: 0 }, { type: 'egg_basket', x: 19, z: 1 }, { type: 'barrel', x: 10, z: 0 },
+          { type: 'counter', x: 11, z: 3, rot: 0, state: { goods: 'meat' } }, { type: 'counter', x: 16, z: 3, rot: 0, state: { goods: 'eggs' } }, { type: 'hanging_sign', x: 12, z: 2, state: { icon: 'ham' } }, { type: 'hanging_sign', x: 17, z: 2, state: { icon: 'egg' } },
+          // weapons
+          { type: 'weapon_rack', x: 0, z: 7, rot: 1 }, { type: 'weapon_rack', x: 0, z: 11, rot: 1 }, { type: 'shield_rack', x: 1, z: 6, rot: 0 }, { type: 'shield_rack', x: 7, z: 6, rot: 0 }, { type: 'armor_stand', x: 3, z: 8 }, { type: 'armor_stand', x: 6, z: 8 },
+          { type: 'counter', x: 3, z: 10, rot: 0, state: { goods: 'weapons' } }, { type: 'grindstone', x: 8, z: 9 }, { type: 'chest', x: 8, z: 12, rot: 2 }, { type: 'hanging_sign', x: 4, z: 9, state: { icon: 'sword' } }, { type: 'rug', x: 2, z: 11, rot: 0, state: { color: 'red' } },
+          // raw materials
+          { type: 'material_pile', x: 18, z: 7, rot: 3, state: { kind: 'wood' } }, { type: 'material_pile', x: 18, z: 9, rot: 3, state: { kind: 'stone' } }, { type: 'material_pile', x: 18, z: 11, rot: 3, state: { kind: 'ore' } },
+          { type: 'crate', x: 11, z: 7 }, { type: 'crate', x: 12, z: 7 }, { type: 'barrel', x: 11, z: 8 }, { type: 'counter', x: 12, z: 10, rot: 0, state: { goods: 'ore' } }, { type: 'sack', x: 11, z: 12 }, { type: 'crate', x: 12, z: 12 }, { type: 'hanging_sign', x: 13, z: 9, state: { icon: 'logs' } },
+        ],
+      }),
+    },
+    bakery: {
+      name: 'Bakery', desc: 'Whitewashed bakery with an orange tile roof: bread ovens, flour, a shop with bread racks',
+      make: () => ({
+        footprint: { shape: 'rect', w: 12, h: 9 }, walls: 'timber', roof: { style: 'gable', material: 'tiles' }, interiorFloor: 'planks', wallH: 2.2,
+        rooms: [{ id: 'bake', type: 'bakery', x: 0, z: 0, w: 7, h: 9 }, { id: 'shop', type: 'shop', name: 'Bread shop', x: 7, z: 0, w: 5, h: 9 }],
+        doors: [{ x: 8, z: 8, side: 's', w: 2 }, { x: 7, z: 4, side: 'w', w: 2, kind: 'interior' }],
+        windows: [{ x: 2, z: 8, side: 's', w: 2 }, { x: 11, z: 8, side: 's', w: 1 }, { x: 0, z: 5, side: 'w', w: 1 }, { x: 9, z: 0, side: 'n', w: 1 }, { x: 11, z: 3, side: 'e', w: 1 }],
+        furniture: [
+          { type: 'oven', x: 0, z: 0, rot: 0 }, { type: 'oven', x: 3, z: 0, rot: 0 }, { type: 'barrel', x: 6, z: 0 }, { type: 'kneading_table', x: 2, z: 4, rot: 0 }, { type: 'bread_rack', x: 6, z: 6, rot: 3 },
+          { type: 'flour_sack', x: 0, z: 7 }, { type: 'flour_sack', x: 0, z: 8 }, { type: 'flour_sack', x: 1, z: 8 }, { type: 'wheat_sheaf', x: 5, z: 8 }, { type: 'sack', x: 4, z: 8 },
+          { type: 'bread_rack', x: 7, z: 0, rot: 0 }, { type: 'bread_rack', x: 10, z: 0, rot: 0 }, { type: 'counter', x: 8, z: 3, rot: 0, state: { goods: 'bread' } }, { type: 'hanging_sign', x: 9, z: 5, state: { icon: 'bread' } }, { type: 'bench', x: 10, z: 6, rot: 3 },
+        ],
+      }),
+    },
+    butcher: {
+      name: 'Butcher', desc: 'Butcher shop with a red tile roof: hanging meat, chopping blocks and a meat counter',
+      make: () => ({
+        footprint: { shape: 'rect', w: 10, h: 8 }, walls: 'timber', roof: { style: 'gable', material: 'tiles' }, interiorFloor: 'flagstone', wallH: 2.2,
+        rooms: [{ id: 'cut', type: 'butcher', x: 0, z: 0, w: 5, h: 8 }, { id: 'shop', type: 'shop', name: 'Meat counter', floor: 'flagstone', x: 5, z: 0, w: 5, h: 8 }],
+        doors: [{ x: 6, z: 7, side: 's', w: 2 }, { x: 5, z: 3, side: 'w', w: 2, kind: 'interior' }],
+        windows: [{ x: 2, z: 7, side: 's', w: 2 }, { x: 9, z: 3, side: 'e', w: 1 }, { x: 7, z: 0, side: 'n', w: 1 }, { x: 0, z: 4, side: 'w', w: 1 }],
+        furniture: [
+          { type: 'meat_hooks', x: 0, z: 0, rot: 0 }, { type: 'meat_hooks', x: 2, z: 0, rot: 0 }, { type: 'crate', x: 4, z: 0 }, { type: 'chopping_block', x: 1, z: 3 }, { type: 'chopping_block', x: 3, z: 3 },
+          { type: 'barrel', x: 0, z: 6 }, { type: 'flour_sack', x: 0, z: 7 }, { type: 'barrel', x: 4, z: 7 },
+          { type: 'meat_hooks', x: 5, z: 0, rot: 0 }, { type: 'meat_hooks', x: 8, z: 0, rot: 0 }, { type: 'counter', x: 6, z: 3, rot: 0, state: { goods: 'meat' } }, { type: 'egg_basket', x: 9, z: 5 }, { type: 'barrel', x: 5, z: 6 }, { type: 'hanging_sign', x: 7, z: 5, state: { icon: 'cleaver' } },
+        ],
+      }),
+    },
+    library: {
+      name: 'Alchemist library', desc: 'Pale stone library with a purple roof: shelves of books, potion shelves, a bubbling cauldron',
+      make: () => ({
+        footprint: { shape: 'rect', w: 12, h: 10 }, walls: 'stone', roof: { style: 'gable', material: 'tiles' }, interiorFloor: 'planks', wallH: 2.4,
+        rooms: [{ id: 'books', type: 'library', x: 0, z: 0, w: 7, h: 10 }, { id: 'lab', type: 'lab', x: 7, z: 0, w: 5, h: 10 }],
+        doors: [{ x: 3, z: 9, side: 's', w: 2 }, { x: 7, z: 5, side: 'w', w: 2, kind: 'interior' }],
+        windows: [{ x: 1, z: 9, side: 's', w: 1 }, { x: 9, z: 9, side: 's', w: 2 }, { x: 0, z: 3, side: 'w', w: 1 }, { x: 0, z: 6, side: 'w', w: 1 }, { x: 6, z: 0, side: 'n', w: 1 }, { x: 11, z: 4, side: 'e', w: 1 }],
+        furniture: [
+          { type: 'bookshelf', x: 0, z: 0, rot: 0 }, { type: 'bookshelf', x: 2, z: 0, rot: 0 }, { type: 'bookshelf', x: 4, z: 0, rot: 0 }, { type: 'bookshelf', x: 0, z: 1, rot: 1 }, { type: 'bookshelf', x: 0, z: 4, rot: 1 }, { type: 'bookshelf', x: 0, z: 7, rot: 1 },
+          { type: 'rug', x: 2, z: 4, rot: 0, state: { color: 'blue' } }, { type: 'table', x: 3, z: 4, rot: 0 }, { type: 'chair', x: 2, z: 5, rot: 1 }, { type: 'chair', x: 5, z: 4, rot: 3 }, { type: 'candle', x: 6, z: 1 },
+          { type: 'book_pile', x: 5, z: 7 }, { type: 'book_pile', x: 1, z: 8 }, { type: 'globe', x: 6, z: 8 },
+          { type: 'cauldron', x: 8, z: 2, rot: 0 }, { type: 'potion_shelf', x: 7, z: 0, rot: 0 }, { type: 'potion_shelf', x: 10, z: 0, rot: 0 }, { type: 'potion_shelf', x: 11, z: 6, rot: 3 },
+          { type: 'alchemy_table', x: 9, z: 7, rot: 0 }, { type: 'potion_crate', x: 7, z: 9 }, { type: 'candle', x: 11, z: 2 }, { type: 'book_pile', x: 10, z: 4 },
+        ],
+      }),
+    },
+    bunkhouse: {
+      name: 'Bunkhouse', desc: 'Long timber bunkhouse with a thatched roof: bunks for your workers and a stove',
+      make: () => ({
+        footprint: { shape: 'rect', w: 12, h: 8 }, walls: 'timber', roof: { style: 'gable', material: 'thatch' }, interiorFloor: 'planks', wallH: 2.1,
+        rooms: [{ id: 'bunks', type: 'bedroom', name: 'Bunk room', x: 0, z: 0, w: 12, h: 8 }],
+        doors: [{ x: 5, z: 7, side: 's', w: 2 }],
+        windows: [{ x: 1, z: 7, side: 's', w: 2 }, { x: 9, z: 7, side: 's', w: 2 }, { x: 0, z: 3, side: 'w', w: 1 }, { x: 11, z: 3, side: 'e', w: 1 }, { x: 5, z: 0, side: 'n', w: 2 }],
+        furniture: [
+          { type: 'bunk', x: 0, z: 0, rot: 0 }, { type: 'bunk', x: 2, z: 0, rot: 0 }, { type: 'bunk', x: 8, z: 0, rot: 0 }, { type: 'bunk', x: 10, z: 0, rot: 0 },
+          { type: 'bunk', x: 0, z: 4, rot: 0 }, { type: 'bunk', x: 10, z: 4, rot: 0 },
+          { type: 'hearth', x: 5, z: 0, rot: 0 }, { type: 'table', x: 5, z: 3, rot: 0 }, { type: 'bench', x: 4, z: 3, rot: 1 }, { type: 'bench', x: 7, z: 3, rot: 3 },
+          { type: 'chest', x: 3, z: 6, rot: 2 }, { type: 'chest', x: 8, z: 6, rot: 2 }, { type: 'candle', x: 4, z: 0 },
         ],
       }),
     },
@@ -320,5 +454,5 @@
     contains(b, i, j) { return Footprint.inside(b.footprint, i - b.x, j - b.z); },
   };
 
-  Object.assign(K, { WALLS, ROOF_STYLES, ROOF_MATERIALS, FLOORS, ROOM_TYPES, Footprint, BuildingSpec, FurnitureFootprint, BuildingLayout, BUILDING_PREFABS: PREFABS, makeBuilding, WorldV2, BuildingGeo });
+  Object.assign(K, { BUILDING_LOOKS: LOOKS, SIGN_ICONS, WALLS, ROOF_STYLES, ROOF_MATERIALS, FLOORS, ROOM_TYPES, Footprint, BuildingSpec, FurnitureFootprint, BuildingLayout, BUILDING_PREFABS: PREFABS, makeBuilding, WorldV2, BuildingGeo });
 })(typeof window !== 'undefined' ? window : globalThis);

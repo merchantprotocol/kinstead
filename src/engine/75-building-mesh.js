@@ -16,7 +16,9 @@
   const SIDE_OF = (n) => (n[0] < 0 ? 'w' : n[0] > 0 ? 'e' : n[1] < 0 ? 'n' : 's');
   const SIDE_N = { n: [0, -1], s: [0, 1], w: [-1, 0], e: [1, 0] };
   const FLOOR_KEY = { planks: 'planks', flagstone: 'flagstone', straw: 'straw' };
-  const ROOF_KEY = { thatch: 'thatch', slate: 'slate', shingle: 'shingle' };
+  const ROOF_KEY = { thatch: 'thatch', slate: 'slate', shingle: 'shingle', tiles: 'roofTiles' };
+  const SignIcons = () => K.SignIcons;
+  const FLOOR_TINT = { planks: '#b98250', flagstone: '#a8a296', straw: '#d9b65c' };
 
   /* ---------- particles: chimney smoke + forge/hearth embers ---------- */
   class SmokeField {
@@ -58,6 +60,72 @@
     update(t, h) { this.uni.uTime.value = t; this.uni.uScale.value = h; }
     dispose() { this.points.geometry.dispose(); this.points.material.dispose(); }
   }
+
+  /* ---------- look materials, made on demand and cached in the shared BuildingMaterials ----------
+       'base@#rrggbb'   a textured material (plaster, ashlar, timber, wood, thatch, roofTiles...) repainted in that colour, grain kept
+       'col:#rrggbb'    a flat colour with the palette's faint grain          'glow:#rrggbb'  an unlit glowing colour (feeds bloom)
+       'text:WORD|#bg|#fg'  a painted sign board with lettering
+     Colours may be '#rrggbb' or a palette key (paintRed, roofBlue...). */
+  const LookMats = {
+    hex(mats, c) { if (!c) return null; if (c[0] === '#') return c.toLowerCase(); const p = mats.paint && mats.paint[c]; return p ? p.toLowerCase() : null; },
+    /* resolve a look colour into a material key: a palette key stays itself, a hex becomes col:#hex */
+    color(mats, c) { if (mats.map.has(c)) return c; const h = LookMats.hex(mats, c); return h ? LookMats.ensure(mats, 'col:' + h) : 'plaster'; },
+    tinted(mats, base, c) { const h = LookMats.hex(mats, c); return h ? LookMats.ensure(mats, base + '@' + h) : base; },
+    ensure(mats, key) {
+      if (!key || mats.map.has(key)) return key;
+      try {
+        if (key.startsWith('col:')) { const g = mats.get('paintWhite'); mats.map.set(key, new THREE.MeshLambertMaterial({ map: g ? g.map : null, color: new THREE.Color(key.slice(4)).multiplyScalar(1.05) })); }
+        else if (key.startsWith('glow:')) { mats.map.set(key, new THREE.MeshBasicMaterial({ color: new THREE.Color(key.slice(5)).multiplyScalar(1.6) })); mats.noShadow.add(key); }
+        else if (key.startsWith('text:')) LookMats.text(mats, key);
+        else if (key.includes('@')) LookMats.recolor(mats, key);
+      } catch (e) { console.warn('look material ' + key, e); }
+      return key;
+    },
+    /* neutral clay-tile texture (grey; recoloured per building): rounded tiles in staggered courses, v = eave -> ridge */
+    tiles(mats) {
+      if (mats.map.has('roofTiles')) return;
+      const W = 32, Hh = 32, buf = new K.PixelBuffer(W, Hh);
+      for (let y = 0; y < Hh; y++) for (let x = 0; x < W; x++) {
+        const row = Math.floor(y / 8), ly = y % 8, off = (row % 2) * 4, lx = (x + off) % 8, col = Math.floor((x + off) / 8);
+        let v = 0.66 + (K.hash2(col, row, 31) - 0.5) * 0.16 + Math.sin((lx / 8) * Math.PI) * 0.16 - (7 - ly) * 0.012;
+        if (ly === 0) v = 0.3; else if (ly === 1) v -= 0.12; if (lx === 0) v -= 0.2; if (lx === 3 && ly > 2) v += 0.06;
+        v += (K.hash2(x, y, 32) - 0.5) * 0.05; const c = Math.max(0, Math.min(255, Math.round(v * 200)));
+        buf.set(x, y, [c, c, c]);
+      }
+      const t = mats.bank.pixel(buf, { repeat: true }); mats.map.set('roofTiles', new THREE.MeshLambertMaterial({ map: t }));
+    },
+    recolor(mats, key) {
+      const [base, hex] = key.split('@');
+      if (base === 'roofTiles') LookMats.tiles(mats);
+      const src = mats.get(base); if (!src) return;
+      const img = src.map && src.map.image;
+      if (!img || typeof document === 'undefined' || !img.width) { const m = src.clone(); m.color = new THREE.Color(hex); mats.map.set(key, m); return; }
+      const cv = document.createElement('canvas'); cv.width = img.width; cv.height = img.height; const g = cv.getContext('2d'); g.drawImage(img, 0, 0);
+      const d = g.getImageData(0, 0, cv.width, cv.height), px = d.data, n = px.length / 4;
+      const con = { plaster: 0.4, ashlar: 0.65, timber: 0.55, wood: 0.6, planks: 0.6, flagstone: 0.55, straw: 0.6, thatch: 0.85, roofTiles: 1, slate: 0.7, shingle: 0.75 }[base] || 0.7;
+      let mean = 0; for (let i = 0; i < px.length; i += 4) mean += px[i] * 0.3 + px[i + 1] * 0.59 + px[i + 2] * 0.11; mean = mean / n || 1;
+      const raw = parseInt(hex.slice(1), 16), R = (raw >> 16) & 255, Gc = (raw >> 8) & 255, B = raw & 255;   // the canvas is sRGB, so paint the raw hex
+      for (let i = 0; i < px.length; i += 4) {
+        const l = (px[i] * 0.3 + px[i + 1] * 0.59 + px[i + 2] * 0.11) / mean, f = 1 + (l - 1) * con;
+        px[i] = Math.min(255, R * f); px[i + 1] = Math.min(255, Gc * f); px[i + 2] = Math.min(255, B * f);
+      }
+      g.putImageData(d, 0, 0);
+      const s = src.map, t = new THREE.CanvasTexture(cv);
+      for (const p of ['wrapS', 'wrapT', 'magFilter', 'minFilter', 'generateMipmaps', 'flipY', 'anisotropy', 'colorSpace']) t[p] = s[p];
+      t.repeat.copy(s.repeat); t.offset.copy(s.offset);
+      const m = src.clone(); m.map = t; m.color = new THREE.Color(1, 1, 1); mats.map.set(key, m);
+      if (mats.noShadow.has(base)) mats.noShadow.add(key);
+    },
+    text(mats, key) {
+      const [word, bg, fg] = key.slice(5).split('|'), cv = document.createElement('canvas'); cv.width = 512; cv.height = 128;
+      const g = cv.getContext('2d'); g.fillStyle = bg || '#2f72c0'; g.fillRect(0, 0, 512, 128);
+      g.strokeStyle = 'rgba(0,0,0,0.35)'; g.lineWidth = 10; g.strokeRect(5, 5, 502, 118);
+      g.fillStyle = fg || '#ffd54a'; g.font = 'bold 92px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.lineWidth = 8; g.strokeStyle = 'rgba(40,20,10,0.75)'; g.strokeText(word, 256, 70); g.fillText(word, 256, 70);
+      const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+      mats.map.set(key, new THREE.MeshLambertMaterial({ map: t, emissive: new THREE.Color(0.12, 0.12, 0.12) })); mats.noShadow.add(key);
+    },
+  };
 
   /* one fadeable layer of a building */
   class Layer {
@@ -112,13 +180,20 @@
     /* ---------- build ---------- */
     build() {
       const s = this.spec, L = this.layout;
-      this.wallKey = s.walls === 'stone' ? 'ashlar' : 'plaster';
+      const M = this.ctx.mats, tint = (base, c) => (c && M ? LookMats.tinted(M, base, c) : base);
+      this.wallKey = tint(s.walls === 'stone' ? 'ashlar' : 'plaster', s.wallColor);
+      this.innerKey = tint('plaster', s.wallColor);                 // partitions: the same paint as the walls
+      this.trimKey = tint('timber', s.trim);
+      this.doorKey = tint('wood', s.doorColor); this.shutterKey = tint('wood', s.shutterColor);
+      this.roofKey = s.roof.material === 'tiles' ? tint('roofTiles', s.roof.color || '#b84a30') : tint(ROOF_KEY[s.roof.material], s.roof.color);
       this.foundation(); this.floors();
       this.segs = L.segments();
       for (const seg of this.segs) this.wall(seg);
       this.corners(); this.roof(); this.furniture(); this.chimneys(); this.snowDrifts();
+      this.mainDoor = this.findMainDoor(); this.extras(); this.fillLights();
       const fade = (n) => n !== 'base';
       this.layers = {};
+      if (M) for (const k of Object.values(this.kits)) for (const key of k.keys()) LookMats.ensure(M, key);
       for (const [name, k] of Object.entries(this.kits)) {
         const layer = new Layer(name, k.meshes(this.ctx.mats, { clone: fade(name) }), fade(name));
         this.layers[name] = layer; this.group.add(layer.group);
@@ -156,7 +231,8 @@
         while (i < L.W) {
           const r = L.room(i, j); if (r < 0) { i++; continue; }
           let e = i + 1; while (e < L.W && L.room(e, j) === r) e++;
-          const rm = L.rooms[r], fk = FLOOR_KEY[rm.floor || (rm.implicit ? s.interiorFloor : (K.ROOM_TYPES[rm.type] || {}).floor) || s.interiorFloor] || 'planks';
+          const rm = L.rooms[r], fk0 = FLOOR_KEY[rm.floor || (rm.implicit ? s.interiorFloor : (K.ROOM_TYPES[rm.type] || {}).floor) || s.interiorFloor] || 'planks';
+          const fk = this.ctx.mats ? LookMats.tinted(this.ctx.mats, fk0, FLOOR_TINT[fk0]) : fk0;   // floors a shade lighter, so rooms read from above
           this.kit('base').box(fk, ((i + e) / 2) * T, -0.04, (j + 0.5) * T, (e - i) * T, FLOOR_Y + 0.04, T);
           i = e;
         }
@@ -172,11 +248,11 @@
       const fill = (a, b) => {
         if (b - a < 0.005) return;
         if (walls !== 'stone' && ext) { this.segBox(seg, 'base', 'ashlar', a, b, 0, PLINTH, off, th + 0.04); this.segBox(seg, upper, this.wallKey, a, b, PLINTH, H, off, th); }
-        else this.segBox(seg, upper, ext ? this.wallKey : 'plaster', a, b, 0, H, off, th);
+        else this.segBox(seg, upper, ext ? this.wallKey : this.innerKey, a, b, 0, H, off, th);
       };
       for (const o of ops) {
         fill(cur, o.a);
-        if (o.type === 'door') this.segBox(seg, upper, ext ? this.wallKey : 'plaster', o.a, o.b, DOOR_H, H, off, th);
+        if (o.type === 'door') this.segBox(seg, upper, ext ? this.wallKey : this.innerKey, o.a, o.b, DOOR_H, H, off, th);
         else {
           if (walls !== 'stone') { this.segBox(seg, 'base', 'ashlar', o.a, o.b, 0, PLINTH, off, th + 0.04); this.segBox(seg, upper, this.wallKey, o.a, o.b, PLINTH, SILL, off, th); }
           else this.segBox(seg, upper, this.wallKey, o.a, o.b, 0, SILL, off, th);
@@ -187,20 +263,22 @@
       fill(cur, a1);
       // interior partitions: timber top plate + posts at doorways
       if (!ext) {
-        this.segBox(seg, upper, 'timber', a0, a1, H - 0.12, H, 0, th + 0.03);
-        for (const o of ops) { for (const p of [o.a - 0.04, o.b + 0.04]) this.segBox(seg, upper, 'timber', p - 0.04, p + 0.04, 0, DOOR_H + 0.1, 0, th + 0.04); this.segBox(seg, upper, 'timber', o.a - 0.08, o.b + 0.08, DOOR_H, DOOR_H + 0.1, 0, th + 0.04); }
+        const tk = this.trimKey;
+        this.segBox(seg, upper, tk, a0, a1, H - 0.12, H, 0, th + 0.03);
+        for (const o of ops) { for (const p of [o.a - 0.04, o.b + 0.04]) this.segBox(seg, upper, tk, p - 0.04, p + 0.04, 0, DOOR_H + 0.1, 0, th + 0.04); this.segBox(seg, upper, tk, o.a - 0.08, o.b + 0.08, DOOR_H, DOOR_H + 0.1, 0, th + 0.04); }
         return;
       }
       // openings: frames, doors, windows
       for (const o of ops) o.type === 'door' ? this.door(seg, upper, o, th, off) : this.window(seg, upper, o, th, off);
       if (walls === 'timber') this.framing(seg, upper, ops, a0, a1);
-      else if (walls === 'plaster') { this.segBox(seg, upper, 'timber', a0, a1, H - 0.12, H, 0.005, 0.06); }
+      else if (walls === 'plaster') { this.segBox(seg, upper, this.trimKey, a0, a1, H - 0.12, H, 0.005, 0.06); this.segBox(seg, upper, this.trimKey, a0, a1, PLINTH, PLINTH + 0.08, 0.005, 0.05); }
     }
     door(seg, upper, o, th, off) {
-      const fr = this.spec.walls === 'stone' ? 'ashlar' : 'timber';
+      const fr = this.spec.walls === 'stone' ? 'ashlar' : this.trimKey;
       for (const p of [o.a - 0.05, o.b + 0.05]) this.segBox(seg, upper, fr, p - 0.05, p + 0.05, 0, DOOR_H, off, th + 0.06);
-      this.segBox(seg, upper, 'timber', o.a - 0.1, o.b + 0.1, DOOR_H, DOOR_H + 0.12, off, th + 0.07);
+      this.segBox(seg, upper, this.trimKey, o.a - 0.1, o.b + 0.1, DOOR_H, DOOR_H + 0.12, off, th + 0.07);
       this.segBox(seg, 'base', 'ashlar', o.a, o.b, -0.02, 0.06, 0.12, 0.26);   // stone step outside
+      if (this.spec.noDoorLeaves) return;   // the game draws (and animates) its own door leaf for this building
       // door leaf, hinged at o.a, swung open into the building
       const n = seg.normal, w = o.b - o.a - 0.04, ang = 1.25;
       const k = this.kit('base');
@@ -208,22 +286,29 @@
       const along = seg.axis === 'v' ? [0, 1] : [1, 0], inward = [-n[0], -n[1]];
       const dirx = along[0] * Math.cos(ang) + inward[0] * Math.sin(ang), dirz = along[1] * Math.cos(ang) + inward[1] * Math.sin(ang);
       const ry = Math.atan2(-dirz, dirx);
-      k.box('wood', hx + dirx * w / 2, FLOOR_Y, hz + dirz * w / 2, w, DOOR_H - 0.08, 0.06, ry);
+      k.box(this.doorKey, hx + dirx * w / 2, FLOOR_Y, hz + dirz * w / 2, w, DOOR_H - 0.08, 0.06, ry);
       k.box('iron', hx + dirx * w * 0.2, FLOOR_Y + 0.3, hz + dirz * w * 0.2, w * 0.35, 0.05, 0.075, ry); k.box('iron', hx + dirx * w * 0.2, FLOOR_Y + 1.1, hz + dirz * w * 0.2, w * 0.35, 0.05, 0.075, ry);
       k.box('brass', hx + dirx * w * 0.85, FLOOR_Y + 0.7, hz + dirz * w * 0.85, 0.05, 0.08, 0.09, ry);
     }
     window(seg, upper, o, th, off) {
       const k = this.kit(upper), n = seg.normal;
-      this.segBox(seg, upper, 'timber', o.a - 0.06, o.b + 0.06, SILL - 0.05, SILL, off + 0.03, th + 0.1);
+      const tk = this.trimKey;
+      this.segBox(seg, upper, tk, o.a - 0.06, o.b + 0.06, SILL - 0.05, SILL, off + 0.03, th + 0.1);
       this.segBox(seg, upper, 'snow', o.a - 0.04, o.b + 0.04, SILL, SILL + 0.04, 0.06, 0.08);
-      this.segBox(seg, upper, 'timber', o.a - 0.06, o.b + 0.06, WIN_TOP, WIN_TOP + 0.08, off, th + 0.05);
-      for (const p of [o.a - 0.03, o.b + 0.03]) this.segBox(seg, upper, 'timber', p - 0.03, p + 0.03, SILL, WIN_TOP, off, th + 0.05);
+      this.segBox(seg, upper, tk, o.a - 0.06, o.b + 0.06, WIN_TOP, WIN_TOP + 0.08, off, th + 0.05);
+      for (const p of [o.a - 0.03, o.b + 0.03]) this.segBox(seg, upper, tk, p - 0.03, p + 0.03, SILL, WIN_TOP, off, th + 0.05);
+      if (this.spec.flowerBoxes) {   // window box with flowers
+        this.segBox(seg, upper, tk, o.a - 0.04, o.b + 0.04, SILL - 0.2, SILL - 0.06, 0.1, 0.16);
+        this.segBox(seg, upper, 'leafGreen', o.a - 0.02, o.b + 0.02, SILL - 0.06, SILL + 0.02, 0.1, 0.13);
+        const fl = ['paintRed', 'paintYellow', 'paintPurple', 'paintWhite'];
+        for (let p = o.a + 0.03, i = 0; p < o.b - 0.02; p += 0.09, i++) this.segBox(seg, upper, fl[(i + seg.line) % fl.length], p - 0.03, p + 0.03, SILL + 0.0, SILL + 0.08, 0.1 + ((i % 2) - 0.5) * 0.05, 0.06);
+      }
       // glowing pane in the middle of the wall, visible from both sides
       const line = seg.line * T + n[0] * off + n[1] * off, y0 = SILL, y1 = WIN_TOP, a = o.a, b = o.b, uv = [[0, 0], [1, 0], [1, 1], [0, 1]];
       if (seg.axis === 'v') { k.quad('window', [line, y0, a], [line, y0, b], [line, y1, b], [line, y1, a], uv); k.quad('window', [line, y0, b], [line, y0, a], [line, y1, a], [line, y1, b], uv); }
       else { k.quad('window', [a, y0, line], [b, y0, line], [b, y1, line], [a, y1, line], uv); k.quad('window', [b, y0, line], [a, y0, line], [a, y1, line], [b, y1, line], uv); }
       // open shutters on timber/plaster houses
-      if (this.spec.walls !== 'stone') { const w = (o.b - o.a) / 2; this.segBox(seg, upper, 'wood', o.a - 0.06 - w, o.a - 0.06, SILL + 0.02, WIN_TOP - 0.02, 0.03, 0.04); this.segBox(seg, upper, 'wood', o.b + 0.06, o.b + 0.06 + w, SILL + 0.02, WIN_TOP - 0.02, 0.03, 0.04); }
+      if (this.spec.walls !== 'stone' || this.spec.shutterColor) { const w = (o.b - o.a) / 2, sk = this.shutterKey; this.segBox(seg, upper, sk, o.a - 0.06 - w, o.a - 0.06, SILL + 0.02, WIN_TOP - 0.02, 0.03, 0.04); this.segBox(seg, upper, sk, o.b + 0.06, o.b + 0.06 + w, SILL + 0.02, WIN_TOP - 0.02, 0.03, 0.04); }
     }
     framing(seg, upper, ops, a0, a1) {
       const H = this.spec.wallH, off = 0.02, d = 0.05;
@@ -232,12 +317,12 @@
       const all = [a0, ...posts, a1].sort((p, q) => p - q), fill = [];
       for (let i = 0; i + 1 < all.length; i++) { const gap = all[i + 1] - all[i], n = Math.floor(gap / 1.0); for (let k = 1; k <= n; k++) if (gap / (n + 1) > 0.45) fill.push(all[i] + (gap * k) / (n + 1)); }
       const allPosts = posts.concat(fill).filter((p) => p > a0 + 0.1 && p < a1 - 0.1);
-      for (const p of allPosts) this.segBox(seg, upper, 'timber', p - 0.05, p + 0.05, PLINTH, H, off, d);
-      this.segBox(seg, upper, 'timber', a0, a1, PLINTH, PLINTH + 0.1, off, d + 0.01);
-      this.segBox(seg, upper, 'timber', a0, a1, H - 0.12, H, off, d + 0.01);
+      for (const p of allPosts) this.segBox(seg, upper, this.trimKey, p - 0.05, p + 0.05, PLINTH, H, off, d);
+      this.segBox(seg, upper, this.trimKey, a0, a1, PLINTH, PLINTH + 0.1, off, d + 0.01);
+      this.segBox(seg, upper, this.trimKey, a0, a1, H - 0.12, H, off, d + 0.01);
       const inOp = (p) => ops.some((o) => p > o.a - 0.06 && p < o.b + 0.06), doorAt = (p) => ops.some((o) => o.type === 'door' && p > o.a - 0.06 && p < o.b + 0.06);
       // rails at the sill and lintel lines, broken by doors
-      const rail = (y) => { let s = a0; const brk = ops.filter((o) => o.type === 'door').sort((p, q) => p.a - q.a); for (const o of brk) { this.segBox(seg, upper, 'timber', s, o.a - 0.1, y, y + 0.08, off, d); s = o.b + 0.1; } this.segBox(seg, upper, 'timber', s, a1, y, y + 0.08, off, d); };
+      const rail = (y) => { let s = a0; const brk = ops.filter((o) => o.type === 'door').sort((p, q) => p.a - q.a); for (const o of brk) { this.segBox(seg, upper, this.trimKey, s, o.a - 0.1, y, y + 0.08, off, d); s = o.b + 0.1; } this.segBox(seg, upper, this.trimKey, s, a1, y, y + 0.08, off, d); };
       rail(SILL - 0.06); rail(WIN_TOP);
       // diagonal braces in plain panels (upper courses only)
       const sorted = [a0, ...allPosts, a1].sort((p, q) => p - q);
@@ -246,8 +331,8 @@
         const flip = i % 2 ? 1 : -1, y0 = WIN_TOP + 0.08, y1 = H - 0.12, len = Math.hypot(b - a, y1 - y0), ang = Math.atan2(y1 - y0, b - a) * flip;
         const n = seg.normal, line = seg.line * T, k = this.kit(upper), cy = (y0 + y1) / 2 - len / 2;
         const c = new THREE.Matrix4();
-        if (seg.axis === 'v') { c.makeTranslation(line + n[0] * off, (y0 + y1) / 2, mid).multiply(new THREE.Matrix4().makeRotationX(-ang)); k.push(c); k.box('timber', 0, -0.04, 0, d, 0.08, len); k.pop(); }
-        else { c.makeTranslation(mid, (y0 + y1) / 2, line + n[1] * off).multiply(new THREE.Matrix4().makeRotationZ(ang)); k.push(c); k.box('timber', 0, -0.04, 0, len, 0.08, d); k.pop(); }
+        if (seg.axis === 'v') { c.makeTranslation(line + n[0] * off, (y0 + y1) / 2, mid).multiply(new THREE.Matrix4().makeRotationX(-ang)); k.push(c); k.box(this.trimKey, 0, -0.04, 0, d, 0.08, len); k.pop(); }
+        else { c.makeTranslation(mid, (y0 + y1) / 2, line + n[1] * off).multiply(new THREE.Matrix4().makeRotationZ(ang)); k.push(c); k.box(this.trimKey, 0, -0.04, 0, len, 0.08, d); k.pop(); }
         void cy;
       }
     }
@@ -264,7 +349,7 @@
         for (const s of segs) { n[0] += s.normal[0]; n[1] += s.normal[1]; }
         const th = this.th, cx = x * T - n[0] * th / 2, cz = z * T - n[1] * th / 2, sz = th + (this.spec.walls === 'timber' ? 0.1 : 0.08);
         const side = SIDE_OF(Math.abs(segs[0].normal[1]) ? segs[0].normal : segs[1].normal);
-        const key2 = this.spec.walls === 'timber' ? 'timber' : 'ashlar';
+        const key2 = this.spec.walls === 'timber' ? this.trimKey : this.spec.walls === 'plaster' && this.spec.trim ? this.trimKey : 'ashlar';
         if (this.spec.walls !== 'stone') this.boxSplit('base', 'ashlar', cx, 0, cz, sz + 0.04, PLINTH, sz + 0.04);
         this.boxSplit('up_' + side, key2, cx, this.spec.walls !== 'stone' ? PLINTH : 0, cz, sz, H - (this.spec.walls !== 'stone' ? PLINTH : 0) + 0.04, sz);
       }
@@ -291,7 +376,7 @@
       const k = this.kit('roof'), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
       const L = alongX ? x1 - x0 : z1 - z0, S = alongX ? z1 - z0 : x1 - x0;
       const ov = 0.26, slope = 0.55 + r.pitch * 0.75, rise = (S / 2) * slope, top = H + rise, eaveY = H - ov * slope;
-      const t = r.material === 'thatch' ? 0.2 : 0.07, key = ROOF_KEY[r.material], hip = r.style === 'hip';
+      const t = r.material === 'thatch' ? 0.2 : r.material === 'tiles' ? 0.09 : 0.07, key = this.roofKey || ROOF_KEY[r.material], hip = r.style === 'hip', fullSnow = r.snow === true;
       const e0 = ends.lo ? ov : 0, e1 = ends.hi ? ov : 0;
       const xa = -L / 2 - e0, xb = L / 2 + e1, ze = S / 2 + ov;
       const rl = hip ? Math.max(0, L / 2 - S / 2) : L / 2;   // ridge half-length (hip ends pull it in)
@@ -310,10 +395,10 @@
         k.quad(key, [eA[0], eaveY - t, eA[2]], [eB[0], eaveY - t, eB[2]], [eB[0], eaveY, eB[2]], [eA[0], eaveY, eA[2]], [[xa, 0], [xb, 0], [xb, t], [xa, t]], sz < 0);   // eave edge
         if (r.snow) {
           const nY = 0.035, ju = this.rng.next(), uvS = [[ju + xa / 4, 0], [ju + xb / 4, 0], [ju + (hip ? rb : xb) / 4, 1], [ju + (hip ? ra : xa) / 4, 1]];
-          quad(ordered, 'roofSnow', sz > 0 ? uvS : [uvS[1], uvS[0], uvS[3], uvS[2]], nY);
+          if (fullSnow) quad(ordered, 'roofSnow', sz > 0 ? uvS : [uvS[1], uvS[0], uvS[3], uvS[2]], nY);
           // chunky snow lumps and icicles along the eave
           for (let x = xa + 0.15; x < xb - 0.1; x += 0.22 + this.rng.next() * 0.3) {
-            if (this.rng.chance(0.55)) k.box('snow', x, eaveY - 0.01, sz * (ze - 0.08), 0.18 + this.rng.next() * 0.25, 0.06 + this.rng.next() * 0.05, 0.16, 0, sz * 0.5);
+            if (this.rng.chance(fullSnow ? 0.55 : 0.25)) k.box('snow', x, eaveY - 0.01, sz * (ze - 0.08), 0.18 + this.rng.next() * 0.25, 0.06 + this.rng.next() * 0.05, 0.16, 0, sz * 0.5);
             if (this.rng.chance(0.4)) k.box('ice', x, eaveY - t - 0.05 - this.rng.next() * 0.14, sz * (ze - 0.01), 0.025, 0.08 + this.rng.next() * 0.16, 0.025);
           }
         }
@@ -327,30 +412,31 @@
           const tri = ex > 0 ? [a, c, c, b] : [b, c, c, a], uvT = ex > 0 ? [[-ze, 0], [0, sl], [0, sl], [ze, 0]] : [[ze, 0], [0, sl], [0, sl], [-ze, 0]];
           k.quad(key, ...tri, uvT); k.quad('timber', ...tri.slice().reverse().map((p) => [p[0], p[1] - t, p[2]]), uvT.slice().reverse());
           k.quad(key, [xe, eaveY - t, -ze], [xe, eaveY - t, ze], [xe, eaveY, ze], [xe, eaveY, -ze], [[-ze, 0], [ze, 0], [ze, t], [-ze, t]], ex < 0);
-          if (r.snow) k.quad('roofSnow', ...tri.map((p) => [p[0] + ex * 0.03, p[1] + 0.03, p[2]]), [[0, 0], [0.5, 1], [0.5, 1], [1, 0]]);
+          if (fullSnow) k.quad('roofSnow', ...tri.map((p) => [p[0] + ex * 0.03, p[1] + 0.03, p[2]]), [[0, 0], [0.5, 1], [0.5, 1], [1, 0]]);
         } else {
-          const wk = this.spec.walls === 'stone' ? 'ashlar' : 'plaster', tri = [[xw, H, -S / 2], [xw, H, S / 2], [xw, H + rise, 0], [xw, H + rise, 0]];
+          const wk = this.wallKey, tri = [[xw, H, -S / 2], [xw, H, S / 2], [xw, H + rise, 0], [xw, H + rise, 0]];
           const uvG = [[-S / 2, H], [S / 2, H], [0, H + rise], [0, H + rise]];
           const pts = (dx) => tri.map((p) => [p[0] + dx, p[1], p[2]]);
           if (ex > 0) { k.quad(wk, ...pts(0).reverse(), uvG.slice().reverse()); k.quad(wk, ...pts(-this.th), uvG); }
           else { k.quad(wk, ...pts(0), uvG); k.quad(wk, ...pts(this.th).reverse(), uvG.slice().reverse()); }
           if (this.spec.walls === 'timber') {
-            k.box('timber', xw + ex * 0.025, H, 0, 0.05, rise * 0.8, 0.1);
-            k.box('timber', xw + ex * 0.025, H + rise * 0.42, 0, 0.05, 0.08, S * 0.55);
-            k.box('timber', xw + ex * 0.025, H - 0.02, 0, 0.05, 0.1, S);
+            const tk = this.trimKey;
+            k.box(tk, xw + ex * 0.025, H, 0, 0.05, rise * 0.8, 0.1);
+            k.box(tk, xw + ex * 0.025, H + rise * 0.42, 0, 0.05, 0.08, S * 0.55);
+            k.box(tk, xw + ex * 0.025, H - 0.02, 0, 0.05, 0.1, S);
           }
           // verge boards along the rake
           for (const sz of [-1, 1]) {
             const len = Math.hypot(ze, top - eaveY), ang = Math.atan2(top - eaveY, ze);
             k.push(new THREE.Matrix4().makeTranslation(xe, (top + eaveY) / 2 - t / 2, sz * ze / 2).multiply(new THREE.Matrix4().makeRotationX(sz * ang)));
-            k.box('timber', 0, -0.05, 0, 0.06, t + 0.08, len); if (r.snow) k.box('snow', 0, t / 2 + 0.03, 0, 0.12, 0.06, len);
+            k.box(this.trimKey, 0, -0.05, 0, 0.06, t + 0.08, len); if (fullSnow) k.box('snow', 0, t / 2 + 0.03, 0, 0.12, 0.06, len);
             k.pop();
           }
         }
       }
       // ridge cap + snow
       const ra2 = hip ? ra : xa, rb2 = hip ? rb : xb;
-      if (rb2 - ra2 > 0.01) { k.box(r.material === 'thatch' ? 'thatch' : 'timber', (ra2 + rb2) / 2, top - 0.04, 0, rb2 - ra2 + 0.04, 0.1, 0.22); if (r.snow) k.box('snow', (ra2 + rb2) / 2, top + 0.04, 0, rb2 - ra2, 0.09, 0.3); }
+      if (rb2 - ra2 > 0.01) { k.box(r.material === 'thatch' ? key : r.material === 'tiles' ? this.trimKey : 'timber', (ra2 + rb2) / 2, top - 0.04, 0, rb2 - ra2 + 0.04, 0.1, 0.22); if (r.snow) k.box('snow', (ra2 + rb2) / 2, top + 0.04, 0, rb2 - ra2, fullSnow ? 0.09 : 0.05, fullSnow ? 0.3 : 0.2); }
       else if (r.snow) k.box('snow', ra2, top - 0.02, 0, 0.3, 0.1, 0.3);
       k.pop();
       this.roofInfo.push({ x0, z0, x1, z1, alongX, top, eaveY, rise, H });
@@ -372,18 +458,24 @@
       return new THREE.Matrix4().makeTranslation((f.x + w / 2) * T, FLOOR_Y, (f.z + d / 2) * T).multiply(new THREE.Matrix4().makeRotationY(f.rot * Math.PI / 2));
     }
     furniture() {
-      const base = this.kit('base');
       for (const f of this.spec.furniture) {
         const def = this.catalog[f.type]; if (!def || !def.build) continue;
         if (f.state && f.state.away) continue;          // e.g. a horse that is out being ridden
-        const m = this.fxf(f, def);
+        this.placeItem(def, f, this.fxf(f, def), true);
+      }
+    }
+    /* draw one furniture item at matrix m (building-local) into the base layer, with its fire, lights, embers and (label) */
+    placeItem(def, f, m, label) {
+      const base = this.kit('base');
+      {
         base.push(m); try { def.build(base, f, def); } catch (e) { console.warn('furniture ' + f.type + ' failed', e); } base.pop();
         const toW = (p) => { const v = new V3(p[0], p[1], p[2]).applyMatrix4(m); return this.world(v.x, v.y, v.z); };
         const dy = def.dyn || {};
         if (dy.fire) this.fires.push({ p: toW(dy.fire), s: dy.fire[3], ph: this.rng.next() * 9 });
-        if (dy.light) { const p = toW(dy.light); this.lights.push({ x: p[0], y: p[1], z: p[2], color: 0xff8a3c, base: 12 * dy.light[3], dist: 6.5 * dy.light[3] + 1.5, ph: this.rng.next() * 9, fire: true, building: this.spec.id }); }
+        if (dy.light) { const p = toW(dy.light); this.lights.push({ x: p[0], y: p[1], z: p[2], color: dy.light[4] || 0xff8a3c, base: 12 * dy.light[3], dist: 6.5 * dy.light[3] + 1.5, ph: this.rng.next() * 9, fire: true, building: this.spec.id }); }
         if (dy.embers) this.embers.push(toW(dy.embers));
         for (const c of dy.candles || []) { const p = toW(c); this.lights.push({ x: p[0], y: p[1], z: p[2], color: 0xffb466, base: 2.6, dist: 3.2, ph: this.rng.next() * 9, fire: true, candle: true, building: this.spec.id }); }
+        if (!label) return;
         const [w, d] = FurnitureFootprint.size(def, f.rot), c = this.world((f.x + w / 2) * T, 0, (f.z + d / 2) * T);
         this.labels.push({ id: f.id, type: f.type, name: def.name, interact: def.interact || null, x: c[0], y: c[1] + 1.1, z: c[2], tile: [this.spec.x + f.x, this.spec.z + f.z], building: this.spec.id });
       }
@@ -417,6 +509,100 @@
           const h = 0.05 + this.rng.next() * 0.12, w = 0.2 + this.rng.next() * 0.3, dd = 0.12 + this.rng.next() * 0.16, off = 0.04 + dd / 2;
           if (seg.axis === 'v') k.box('snow', seg.line * T + n[0] * off, 0, s, dd, h, w); else k.box('snow', s, 0, seg.line * T + n[1] * off, w, h, dd);
         }
+      }
+    }
+
+    /* ---------- the look: sign, roof emblem, props by the door, bunting, awning, fill lights ---------- */
+    /* the first exterior door, as a frame: side, outward normal, wall line and the span [a,b] along the wall (local units) */
+    findMainDoor() {
+      const d = this.layout.doors.find((q) => q.kind === 'exterior'); if (!d || !d.tiles.length) return null;
+      const side = d.side, n = SIDE_N[side], ns = side === 'n' || side === 's';
+      const along = d.tiles.map(([i, j]) => (ns ? i : j)), a = Math.min(...along) * T, b = (Math.max(...along) + 1) * T;
+      const t0 = d.tiles[0], line = ns ? (side === 's' ? t0[1] + 1 : t0[1]) * T : (side === 'e' ? t0[0] + 1 : t0[0]) * T;
+      const seg = (this.segs || []).find((sg) => sg.kind === 1 && SIDE_OF(sg.normal) === side && sg.line * T === line && sg.s0 * T <= a + 1e-6 && sg.s1 * T >= b - 1e-6);
+      return { side, n, ns, a, b, line, rot: { s: 0, e: 1, n: 2, w: 3 }[side], sx: side === 'e' || side === 'n' ? -1 : 1, seg, s0: seg ? seg.s0 * T : a, s1: seg ? seg.s1 * T : b };
+    }
+    /* local point at `al` along the door wall and `out` units outside it */
+    doorPt(D, al, out) { return D.ns ? [al, D.line + D.n[1] * out] : [D.line + D.n[0] * out, al]; }
+    /* push a frame on kit k at (al, y, out) whose +z faces out of the door wall and +x runs along increasing `al` */
+    doorFrame(k, D, al, y, out) {
+      const [x, z] = this.doorPt(D, al, out);   // note: local +x runs along decreasing `al` on e/n doors (D.sx = -1)
+      k.push(new THREE.Matrix4().makeTranslation(x, y, z).multiply(new THREE.Matrix4().makeRotationY(D.rot * Math.PI / 2)));
+    }
+    extras() {
+      const s = this.spec, D = this.mainDoor, M = this.ctx.mats; if (!D) return;
+      const up = 'up_' + D.side, H = s.wallH, col = (c) => (M ? LookMats.color(M, c) : 'plaster');
+      // props outside the main door (decor: drawn, never part of the building's walkability)
+      for (const p of s.props || []) {
+        const def = this.catalog[p.type]; if (!def || !def.build) continue;
+        const r = (D.rot + p.rot) % 4, [sw, sd] = FurnitureFootprint.size(def, r), alongExt = (D.ns ? sw : sd) * T, outExt = (D.ns ? sd : sw) * T;
+        const al = p.side === 'r' ? D.b + 0.12 + p.at * T + alongExt / 2 : D.a - 0.12 - p.at * T - alongExt / 2;
+        const [x, z] = this.doorPt(D, al, outExt / 2 + 0.06 + p.out * T), m = new THREE.Matrix4().makeTranslation(x, 0, z).multiply(new THREE.Matrix4().makeRotationY(r * Math.PI / 2));
+        this.placeItem(def, { id: 'prop' + p.type, type: p.type, x: 0, z: 0, rot: r }, m, false);
+      }
+      // hanging sign on an iron bracket beside the door, and the big emblem on the ridge
+      if (s.sign) {
+        const k = this.kit(up), al = D.b + 0.5, y = Math.min(H - 0.3, DOOR_H + 0.55);
+        this.doorFrame(k, D, al, y, 0);
+        k.box('ironDark', 0, 0.02, 0.36, 0.04, 0.04, 0.72); k.box('ironDark', 0, -0.3, 0.04, 0.05, 0.36, 0.05); k.box('ironDark', 0, -0.14, 0.2, 0.025, 0.025, 0.42, 0, 0.75);
+        for (const sx of [-0.2, 0.2]) k.box('ironDark', sx, -0.12, 0.5, 0.015, 0.14, 0.015);
+        k.push(new THREE.Matrix4().makeTranslation(0, -0.1, 0.5)); SignIcons().plaque(k, s.sign.icon, col(s.sign.board), 1.15); k.pop();
+        k.pop();
+        if (s.sign.text && M && typeof document !== 'undefined') {   // painted name board across the front, over the door
+          const tk = LookMats.ensure(M, 'text:' + s.sign.text + '|' + (LookMats.hex(M, s.sign.board) || '#2f72c0') + '|' + (LookMats.hex(M, s.sign.textColor) || '#ffd54a'));
+          const mid = (D.s0 + D.s1) / 2, bw = Math.min(3.4, (D.s1 - D.s0) * 0.5), bh = bw / 4, y0 = DOOR_H + 0.14, kk = this.kit(up);
+          this.doorFrame(kk, D, mid, y0, 0.03);
+          kk.box(this.trimKey, 0, -0.05, 0.03, bw + 0.14, bh + 0.1, 0.06);
+          kk.quad(tk, [-bw / 2, 0, 0.07], [bw / 2, 0, 0.07], [bw / 2, bh, 0.07], [-bw / 2, bh, 0.07], [[0, 1], [1, 1], [1, 0], [0, 0]]);
+          for (const sx of [-1, 1]) { kk.push(new THREE.Matrix4().makeTranslation(sx * (bw / 2 + 0.42), bh / 2 + 0.2, 0.1)); SignIcons().plaque(kk, s.sign.icon, col(s.sign.board), 0.95); kk.pop(); }
+          kk.pop();
+        }
+        if (s.sign.emblem && this.roofInfo && this.roofInfo[0]) {
+          const R = this.roofInfo[0], cx = (R.x0 + R.x1) / 2, cz = (R.z0 + R.z1) / 2, k2 = this.kit('roof');
+          const top = R.H + R.rise, al = D.ns ? cx : cz, outOff = D.ns ? (cz - D.line) * D.n[1] : (cx - D.line) * D.n[0];
+          this.doorFrame(k2, D, al, top, outOff);
+          const es = Math.max(1.7, Math.min(2.6, Math.max(this.W, this.D) * 0.24));
+          k2.box('ironDark', 0, -0.05, 0, 0.06, 0.2 + es * 0.4, 0.06);
+          k2.push(new THREE.Matrix4().makeTranslation(0, 0.5 + es * 0.42, 0)); SignIcons().plaque(k2, s.sign.emblemIcon || s.sign.icon, col(s.sign.board), es); k2.pop();
+          k2.pop();
+        }
+      }
+      // striped awning over the main door
+      if (s.awning) {
+        const k = this.kit(up), w = D.b - D.a + 0.5, n = 6, len = 0.62, ang = 0.42, [ca, cb] = s.awning.map(col);
+        this.doorFrame(k, D, (D.a + D.b) / 2, DOOR_H + 0.42, 0);
+        k.push(new THREE.Matrix4().makeRotationX(ang));
+        for (let i = 0; i < n; i++) k.box(i % 2 ? cb : ca, -w / 2 + (i + 0.5) * w / n, 0, len / 2, w / n, 0.03, len);
+        for (let i = 0; i < n * 2; i++) k.box(i % 2 ? cb : ca, -w / 2 + (i + 0.5) * w / (n * 2), -0.1, len - 0.01, w / (n * 2) - 0.01, 0.1, 0.02);
+        k.pop();
+        for (const sx of [-1, 1]) k.box('ironDark', sx * (w / 2 - 0.04), -0.26, 0.28, 0.02, 0.02, 0.6, 0, -0.5);
+        k.pop();
+      }
+      // bunting: swags of pennants along the front, just under the eave
+      if (s.bunting) {
+        const k = this.kit(up), cols = s.bunting.map(col), y = H - 0.12, out = 0.3, a0 = D.s0 + 0.1, a1 = D.s1 - 0.1, swag = 1.6;
+        const nSw = Math.max(1, Math.round((a1 - a0) / swag)), L = (a1 - a0) / nSw;
+        let ci = 0;
+        for (let sI = 0; sI < nSw; sI++) for (let q = 0; q < 8; q++) {
+          const u = (q + 0.5) / 8, al = a0 + sI * L + u * L, yy = y - 0.22 * (1 - (2 * u - 1) ** 2);
+          this.doorFrame(k, D, al, yy, out);
+          k.box('rope', 0, -0.01, 0, L / 8 + 0.01, 0.015, 0.015, 0, 0, -(2 * u - 1) * 0.5 * D.sx);
+          const c = cols[ci++ % cols.length], pw = 0.075;
+          k.quad(c, [-pw, 0, 0], [pw, 0, 0], [0, -0.2, 0], [0, -0.2, 0], [[0, 0], [1, 0], [0.5, 1], [0.5, 1]]);
+          k.quad(c, [pw, 0, 0], [-pw, 0, 0], [0, -0.2, 0], [0, -0.2, 0], [[0, 0], [1, 0], [0.5, 1], [0.5, 1]]);
+          k.pop();
+        }
+      }
+    }
+    /* soft warm light in each room, on only while the interior is open (keeps the inside readable at night) */
+    fillLights() {
+      const f = this.spec.fill; if (!f) return;
+      for (const rm of this.layout.rooms) {
+        let x0 = rm.x, z0 = rm.z, w = rm.w, h = rm.h;
+        if (rm.implicit) { x0 = 0; z0 = 0; w = this.layout.W; h = this.layout.H; }
+        if (!w || !h) continue;
+        const c = this.world((x0 + w / 2) * T, this.spec.wallH - 0.25, (z0 + h / 2) * T);
+        this.lights.push({ x: c[0], y: c[1], z: c[2], color: 0xffe2b8, base: 3.2 * f, dist: Math.max(w, h) * T * 1.1 + 2.5, ph: this.rng.next() * 9, fill: true, building: this.spec.id, room: rm.id });
       }
     }
 
@@ -533,7 +719,10 @@
     /* light sources in WorldRenderer.lightSrc format; buildings you are not inside glow dimmer (light leaks through walls otherwise) */
     lightSources() {
       const out = [];
-      for (const b of this.list) for (const l of b.lights) out.push(Object.assign({}, l, { base: l.base * (b.interior || b.roofAlpha < 0.99 ? 1 : 0.3) }));
+      for (const b of this.list) {
+        const open = b.interior || b.roofAlpha < 0.99;
+        for (const l of b.lights) { if (l.fill && !open) continue; out.push(Object.assign({}, l, { base: l.base * (open ? 1 : 0.3) })); }
+      }
       return out;
     }
     setNight(k) { this.ctx.mats.setNight(k); }

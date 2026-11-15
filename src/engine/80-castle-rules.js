@@ -4,7 +4,7 @@
    runs in the game and in `node --test`. Every number comes from game-data-castle.json (K.CASTLE_DATA). */
 (function (G) {
   const K = (G.K = G.K || {});
-  const RES = ['wood', 'stone', 'iron', 'gold', 'ember_shard'];
+  const RES = ['wood', 'stone', 'dirt', 'food', 'arrow', 'iron', 'gold', 'ember_shard', 'wheat', 'egg', 'milk', 'beef', 'bread', 'potion_heal', 'potion_speed', 'potion_strength', 'potion_warmth'];
   const KEY_ITEMS = ['troll_heart'];
 
   /* ---------- the data, with lookups and the one item vocabulary ---------- */
@@ -57,7 +57,7 @@
       return `${gain} · pays for itself in ${m.toFixed(1)} min`;
     }
   }
-  CastleData.NAMES = { wood: 'wood', stone: 'stone', iron: 'iron', gold: 'gold', ember_shard: 'ember', troll_heart: "troll's heart" };
+  CastleData.NAMES = { wood: 'wood', stone: 'stone', dirt: 'dirt', food: 'food', arrow: 'arrows', iron: 'iron', gold: 'gold', ember_shard: 'ember', wheat: 'wheat', egg: 'eggs', milk: 'milk', beef: 'beef', bread: 'bread', potion_heal: 'healing potions', potion_speed: 'speed potions', potion_strength: 'strength potions', potion_warmth: 'warmth potions', troll_heart: "troll's heart" };
   CastleData.resName = (r) => CastleData.NAMES[r] || r;
 
   /* ---------- the castle: pieces, stores, Castle Level, production, crafting, raid losses ---------- */
@@ -71,7 +71,7 @@
     }
     /* ---- Castle Level ---- */
     builtTypes() { const s = new Set(this.pieces.map((p) => p.type)); if (this.lit) s.add('keep'); return s; }
-    has(type) { return this.builtTypes().has(type); }
+    has(type) { return this.builtTypes().has(type) || !!(this.extraHas && this.extraHas(type)); }   // extraHas: things built outside the piece list (the blacksmith building)
     count(type) { return this.pieces.filter((p) => p.type === type).length; }
     score() { let s = 0; for (const t of this.builtTypes()) { const p = this.data.piece(t); s += p ? p.castlePoints || 0 : 0; } return s; }
     cl() {
@@ -124,7 +124,9 @@
         if (this.isFrosted(p)) continue;
         p.acc = p.acc || {};
         for (const [r, perMin] of Object.entries(this.producesOf(p))) {
-          const got = this.add(r, perMin * dt / 60); gains[r] = (gains[r] || 0) + got;
+          p.held = p.held || {}; const make = perMin * dt / 60, got = this.add(r, make); gains[r] = (gains[r] || 0) + got;
+          if (got < make - 1e-9) p.held[r] = Math.min(Castle.HOLD, (p.held[r] || 0) + make - got);   // your purse is full: the workshop stacks it and waits
+          else if (p.held[r] > 0) { const back = this.add(r, Math.min(p.held[r], 2)); p.held[r] -= back; }   // room again: the stack goes in
           p.acc[r] = (p.acc[r] || 0) + got;
           if (p.acc[r] >= 1) { const n = Math.floor(p.acc[r]); p.acc[r] -= n; ticks.push({ piece: p, r, n }); }
         }
@@ -144,22 +146,33 @@
     ruinOpen(type) { return this.isRuinType(type) && !this.ruins[type]; }
     buildCost(type, { ruin = false } = {}) {
       const d = this.data.piece(type); if (!d) return null;
-      return ruin ? Cost.scale(d.cost, this.data.raw.ruinRules.repairCostFraction) : Object.assign({}, d.cost);
+      if (ruin) return Cost.scale(d.cost, this.data.raw.ruinRules.repairCostFraction);
+      const n = Castle.FLAT.has(type) ? 0 : this.pieces.filter((p) => p.type === type).length;   // every extra one of a building costs more than the last
+      return n ? Cost.scale(d.cost, Math.pow(1.6, n)) : Object.assign({}, d.cost);
     }
     zoneOpen(z) { return z === 'castle_hill' || this.flags.has('zone:' + z); }
     /* why a piece can't be built right now (null = it can) */
     blocker(type, { ruin = false, ignoreCost = false } = {}) {
       const d = this.data.piece(type); if (!d) return 'unknown piece';
       if (type === 'keep') return 'the Keep is lit from its hearth';
-      if (!this.lit) return 'light the Keep first';
       if (type === this.data.keepUpgrade.id && this.has(type)) return 'already bound';
-      if (this.cl() < d.requiresCastleLevel) return `needs Castle Level ${d.requiresCastleLevel}`;
+      if (Math.max(1, this.cl()) < d.requiresCastleLevel) return `needs Castle Level ${d.requiresCastleLevel}`;   // an unlit Keep still counts as level 1: you can build from the start
       for (const req of d.buildRequires || []) if (!this.has(req)) return `needs a ${this.data.piece(req).name}`;
       if (d.requiresZone && !this.zoneOpen(d.requiresZone)) return 'the Iron Hills are still frozen';
       if (ruin && !this.ruinOpen(type)) return 'already restored';
       if (!ignoreCost && !this.canAfford(this.buildCost(type, { ruin }))) return 'not enough resources';
       return null;
     }
+    /* ---- taking down: half of what it cost comes back (restored ruins stay standing) ---- */
+    canDemolish(p) { return !!p && !this.ruins[p.type] && this.pieces.includes(p); }
+    refundFor(p) {
+      const half = (cost) => { const o = {}; for (const [r, n] of Object.entries(cost || {})) { const h = Math.floor(n / 2); if (h > 0) o[r] = h; } return o; };
+      const paid = Castle.FLAT.has(p.type) ? this.buildCost(p.type) : Cost.scale(this.data.piece(p.type).cost, Math.pow(1.6, Math.max(0, this.pieces.filter((q) => q.type === p.type).length - 1)));   // what this one cost: the price before it was built
+      const out = half(paid);
+      if (p.level >= 2) for (const [r, n] of Object.entries(half(this.upgradeCostFor(p)))) out[r] = (out[r] || 0) + n;
+      return out;
+    }
+    demolish(p) { if (!this.canDemolish(p)) return { ok: false }; const refund = this.refundFor(p); this.pieces.splice(this.pieces.indexOf(p), 1); return { ok: true, refund }; }
     build(type, at = {}, { ruin = false } = {}) {
       const why = this.blocker(type, { ruin }); if (why) return { ok: false, why };
       this.spend(this.buildCost(type, { ruin }));
@@ -173,10 +186,11 @@
     light() { if (this.lit) return false; this.lit = true; this.hearthCap = this.data.pieces.keep.hearthCap; this.ruins.keep = true; return true; }
     /* ---- Level 2 upgrades (Smithy: 25% off) ---- */
     upgradeInfo(p) { const d = this.data.piece(p.type); return d && d.levels && p.level < 2 ? d.levels[0] : null; }
-    upgradeCost(p) {
-      const lv = this.upgradeInfo(p); if (!lv) return null;
+    upgradeCostFor(p) {
+      const d = this.data.piece(p.type), lv = d && d.levels && d.levels[0]; if (!lv) return {};
       return this.has('smithy') ? Cost.discount(lv.cost, this.data.pieces.smithy.upgradeDiscountPct) : Object.assign({}, lv.cost);
     }
+    upgradeCost(p) { return this.upgradeInfo(p) ? this.upgradeCostFor(p) : null; }
     upgradeBlocker(p, ignoreCost) {
       const lv = this.upgradeInfo(p); if (!lv) return 'no upgrade';
       if (this.cl() < lv.requiresCastleLevel) return `needs Castle Level ${lv.requiresCastleLevel}`;
@@ -258,7 +272,7 @@
     currentGoals(n = 3) { return this.objectives().filter((o) => !o.done).slice(0, n); }   // goals met early drop out of the list
     /* ---- save ---- */
     toJSON() {
-      return { v: 1, stores: Object.assign({}, this.stores), pieces: this.pieces.map((p) => ({ uid: p.uid, type: p.type, level: p.level, x: +p.x.toFixed(3), z: +p.z.toFixed(3), rot: +(p.rot || 0).toFixed(3), hp: p.hp, ruin: !!p.ruin, frosted: !!p.frosted, frostedUntil: p.frostedUntil || 0 })),
+      return { v: 1, stores: Object.assign({}, this.stores), pieces: this.pieces.map((p) => ({ uid: p.uid, type: p.type, level: p.level, held: p.held || undefined, x: +p.x.toFixed(3), z: +p.z.toFixed(3), rot: +(p.rot || 0).toFixed(3), hp: p.hp, ruin: !!p.ruin, frosted: !!p.frosted, frostedUntil: p.frostedUntil || 0 })),
         nextUid: this.nextUid, lit: this.lit, hearthCap: this.hearthCap, ruins: Object.assign({}, this.ruins), kin: [...this.kin], weapons: [...this.weapons], flags: [...this.flags], t: +this.t.toFixed(2) };
     }
     static fromJSON(data, o) {
@@ -301,6 +315,9 @@
   }
 
   /* ---------- the save slot (localStorage-like store injected, so tests use a Map) ---------- */
+  Castle.FLAT = new Set(['palisade', 'stone_wall', 'stone_tower', 'gate', 'field', 'dirt', 'fire_pot', 'market']);   // walls, fields and fire pots never get dearer (the market is one per settler)
+  Castle.HOLD = 400;   // how much a workshop stacks while your purse is full
+
   class CastleSave {
     constructor(storage, key = CastleSave.KEY) { this.storage = storage; this.key = key; }
     write(snapshot) { try { this.storage.setItem(this.key, JSON.stringify(Object.assign({ savedAt: Date.now() }, snapshot))); return true; } catch (e) { return false; } }

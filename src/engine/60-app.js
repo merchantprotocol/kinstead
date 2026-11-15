@@ -465,10 +465,12 @@
       this.generate(4242, 64, 48, true);
       this.storeReady = this.initStore();
       const loop = () => { this.frame(); this.raf = requestAnimationFrame(loop); };
-      loop();
-      const l = $('loading'); if (l) l.remove();
+      if (G.KINSTEAD_HOLD_LOADING) this.deferLoop = loop; else loop();   // the castle page draws nothing until its own world is ready: no wasted frames of the placeholder while it loads
+      if (!G.KINSTEAD_HOLD_LOADING) { const l = $('loading'); if (l) { l.classList.add('done'); setTimeout(() => l.remove(), 500); } }   // the castle page keeps the loading screen up until its own world is ready
       return this;
     }
+    /** begin drawing frames (the castle page calls this once its world is in) */
+    startLoop() { if (this.deferLoop) { const f = this.deferLoop; this.deferLoop = null; f(); } }
     get doc() { return this.renderer.doc; }
     /* ---- document lifecycle ---- */
     setDoc(doc, label) {
@@ -824,7 +826,7 @@
       el.addEventListener('contextmenu', (e) => e.preventDefault());
       el.addEventListener('pointerdown', (e) => {
         el.focus(); const [sx, sy] = pos(e); try { el.setPointerCapture(e.pointerId); } catch (_) {}
-        if (e.button === 2 || e.button === 1 || space) { cam = { x: sx, y: sy, pan: e.button === 1 || space || (e.button === 2 && e.shiftKey), tx: this.rig.goal.tx, tz: this.rig.goal.tz }; return; }
+        if (e.button === 2 || e.button === 1 || space) { cam = { x: sx, y: sy, sx, sy, btn: e.button, moved: false, pan: e.button === 1 || space || (e.button === 2 && e.shiftKey), tx: this.rig.goal.tx, tz: this.rig.goal.tz }; return; }
         if (e.button !== 0) return;
         if (this.play.active) { this.play.pointerDown(e, sx, sy); return; }
         const p = this.pickGround(sx, sy); this.hoverP = p; this.tool.down(e, p, sx, sy);
@@ -833,15 +835,16 @@
         const [sx, sy] = pos(e);
         if (cam) {
           const dx = sx - cam.x, dy = sy - cam.y;
+          if (Math.hypot(sx - cam.sx, sy - cam.sy) > 5) cam.moved = true;
           if (cam.pan) this.panBy(dx, dy, cam); else { this.rig.goal.yaw -= dx * 0.005; this.rig.goal.pitch += dy * 0.004; this.rig.clamp(); cam.x = sx; cam.y = sy; }
           return;
         }
-        if (this.play.active) { if (!e.buttons) this.play.pointerMove(e, sx, sy); return; }
+        if (this.play.active) { if (e.buttons & 1) this.play.dragMove(sx, sy); else if (!e.buttons) this.play.pointerMove(e, sx, sy); return; }
         const p = this.pickGround(sx, sy); this.hoverP = p; this.tool.move(e, p, sx, sy); this.showHover(p);
       });
-      const end = (e) => { if (cam) { cam = null; return; } const [sx, sy] = pos(e); if (this.play.active) { this.play.pointerUp(e, sx, sy); return; } this.tool.up(e, this.pickGround(sx, sy), sx, sy); };
+      const end = (e) => { if (cam) { const c = cam; cam = null; if (this.play.active && c.btn === 2 && !c.moved && !c.pan) this.play.rightClick(c.sx, c.sy); return; } const [sx, sy] = pos(e); if (this.play.active) { this.play.pointerUp(e, sx, sy); return; } this.tool.up(e, this.pickGround(sx, sy), sx, sy); };
       el.addEventListener('pointerup', end);
-      el.addEventListener('pointercancel', () => { cam = null; this.tool.cancel(); });
+      el.addEventListener('pointercancel', () => { cam = null; this.play.down = null; this.tool.cancel(); });
       el.addEventListener('dblclick', () => { if (!this.play.active) this.tool.dbl(); });
       el.addEventListener('pointerleave', () => { if (this.play.active) { this.play.ui.tip(null); return; } this.overlay.brush(null); this.overlay.hoverObj(null); });
       el.addEventListener('wheel', (e) => { e.preventDefault(); this.rig.goal.dist *= Math.exp(e.deltaY * (e.deltaMode ? 0.05 : 0.0012)); this.rig.clamp(); }, { passive: false });
@@ -915,7 +918,7 @@
     }
     renderFrame() {
       const dist = this.rig.cur.dist;
-      this.post.focus = dist; this.post.band = dist * 0.07; this.post.range = dist * 0.22;
+      this.post.focus = dist; this.post.band = Math.max(dist * 0.07, this.play.active ? 2.4 : 0); this.post.range = Math.max(dist * 0.22, this.play.active ? 4 : 0);   // in play, characters always stay sharp
       const tgt = new V3(this.rig.cur.tx, this.rig.cur.ty, this.rig.cur.tz);
       this.renderer.update(this.time, this.camera, this.post.h, tgt, dist, this.rig.cur.pitch);
       this.post.render(this.renderer.scene, this.camera, this.time);

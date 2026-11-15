@@ -419,13 +419,16 @@
     }
     get(id) {
       if (this.cache[id]) return this.cache[id];
-      const def = this.defs.find((d) => d.id === id);
+      // ids with no flat sprite (the 3D-only ranger and town workers) fall back to a hero sheet instead of crashing
+      const def = this.defs.find((d) => d.id === id) || this.defs.find((d) => d.id === (CharacterLibrary.FALLBACK[id] || 'warden'));
       const frames = [], glows = [];
       for (let f = 0; f < def.frames; f++) { const c = def.build(f); frames.push(c.out); glows.push(c.glow); }
       return (this.cache[id] = Object.assign({}, def, { frames, glows, w: frames[0].w, h: frames[0].h }));
     }
     all() { return this.defs.map((d) => this.get(d.id)); }
   }
+
+  CharacterLibrary.FALLBACK = { ranger: 'warden', cook: 'witch', henwife: 'witch', alchemist: 'witch' };
 
   Object.assign(K, { PAL, SpriteCanvas, CharacterLibrary });
 })(typeof window !== 'undefined' ? window : globalThis);

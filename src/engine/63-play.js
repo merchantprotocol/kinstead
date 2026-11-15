@@ -37,6 +37,7 @@
     circle(x, z, r, n = 28) { const out = []; for (let k = 0; k < n; k++) { const a = (k / n) * Math.PI * 2, px = x + Math.cos(a) * r, pz = z + Math.sin(a) * r; out.push(px, this.g.nav.y(px, pz) + 0.05, pz); } return out; }
     set(o, pts) { o.geometry.dispose(); o.geometry = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)); o.visible = pts.length > 0; }
     path(from, pts) {
+      if (!this.showPath) { if (this.dots.visible) { this.dots.visible = false; this.dotsBg.visible = false; } return; }   // no breadcrumb line: the click ring is the only marker
       const out = []; let [ax, az] = from;
       for (const [bx, bz] of pts || []) { const L = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.floor(L / 0.3)); for (let k = 1; k <= n; k++) { const x = ax + (bx - ax) * k / n, z = az + (bz - az) * k / n; out.push(x, this.g.nav.y(x, z) + 0.06, z); } ax = bx; az = bz; }
       this.set(this.dots, out); this.dotsBg.geometry.dispose(); this.dotsBg.geometry = this.dots.geometry.clone(); this.dotsBg.visible = this.dots.visible;
@@ -44,7 +45,7 @@
     mark(x, z, bad) { this.mk = [x, z]; this.markT = 0; this.marker.material.color.setHex(bad ? 0xff6a5a : 0xffe08a); }
     ring(o, e, color) { if (!e) { o.visible = false; return; } this.set(o, this.circle(e.x, e.z, Math.max(0.3, e.r + 0.08))); o.material.color.setHex(color); }
     update(dt) {
-      const me = this.g.me; if (me && me.view.visible) this.set(this.me, this.circle(me.x, me.z, 0.3, 20)); else this.me.visible = false;
+      this.me.visible = false;   // no ring under the hero
       this.markT += dt;
       if (this.mk && this.markT < 0.7) { const k = this.markT / 0.7; this.set(this.marker, this.circle(this.mk[0], this.mk[1], 0.38 - 0.22 * k, 20)); this.marker.material.opacity = 1 - k * k; }
       else this.marker.visible = false;
@@ -218,13 +219,38 @@
     snapshot() { return this.bplay.snapshot(); }
 
     /* ---------- commands ---------- */
-    walkTo(x, z, run) {
+    walkTo(x, z, run, up = false) {
       this.cancelChannel(); this.intent = null; this.target = null;
-      const path = this.nav.find(this.me.x, this.me.z, x, z);
-      if (!path) { this.ov.mark(x, z, true); this.toast("You can't get there from here."); this.float({ x, z, y: this.nav.y(x, z), h: 0.3 }, '✕', 'miss'); return false; }
+      const path = this.findMe(x, z, up);
+      if (!path) {
+        this.ov.mark(x, z, true);
+        this.toast(up ? 'No stair up to there: join the wall to a stone tower.' : "You can't get there from here.");
+        this.float({ x, z, y: this.nav.y(x, z), h: 0.3 }, '✕', 'miss');
+        return false;
+      }
       const end = path[path.length - 1] || [x, z];
       this.me.path = path; this.me.run = run; this.ov.mark(end[0], end[1]); this.ov.path([this.me.x, this.me.z], path);
       return true;
+    }
+    /* the hero's path to (x, z): on the ground, or (up) on the ramparts; stairs join the two (127-castle-ramparts.js) */
+    findMe(x, z, up = false) {
+      const ramp = this.ramparts();
+      if (ramp && (up || ramp.onRamparts(this.me))) return ramp.route(this.me, x, z, up);
+      return this.nav.find(this.me.x, this.me.z, x, z);
+    }
+    /* the walkable point under the cursor: a rampart top first (it stands in front of the ground), then open ground */
+    pickWalk(sx, sy) {
+      const ramp = this.ramparts(), r = ramp && ramp.pick(sx, sy);
+      if (r) return { x: r.x, z: r.z, up: true };
+      const p = this.app.pickGround(sx, sy);
+      return p && this.nav.standable(p.x, p.z) ? { x: p.x, z: p.z, up: false } : null;
+    }
+    /* a click on a wall top walks you up there, unless the hammer is out (it takes walls down) or something else is in front */
+    rampartClick(sx, sy, e) {
+      const ramp = this.ramparts(), tools = this.ext && this.ext.tools;
+      if (!ramp || (tools && tools.tool.id === 'hammer')) return null;
+      if (e && !(e.type === 'c_piece' && K.Ramparts.handles(e.piece.type))) return null;
+      return ramp.pick(sx, sy);
     }
     /* walk into range (if the action has one), then run it */
     doAction(e, act, run) {
@@ -248,27 +274,67 @@
     }
 
     /* ---------- input ---------- */
-    pointerDown(e, sx, sy) { this.down = { sx, sy, t: performance.now() }; }
-    pointerUp(e, sx, sy) { const d = this.down; this.down = null; if (!d || Math.hypot(sx - d.sx, sy - d.sy) > 6) return; this.click(sx, sy); }
+    pointerDown(e, sx, sy) { this.down = { sx, sy, cx: sx, cy: sy, t: performance.now(), held: false, moved: false }; this.holdT = 0; this.stroke = !!(this.ext && this.ext.pointerDown && this.ext.pointerDown(sx, sy)); }   // a game mode may claim the press (drawing a wall)
+    /* button held and the pointer moved: remember where, for hold-to-walk */
+    dragMove(sx, sy) { const d = this.down; if (!d) return; if (this.stroke) { this.ext.pointerDrag(sx, sy); return; } d.cx = sx; d.cy = sy; if (Math.hypot(sx - d.sx, sy - d.sy) > 6) d.moved = true; }
+    pointerUp(e, sx, sy) {
+      const d = this.down; this.down = null;
+      if (this.stroke) { this.stroke = false; this.ext.pointerUp(sx, sy); return; }
+      if (!d || d.held || Math.hypot(sx - d.sx, sy - d.sy) > 6) return;   // a hold-walk or a drag is not a click
+      this.click(sx, sy);
+    }
+    /* Diablo-style hold-to-walk: keep the left button down on open ground and the hero follows the cursor */
+    holdWalk(dt) {
+      const d = this.down; if (!d || !this.me.alive) return;
+      if (this.stroke || (this.ext && this.ext.cui && this.ext.cui.placing)) return;
+      if (performance.now() - d.t < 230 && !d.held) return;
+      this.holdT -= dt; if (this.holdT > 0) return; this.holdT = 0.1;
+      if (!d.held && (this.pick(d.sx, d.sy) || (this.ext && this.ext.tools && this.ext.tools.claims(d.sx, d.sy)))) d.cancel = true;   // pressed on a thing or a tool target: a click, not a walk   // pressed on a thing: that is a click, not a walk
+      if (d.cancel) return;
+      const p = this.pickWalk(d.cx, d.cy); if (!p) return;
+      if (Math.hypot(p.x - this.me.x, p.z - this.me.z) < 0.35) return;
+      d.held = true; this.holdGo(p.x, p.z, p.up);
+    }
+    holdGo(x, z, up = false) {
+      const path = this.findMe(x, z, up); if (!path) return;
+      this.cancelChannel(); this.intent = null; this.target = null; this.ui.close('ctx'); this.ui.close('card');
+      this.me.path = path; this.me.run = true; this.ov.mark(x, z);
+    }
+    /* right-click (no drag): the "more…" menu for the thing under the cursor */
+    rightClick(sx, sy) {
+      if (!this.me.alive) return;
+      this.ui.close('ctx'); this.ui.close('card'); this.ui.tip(null);
+      const e = this.pick(sx, sy); if (!e || e === this.me) { if (this.ext && this.ext.rightClick) this.ext.rightClick(sx, sy); return; }   // empty ground: a game mode may use it (drop a pile)
+      if (e.remote && this.ext && this.ext.playerMenu) { this.ext.playerMenu(e); return; }   // right-click another player: invite, demand tribute
+      const acts = this.reg.actions(e, this); if (acts.length) this.ui.openMenu(e, acts, sx, sy);
+    }
     click(sx, sy) {
       if (this.ext && this.ext.click(sx, sy)) return;
       if (!this.me.alive) return;
       const now = performance.now(), last = this.lastClick, dbl = last && now - last.t < 340 && Math.hypot(sx - last.sx, sy - last.sy) < 26;
       this.lastClick = dbl ? null : { t: now, sx, sy };
       this.ui.close('ctx'); this.ui.close('card'); this.ui.tip(null);
-      const e = this.pick(sx, sy);
+      let e = this.pick(sx, sy);
       if (e === this.me) { this.ui.toggleHud(); return; }
+      const up = this.rampartClick(sx, sy, e);
+      if (up) e = null;
+      if (up && dbl && this.me.path) { this.me.run = true; return; }
+      if (up) { this.walkTo(up.x, up.z, dbl, true); return; }
       if (e) {
         const acts = this.reg.actions(e, this);
-        if (dbl && acts.length) { this.doAction(e, acts[0], true); return; }     // double-click: do the main action, running
-        if (acts.length) this.ui.openMenu(e, acts, sx, sy);
+        if (acts.length) { this.doAction(e, acts[0], dbl); return; }   // Diablo: one click does the main action (walk over, then chop / mine / attack / talk)
         return;
       }
       const p = this.app.pickGround(sx, sy); if (!p) return;
       if (dbl && this.me.path) { this.me.run = true; return; }   // second click of a double-click: same target, now running
       this.walkTo(p.x, p.z, dbl);
     }
+    /* the pointer moved: default hover, then the game mode may restyle the cursor (the castle tools do) */
     pointerMove(e, sx, sy) {
+      this.hoverDefault(e, sx, sy);
+      if (this.ext && this.ext.tools && !this.ext.cui.placing) { const c = this.ext.tools.hoverCursor(this.hover, sx, sy); if (c) this.app.renderer3.domElement.style.cursor = c; }
+    }
+    hoverDefault(e, sx, sy) {
       if (this.ext && this.ext.pointerMove(sx, sy)) return;
       const ent = this.pick(sx, sy), el = this.app.renderer3.domElement;
       if (ent !== this.hover) {
@@ -303,17 +369,19 @@
       const cam = this.app.camera, r = this.app.renderer3.domElement.getBoundingClientRect(), W = r.width, H = r.height, cp = cam.position;
       let best = null, bd = 1e9;
       for (const a of this.actors) {
-        if (!a.view.visible || (!a.alive && a !== this.me)) continue;
+        if (!a.view.visible || (!a.alive && a !== this.me) ) continue;
         const q = a.view.screenRect(cam, W, H); if (!q.front) continue;
         if (sx >= q.x0 - 3 && sx <= q.x1 + 3 && sy >= q.y0 - 3 && sy <= q.y1 + 3) { const d = Math.hypot(cp.x - a.x, cp.y - a.y, cp.z - a.z) - 0.6; if (d < bd) { bd = d; best = a; } }
       }
       const v = new V3(), right = new V3().setFromMatrixColumn(cam.matrixWorld, 0);
       for (const e of this.props.concat(this.loot)) {
         if (e.furniture && e.buildingId !== this.bplay.inside) continue;
+        if (this.ext && this.ext.pickable && !this.ext.pickable(e)) continue;   // the game mode can make things unclickable (a tree is not clickable unless you hold an axe)
         v.set(e.x, e.y, e.z).project(cam); if (v.z > 1) continue; const bx = (v.x + 1) / 2 * W, by = (1 - v.y) / 2 * H;
         v.set(e.x, e.y + e.h, e.z).project(cam); const ty = (1 - v.y) / 2 * H;
         v.set(e.x + right.x * e.r, e.y, e.z + right.z * e.r).project(cam); const hw = Math.max(10, Math.abs((v.x + 1) / 2 * W - bx));
-        if (sx >= bx - hw && sx <= bx + hw && sy >= Math.min(ty, by) - 4 && sy <= by + hw * 0.5) { const d = Math.hypot(cp.x - e.x, cp.y - e.y, cp.z - e.z); if (d < bd) { bd = d; best = e; } }
+        const top = this.ext && this.ext.pickHeight ? Math.max(Math.min(ty, by), by - this.ext.pickHeight(e) * hw) : Math.min(ty, by);   // tall resources only answer near their base, so a far tree behind the spot you clicked is not picked
+        if (sx >= bx - hw && sx <= bx + hw && sy >= top - 4 && sy <= by + hw * 0.5) { const d = Math.hypot(cp.x - e.x, cp.y - e.y, cp.z - e.z); if (d < bd) { bd = d; best = e; } }
       }
       return best;
     }
@@ -328,16 +396,16 @@
       if (!this.active) return; this.t += dt; this.syncMe();
       const me = this.me;
       // pending hits land a beat after the swing starts
-      this.pending = this.pending.filter((h) => { h.t -= dt; if (h.t > 0) return true; this.resolveHit(h.a, h.b); return false; });
+      this.pending = this.pending.filter((h) => { h.t -= dt; if (h.t > 0) return true; this.resolveHit(h.a, h.b, h.reach); return false; });
       if (!me.alive) { this.defeatT -= dt; if (this.defeatT <= 0) this.respawnPlayer(); }
-      else this.updatePlayer(dt);
+      else { this.holdWalk(dt); this.updatePlayer(dt); }
       for (const a of this.actors) if (a !== me) { if (a.brain) a.brain.update(dt); else this.updateNpc(a, dt); }
       if (this.ext) this.ext.update(dt);
       for (const [id, n] of this.nodes) if (n.respawnAt && this.t >= n.respawnAt) { n.respawnAt = 0; n.charges = n.max; this.R.setPropState(id, null); }
       this.loot = this.loot.filter((l) => { if (this.t > l.until) { l.view.dispose(); return false; } return true; });
       if (this.talking && this.dist(me, this.talking) > 3.2) { this.ui.close('dlg'); this.ui.close('trade'); this.talking = null; }
       // regen out of combat
-      if (me.alive && !this.inCombat() && this.player.hp < this.player.stats().hpMax) { this.regenT = (this.regenT || 0) + dt; if (this.regenT > 1.5) { this.regenT = 0; this.player.heal(1); } } else this.regenT = 0;
+      if (!(this.ext && this.ext.noRegen) && me.alive && !this.inCombat() && this.player.hp < this.player.stats().hpMax) { this.regenT = (this.regenT || 0) + dt; if (this.regenT > 1.5) { this.regenT = 0; this.player.heal(1); } } else this.regenT = 0;
       // camera follows the player
       const g = this.app.rig.goal; g.tx = me.x; g.tz = me.z; g.ty = me.y * 0.9; this.app.rig.clamp();
       this.bplay.update(dt);
@@ -351,16 +419,37 @@
     /* walk an actor along its path; returns true while moving */
     move(a, dt, speed) {
       if (!a.path || !a.path.length) { a.path = null; return false; }
+      const ramp = a === this.me ? this.ramparts() : null;
+      if (ramp) ramp.adopt(a);   // up on the walls: a plain ground path goes down a tower first
+      if (!a.path || !a.path.length) { a.path = null; return false; }
+      const walker = ramp && ramp.walker;
       let step = speed * dt;
       while (step > 0 && a.path.length) {
-        const [tx, tz] = a.path[0], dx = tx - a.x, dz = tz - a.z, d = Math.hypot(dx, dz);
+        const wp = a.path[0], [tx, tz] = wp, dx = tx - a.x, dz = tz - a.z, d = Math.hypot(dx, dz);
         if (d > 1e-4) a.view.setFacing(dx, dz);
-        if (d <= step) { a.x = tx; a.z = tz; step -= d; a.path.shift(); } else { a.x += dx / d * step; a.z += dz / d * step; step = 0; }
+        if (walker) walker.begin(a, wp, d);
+        if (d <= step) {
+          a.x = tx; a.z = tz; step -= d; a.path.shift();
+          if (walker) walker.arrive(a, wp);
+        } else {
+          a.x += dx / d * step; a.z += dz / d * step;
+          if (walker) walker.along(a, wp, d - step);
+          step = 0;
+        }
       }
-      const gy = this.nav.y(a.x, a.z); a.y += (gy - a.y) * Math.min(1, dt * 14); if (Math.abs(gy - a.y) > 0.6) a.y = gy;
+      this.settle(a, dt, walker);
       if (!a.path.length) a.path = null;
       return true;
     }
+    /* ease the actor's height to what it stands on: its rampart walk up top, else the ground (a stair leg sets its own) */
+    settle(a, dt, walker) {
+      if (a.layer === 'stair') return;
+      const up = walker ? walker.rest(a) : null, gy = up != null ? up : this.nav.y(a.x, a.z);
+      a.y += (gy - a.y) * Math.min(1, dt * 14);
+      if (Math.abs(gy - a.y) > 0.6) a.y = gy;
+    }
+    /* the castle's ramparts (123-127-castle-ramp*.js), when this game mode has them */
+    ramparts() { return this.ext && this.ext.ramparts ? this.ext.ramparts : null; }
     updatePlayer(dt) {
       const me = this.me; me.cdT -= dt;
       if (this.ch) { this.ch.t += dt; if (this.ch.t >= this.ch.time) { const c = this.ch; this.ch = null; c.onDone(); } return; }
@@ -375,7 +464,7 @@
           } else { me.path = null; this.face(me, t); if (me.cdT <= 0) this.swing(me, t); }
         }
       }
-      const moving = this.move(me, dt, me.speed * (me.run ? 1.9 : 1));
+      const moving = this.move(me, dt, me.speed * (me.run ? 1.9 : 1) * (this.ext && this.ext.workers ? this.ext.workers.speedMul : 1));
       if (moving) { if (me.view.state !== 'attack' && me.view.state !== 'hurt') me.view.setState(me.run ? 'run' : 'walk'); if (!this.pathT || (this.pathT -= dt) <= 0) { this.pathT = 0.1; this.ov.path([me.x, me.z], me.path); } }
       else { if (me.view.state === 'walk' || me.view.state === 'run') me.view.setState('idle'); me.run = me.run && !!this.intent; this.ov.path([0, 0], []); }
       const it = this.intent;
@@ -420,14 +509,16 @@
         if (this.nav.standable(tx, tz) && this.dist({ x: tx, z: tz }, me) > 0.8) { const p = this.nav.find(a.x, a.z, tx, tz, { maxNodes: 400 }); if (p && p.length <= 4) a.path = p; }
       }
     }
-    swing(a, b) { a.cdT = a.cd; a.view.setState('attack'); this.face(a, b); this.pending.push({ t: 0.2, a, b }); }
-    resolveHit(a, b) {
-      if (!a.alive || !b.alive || this.dist(a, b) > a.reach + b.r + 0.6) return;
+    swing(a, b) { if (a === this.me && this.ext && this.ext.sweep) { this.ext.sweep.swing(b, true); return; }   // the hero's auto swing is the big arc (it stops when you stop clicking)
+      a.cdT = a.cd; a.view.setState('attack'); this.face(a, b); this.pending.push({ t: 0.2, a, b }); }
+    resolveHit(a, b, reach) {
+      if (!a.alive || !b.alive || this.dist(a, b) > (reach || a.reach) + b.r + 0.6) return;
+      if (b.remote) { if (this.ext && this.ext.pvpHit) this.ext.pvpHit(a, b); return; }   // another player: the server decides what a blow does
       if (!this.ext && Math.random() < 0.08) { this.float(b, 'miss', 'miss'); return; }
       const dmg = this.ext ? this.ext.damage(a, b) : Math.max(1, Math.round(a.atk * rnd(0.7, 1.3) - b.def * 0.5));
-      b.view.flash('hit'); if (b.view.state !== 'attack') b.view.setState('hurt');
+      a.lastFight = b.lastFight = this.t; b.view.flash('hit'); if (b.view.state !== 'attack') b.view.setState('hurt');
       if (b === this.me) {
-        this.float(b, '-' + dmg, 'hurt');
+        this.float(b, '-' + dmg, 'hurt'); if (this.ext && this.ext.onHurt) this.ext.onHurt(a, dmg);
         if (this.player.hurt(dmg)) this.defeat();
       } else {
         b.hp -= dmg; this.float(b, String(dmg), 'dealt');
@@ -460,7 +551,7 @@
       for (const a of this.actors) if (a !== me) a.aggro = false;
     }
     respawnPlayer() {
-      const me = this.me; me.x = this.spawn.x; me.z = this.spawn.z; me.y = this.nav.y(me.x, me.z); me.alive = true;
+      const me = this.me; me.x = this.spawn.x; me.z = this.spawn.z; me.y = this.nav.y(me.x, me.z); me.layer = 'ground'; me.leg = null; me.alive = true;
       this.player.healFull(); me.view.setState('idle'); this.app.rig.set({ tx: me.x, tz: me.z }, true); this.toast(this.ext ? 'You wake by the Keep.' : 'You wake at the start, a little wiser.');
     }
   }

@@ -14,7 +14,7 @@
     $(id) { return this.doc.getElementById(id); }
 
     init() {
-      this.$('mCastle').onclick = () => this.router.go('play', { mode: 'castle' });
+      this.$('mCastle').onclick = () => this.router.go('play', { mode: 'castle', new: 1 });   // only this starts over; a refresh keeps your progress
       this.$('mCastleCont').onclick = () => this.router.go('play', { mode: 'castle', resume: 1 });
       this.$('mContinue').onclick = () => this.router.go('play', { world: 'continue' });
       this.$('mPlay').onclick = () => this.openWorlds();

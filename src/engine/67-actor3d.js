@@ -15,8 +15,13 @@
 
   /* which voxel model a sprite id is drawn with */
   class VoxelRoles {
-    static ROLE_OF = { warden: 'knight', hero: 'knight', knight: 'knight', ranger: 'ranger', witch: 'mage', mage: 'mage', troll: 'troll' };
+    static ROLE_OF = { warden: 'knight', hero: 'knight', knight: 'knight', ranger: 'ranger', witch: 'mage', mage: 'mage', troll: 'troll',
+      // town workers (66-characters3d.js WorkerSculptor): each sprite id is its own outfitted human
+      cook: 'cook', smith: 'smith', clerk: 'clerk', farmer: 'farmer', woodcutter: 'woodcutter', quarryman: 'quarryman', archer: 'archer',
+      stablehand: 'stablehand', storekeeper: 'storekeeper', henwife: 'henwife', cowherd: 'cowherd', baker: 'baker', butcher: 'butcher', alchemist: 'alchemist' };
     static of(spriteId) { return VoxelRoles.ROLE_OF[spriteId] || null; }
+    static WIDTH = { troll: 2.1, wolf: 1.35, bear: 1.9 };       // footprint used for picking
+    static SHADOW = { troll: 0.62, wolf: 0.9, bear: 1.0 };      // contact-shadow size (x model height)
   }
 
   /* one shared, lazily built model per role (geometry is shared by every actor wearing it) */
@@ -111,15 +116,31 @@
           const model = kit.cache.get(role);
           this.rig = new KV.VoxelRig(model, { rest: KV.CharacterSculptor.REST[role], shadowProxy: kit.shadowProxy });
           this.anim = new KV.VoxelAnimator(this.rig, { phase: this.phase });
-          this.h = model.height * this.scale; this.w = (role === 'troll' ? 2.1 : 0.85) * this.scale;
+          this.h = model.height * this.scale; this.w = (VoxelRoles.WIDTH[role] || 0.85) * this.scale;
           this.rig.group.scale.setScalar(this.scale); this.applyTint();
           this.yaw = this.yaw != null ? this.yaw : Math.atan2(this.dir.x, this.dir.z);
-          const sw = model.height * (role === 'troll' ? 0.62 : 0.5) * this.scale;
+          const sw = model.height * (VoxelRoles.SHADOW[role] || 0.5) * this.scale;
           this.blob = ContactShadow.mesh(sw, sw * 0.6);
           this.R.scene.add(this.rig.group, this.blob); kit.attach(this.R); kit.live.add(this);
         }
         /* outfit colour: a half-strength multiply, so a tint shifts the voxel palette without flattening it */
         applyTint() { if (this.rig) this.rig.mat.color.setRGB(1, 1, 1).lerp(this.tint, 0.5); }
+        /** wear a team colour: the red of the tunic, cloak and shield is re-dyed to this colour (not a muddy tint over everything) */
+        setTeam(hex) {
+          if (!this.rig) return super.setTint(hex); const THREE = G.THREE, target = {}; new THREE.Color(hex).getHSL(target); this.teamHex = hex;
+          this.rig.group.traverse((o) => {
+            if (!o.isMesh || !o.geometry || !o.geometry.attributes || !o.geometry.attributes.color) return;
+            if (!o.userData.ownColours) { o.geometry = o.geometry.clone(); o.userData.ownColours = Float32Array.from(o.geometry.attributes.color.array); }   // its own copy: other actors of this kind keep theirs
+            const col = o.geometry.attributes.color, orig = o.userData.ownColours, c = new THREE.Color(), hsl = {};
+            for (let i = 0; i < col.count; i++) {
+              c.setRGB(orig[i * 3], orig[i * 3 + 1], orig[i * 3 + 2]); c.getHSL(hsl);
+              if ((hsl.h < 0.055 || hsl.h > 0.94) && hsl.s > 0.3 && hsl.l > 0.1 && hsl.l < 0.8) c.setHSL(target.h, target.s, Math.max(0.06, Math.min(0.95, hsl.l * (0.5 + target.l))));
+              col.setXYZ(i, c.r, c.g, c.b);
+            }
+            col.needsUpdate = true;
+          });
+          this.tint.set(0xffffff); this.applyTint();
+        }
         setTint(hex) { if (!this.rig) return super.setTint(hex); this.tint.set(hex == null ? 0xffffff : hex); this.applyTint(); }
         setVisible(v) { if (!this.rig) return super.setVisible(v); this.visible = v; this.rig.group.visible = v; this.blob.visible = v; }
         update(t, dt, camYaw, tilt) {
@@ -132,6 +153,7 @@
           const want = Math.atan2(this.dir.x, this.dir.z); let d = want - this.yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
           if (st !== 'dead') this.yaw += d * Math.min(1, dt * (st === 'run' ? 14 : 10));
           this.anim.apply(this.state, this.stateT, t, Math.min(dt, 0.05));
+          if (this.poser) this.poser.pose(this, t);   // a worker's trade on top of the base pose (hammering, stirring, carrying a sack…)
           let lunge = 0;
           if (this.state === 'attack') { const p = Math.min(1, this.stateT / 0.42); lunge = p < 0.35 ? -0.04 * (p / 0.35) : p < 0.6 ? -0.04 + 0.2 * ((p - 0.35) / 0.25) : 0.16 * (1 - (p - 0.6) / 0.4); }
           else if (this.state === 'hurt') lunge = -0.07 * Math.max(0, 1 - this.stateT / 0.25);
@@ -165,5 +187,15 @@
   }
 
   K.ActorViews = new VoxelActorViews(G);
+
+  /* who works where, by worker name: the sprite id each one is drawn with (tint null = the outfit's own colours) */
+  K.WORKER_LOOKS = {
+    Cook: { sprite: 'cook', tint: null }, Smith: { sprite: 'smith', tint: null }, Clerk: { sprite: 'clerk', tint: null },
+    Farmer: { sprite: 'farmer', tint: null }, Woodcutter: { sprite: 'woodcutter', tint: null }, Quarryman: { sprite: 'quarryman', tint: null },
+    Archer: { sprite: 'archer', tint: null }, Stablehand: { sprite: 'stablehand', tint: null }, Storekeeper: { sprite: 'storekeeper', tint: null },
+    Henwife: { sprite: 'henwife', tint: null }, Cowherd: { sprite: 'cowherd', tint: null }, Baker: { sprite: 'baker', tint: null },
+    Butcher: { sprite: 'butcher', tint: null }, Alchemist: { sprite: 'alchemist', tint: null },
+    Miller: { sprite: 'storekeeper', tint: null },
+  };
   Object.assign(K, { VoxelActorViews, VoxelRoles, VoxelModelCache, OrbitDemo, OrbitButton, ContactShadow });
 })(typeof window !== 'undefined' ? window : globalThis);

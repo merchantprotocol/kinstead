@@ -41,7 +41,7 @@
     setSprite(id) { if (id === this.spriteId) return; const vis = this.visible; this.disposeSprite(); this.build(id); this.setVisible(vis); }
     setPosition(x, y, z) { this.pos.set(x, y, z); }
     setFacing(dx, dz) { const L = Math.hypot(dx, dz); if (L > 1e-4) this.dir.set(dx / L, 0, dz / L); }
-    setState(s) { if (!STATES.includes(s)) s = 'idle'; if (s === this.state && s !== 'attack' && s !== 'hurt') return; this.prev = this.state; this.state = s; this.stateT = 0; }
+    setState(s) { if (!STATES.includes(s)) s = 'idle'; if (s === this.state && s !== 'attack' && s !== 'hurt') return; if (s !== this.state) this.prev = this.state; this.state = s; this.stateT = 0; }   // re-triggering attack/hurt restarts it, it does not become its own 'previous' state (that looped forever)
     setHighlight(c) { this.hl = c || null; }
     flash(kind = 'hit') { this.flashKind = kind; this.flashT = 0.22; }
     setVisible(v) { this.visible = v; this.a.group.visible = v; this.a.shadow.visible = v; }

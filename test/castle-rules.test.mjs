@@ -19,26 +19,37 @@ function engine() {
 }
 const K = engine();
 const data = () => new K.CastleData(RAW);
-const fresh = () => { const c = new K.Castle(data()); c.light(); return c; };
+const fresh = () => { const c = new K.Castle(data()); c.extraHas = (t) => t === 'cottage'; c.light(); return c; };   // the cottage is built outside the piece list: tests start with it standing
 const give = (c, o) => { for (const [r, n] of Object.entries(o)) c.stores[r] = n; };
 
-test('economy: a Woodcutter makes 6 wood a minute and stops at the cap', () => {   // risk: core economy
-  const c = fresh(); give(c, { wood: 6, stone: 4 });
+test('economy: a Woodcutter makes 15 wood a minute; at the cap it stacks what it makes and hands it over when there is room', () => {   // risk: core economy
+  const c = fresh(); give(c, { wood: 30, stone: 10 });
   assert.equal(c.build('woodcutter', { x: 1, z: 1 }).ok, true);
   assert.equal(c.amount('wood'), 0);
   for (let i = 0; i < 600; i++) c.tick(0.1);                       // 60 s
-  assert.equal(c.amount('wood'), 6);
-  c.stores.wood = 58; for (let i = 0; i < 600; i++) c.tick(0.1);
-  assert.equal(c.amount('wood'), 60, 'clipped at the base cap of 60');
+  assert.equal(c.amount('wood'), 15);
+  c.stores.wood = 150; for (let i = 0; i < 600; i++) c.tick(0.1);
+  assert.equal(c.amount('wood'), 160, 'clipped at the base cap of 160');
   assert.equal(c.isFull(c.pieces[0]), true);
+  assert.ok(Math.round(c.pieces[0].held.wood) === 5, 'the 5 that did not fit wait at the woodcutter');
+  c.stores.wood = 100; c.tick(0.1); assert.ok(c.amount('wood') > 100 && c.pieces[0].held.wood < 5, 'room again: the stack goes in');
+});
+
+test('cost: every extra building of a kind costs 1.6x the last; walls never get dearer; selling refunds half of what that one cost', () => {   // risk: money
+  const c = fresh(); give(c, { wood: 500, stone: 500 });
+  assert.deepEqual({ ...c.buildCost('woodcutter') }, { wood: 30, stone: 10 }); c.build('woodcutter');
+  assert.deepEqual({ ...c.buildCost('woodcutter') }, { wood: 48, stone: 16 }); c.build('woodcutter');
+  assert.deepEqual({ ...c.buildCost('palisade') }, { wood: 2 }); c.build('palisade'); assert.deepEqual({ ...c.buildCost('palisade') }, { wood: 2 });
+  assert.deepEqual({ ...c.refundFor(c.pieces[1]) }, { wood: 24, stone: 8 }, 'the second woodcutter cost 48/16');
 });
 
 test('economy: a Storehouse raises caps; a frosted producer makes nothing until dawn + 60 s', () => {   // risk: core economy
-  const c = fresh(); c.hearthCap = 4; give(c, { wood: 100, stone: 100 });
+  const c = fresh(); c.hearthCap = 4; give(c, { wood: 300, stone: 300 });
   c.build('gatehouse'); c.build('woodcutter');                     // 8 points -> CL2 unlocks the Storehouse
   assert.equal(c.cl(), 2);
+  assert.equal(c.build('storehouse').ok, false, 'a Storehouse needs a Quarry first'); c.build('quarry');
   assert.equal(c.build('storehouse').ok, true);
-  assert.equal(c.caps().wood, 160); assert.equal(c.caps().iron, 100); assert.equal(c.caps().ember_shard, 40);
+  assert.equal(c.caps().wood, 560); assert.equal(c.caps().iron, 160); assert.equal(c.caps().ember_shard, 40);
   const lodge = c.pieces.find((p) => p.type === 'woodcutter');
   c.stores.wood = 0; assert.equal(c.frost(lodge), true);
   c.tick(60); assert.equal(c.amount('wood'), 0, 'frosted all night');
@@ -50,22 +61,22 @@ test('gathering: node yield + CL gather bonus + kin perks, clipped at the cap', 
   const c = fresh();
   assert.equal(c.gather('wood', 2), 2);                           // CL1: +0
   c.kin.add('pinewarden'); assert.equal(c.gatherYield('wood', 2), 3);
-  c.stores.wood = 59; assert.equal(c.gather('wood', 2), 1, 'only 1 fits under the cap');
+  c.stores.wood = 159; assert.equal(c.gather('wood', 2), 1, 'only 1 fits under the cap');
 });
 
-test('payback: matches the plan (lodge 1.7, restored hall 1.8, lodge L2 6.0 / 4.5 with a Smithy)', () => {   // risk: money
+test('payback: lodge 2.7, quarry 3.3, restored hall 1.8, lodge L2 9.3 / 7.0 with a Smithy', () => {   // risk: money
   const c = fresh(); c.hearthCap = 4;
-  assert.equal(c.paybackFor('woodcutter').toFixed(1), '1.7');
-  assert.equal(c.paybackFor('quarry').toFixed(1), '1.7');
+  assert.equal(c.paybackFor('woodcutter').toFixed(1), '2.7');
+  assert.equal(c.paybackFor('quarry').toFixed(1), '3.3');
   assert.equal(c.paybackFor('great_hall').toFixed(1), '3.5');
   assert.equal(c.paybackFor('great_hall', { ruin: true }).toFixed(1), '1.8');
   assert.equal(c.paybackFor('palisade'), null, 'non-producers have no payback');
-  give(c, { wood: 200, stone: 200, iron: 40 });
+  give(c, { wood: 300, stone: 300, iron: 40 });
   c.build('gatehouse'); const lodge = c.build('woodcutter').piece;
-  assert.equal(c.upgradePayback(lodge).toFixed(1), '6.0');
+  assert.equal(c.upgradePayback(lodge).toFixed(1), '9.3');
   c.build('smithy', {}, { ruin: true });
-  assert.deepEqual({ ...c.upgradeCost(lodge) }, { wood: 12, stone: 9, gold: 3 }, 'Smithy takes 25% off, rounded up');
-  assert.equal(c.upgradePayback(lodge).toFixed(1), '4.5');
+  assert.deepEqual({ ...c.upgradeCost(lodge) }, { wood: 60, stone: 45 }, 'Smithy takes 25% off, rounded up');
+  assert.equal(c.upgradePayback(lodge).toFixed(1), '7.0');
   assert.equal(new K.Payback(data()).line({ wood: 6, stone: 4 }, { wood: 6 }), '+6 wood/min · pays for itself in 1.7 min');
 });
 
@@ -80,15 +91,16 @@ test('ruins repair at half cost, rounded up, once', () => {   // risk: money
 });
 
 test('Castle Level: thresholds from distinct piece types, gates, and the hearth cap', () => {   // risk: core rules
-  const c = new K.Castle(data());
-  assert.equal(c.cl(), 0); assert.match(c.blocker('palisade', { ignoreCost: true }), /light the Keep/);
+  const c = new K.Castle(data()); c.extraHas = (t) => t === 'cottage';
+  assert.equal(c.cl(), 0); assert.equal(c.blocker('palisade', { ignoreCost: true }), null, 'you can build before the hearth is lit');
+  assert.match(c.blocker('storehouse', { ignoreCost: true }), /Quarry/, 'the building tree still gates what you can build');
   c.light(); assert.equal(c.cl(), 1);
-  give(c, { wood: 60, stone: 60 });
-  assert.match(c.blocker('stone_wall'), /Castle Level 2/);
+  give(c, { wood: 300, stone: 300 });
+  assert.match(c.blocker('storehouse'), /Quarry/);
   c.build('palisade'); c.build('palisade');
   assert.equal(c.score(), 2, 'a second palisade adds nothing');
-  c.build('gatehouse'); c.build('quarry'); assert.equal(c.score(), 10); assert.equal(c.cl(), 2);
-  assert.equal(c.blocker('stone_wall'), null);
+  c.build('gatehouse'); c.build('woodcutter'); c.build('quarry'); assert.ok(c.score() >= 10); assert.equal(c.cl(), 2);
+  assert.equal(c.blocker('storehouse'), null);
   assert.match(c.blocker('mine', { ignoreCost: true }), /Iron Hills/);
   c.flags.add('zone:iron_hills'); assert.equal(c.blocker('mine', { ignoreCost: true }), null);
   assert.match(c.blocker('ember_forge', { ignoreCost: true }), /Castle Level 4/);
@@ -108,8 +120,8 @@ test('raid loss: 10% of unprotected stores, a Storehouse guards half, buildings 
   assert.deepEqual({ ...c.raidLoss() }, { wood: 6, stone: 4, gold: 2 }, 'iron 9 and ember 5 lose 0 (rounds down)');
   assert.equal(c.amount('wood'), 54);
   assert.equal(JSON.stringify(c.pieces), before, 'no building lost or damaged');
-  const s = fresh(); s.hearthCap = 4; give(s, { wood: 100, stone: 100 });
-  s.build('gatehouse'); s.build('woodcutter'); s.build('storehouse'); give(s, { wood: 100, stone: 60 });
+  const s = fresh(); s.hearthCap = 4; give(s, { wood: 300, stone: 300 });
+  s.build('gatehouse'); s.build('woodcutter'); s.build('quarry'); s.build('storehouse'); give(s, { wood: 100, stone: 60 });
   assert.equal(s.protectPct(), 50);
   assert.deepEqual({ ...s.raidLoss() }, { wood: 5, stone: 3 }, 'half is guarded');
 });
@@ -158,7 +170,7 @@ test('hearthbook: % complete ticks with progress', () => {   // risk: completion
 });
 
 test('save: a castle and its day survive a JSON round trip through the save slot', () => {   // risk: data loss
-  const c = fresh(); c.hearthCap = 4; give(c, { wood: 100, stone: 100, gold: 10 });
+  const c = fresh(); c.hearthCap = 4; give(c, { wood: 300, stone: 300, gold: 10 });
   c.build('gatehouse', { x: 3, z: 4, rot: 1.5 }, { ruin: true }); const lodge = c.build('woodcutter', { x: 7.25, z: 2 }).piece;
   c.upgrade(lodge); c.kin.add('pinewarden'); c.weapons.add('stoneblade'); c.flags.add('survived:night1'); c.frost(lodge); c.tick(12.5);
   const day = new K.DayCycle(data(), { idx: 2, t: 33.3 });
@@ -187,4 +199,12 @@ test('goals: an objective finished early drops out of the goal list', () => {   
   const ids = c.currentGoals(3).map((o) => o.id);
   assert.deepEqual(ids, ['o2', 'o4', 'o5']);
   assert.equal(c.currentGoals(20).some((o) => o.id === 'o3'), false);
+});
+
+test('demolition refund includes half the actual Level 2 upgrade cost', () => { // risk: money
+  const c = fresh(); c.hearthCap = 5; give(c, { wood: 1000, stone: 1000 });
+  assert.equal(c.build('gatehouse').ok, true); assert.equal(c.build('woodcutter').ok, true);
+  const lodge = c.pieces.find((p) => p.type === 'woodcutter'); assert.equal(c.cl(), 2);
+  assert.equal(c.upgrade(lodge).ok, true);
+  assert.deepEqual({ ...c.refundFor(lodge) }, { wood: 55, stone: 35 });
 });
