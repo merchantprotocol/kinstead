@@ -109,8 +109,9 @@
     }
     foodSummary(food) {
       const tone = food.made - food.eaten < 0 ? 'low' : '';
+      const made = Number.isInteger(food.made) ? food.made : food.made.toFixed(1);
       const left = Number.isFinite(food.minutesLeft) ? food.minutesLeft.toFixed(0) : '∞';
-      return `<div class="food ${tone}">Food: +${food.made}/min made, −${food.eaten}/min eaten, ${left} min left</div>`;
+      return `<div class="food ${tone}">Food: +${made}/min made, −${food.eaten}/min eaten, ${left} min left</div>`;
     }
     renderGoals() {
       const goals = this.c.currentGoals(3), warn = this.g.day.kind === 'day' && this.g.day.warned;
