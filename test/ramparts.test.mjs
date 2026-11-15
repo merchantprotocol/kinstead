@@ -1,4 +1,4 @@
-/* Ramparts (src/engine/122-126): the player-only walk on top of stone walls, stone towers and the stone gate. */
+/* Ramparts (src/engine/123-127): the player-only walk on top of stone walls, stone towers and the stone gate. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -7,8 +7,8 @@ import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 
 const SRC = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'src');
-const ENGINE = ['11-core.js', '13-textures.js', '20-world.js', '58-nav.js', '82e-rampart-plan.js', '122-castle-rampart-layer.js',
-  '123-castle-tower-stair.js', '124-castle-rampart-walker.js', '125-castle-rampart-cursor.js', '126-castle-ramparts.js'];
+const ENGINE = ['11-core.js', '13-textures.js', '20-world.js', '58-nav.js', '82e-rampart-plan.js', '123-castle-rampart-layer.js',
+  '124-castle-tower-stair.js', '125-castle-rampart-walker.js', '126-castle-rampart-cursor.js', '127-castle-ramparts.js'];
 const SIZE = { stone_wall: [0.5, 0.5], stone_tower: [1.5, 1.5], stone_gate: [4, 1.5] };
 
 /* the engine modules in a sandbox, with the castle's footprint sizes */

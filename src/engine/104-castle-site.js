@@ -162,7 +162,10 @@
       const spec = this.specAt(ti, tj, turns, KINDS[type].id); play.doc.objects.push(spec);
       R.syncBuildings(true); play.nav.applyBuildings(R.buildings); play.bplay.dirty(); play.refreshProps(); g.home.door.apply();
       const me = play.me, aloft = !!g.ramparts && g.ramparts.onRamparts(me);   // up on the walls: a new building below never moves you
-      if (!aloft && !play.nav.standable(me.x, me.z)) { const q = play.nav.nearestOk(...play.nav.tile(me.x, me.z), 10); if (q) { [me.x, me.z] = play.nav.centre(...q); me.path = null; } }
+      if (!aloft && !play.nav.standable(me.x, me.z)) {
+        const q = play.nav.nearestOk(...play.nav.tile(me.x, me.z), 10);
+        if (q) { [me.x, me.z] = play.nav.centre(...q); me.path = null; }
+      }
       this.adopt(type, spec, turns); g.xp.built(type); this.clearGhost(); g.cui.stopPlacing();
       const cx = (ti + w / 2) * TILE, cz = (tj + h / 2) * TILE; g.sound.play('whump'); g.shake(0.2); g.puff(cx, cz);
       if (type === 'cottage') { g.setRespawn('home', g.home.center.x - 0.25, g.home.center.z + 0.75); g.cui.toast('Your cottage is built. Sleep in the bed to wake here, keep out of the cold, and shut the door on the dark.'); }

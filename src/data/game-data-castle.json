@@ -252,7 +252,7 @@
    "requiresCastleLevel": 1,
    "castlePoints": 2,
    "hp": 90,
-   "effect": "One block of wall, as tall as the stone gate, with a walkway on top. Climb a stone tower to walk along it. Two mined stone make one placed block.",
+   "effect": "One block of wall as tall as the stone gate, walkable on top: climb a stone tower to get up. Two mined stone make one block.",
    "artPrompt": "a single straight section of crenellated fieldstone castle wall with a timber walkway, frost in the cracks",
    "buildRequires": []
   },

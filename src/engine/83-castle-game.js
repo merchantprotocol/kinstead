@@ -235,7 +235,7 @@
       this.restoreNodes();
       this.raid = null;
       this.cui = new K.CastleUI(this); this.vitals = new K.Vitals(this); this.wild = new K.Wild(this); this.calendar.on((ev) => this.onCalendar(ev)); this.tools = new K.CastleTools(this); this.minimap = new K.Minimap(this); this.xp = this.xp || new K.Experience(this); this.weather = new K.Weather(this); this.towers = new K.Towers(this); this.economy = new K.Economy(this); this.workers = new K.Workers(this); this.wildGame = new K.WildGame(this); this.banners = new K.BannerBook(this, this.net); this.flags = new K.Flags(this); this.banners.on(() => this.applyLook()); this.applyLook(); this.forest = new K.Forest(this); this.brush = new K.GroundBrush(this); this.steer = new K.PieceSteer(this); this.purse = new K.Purse(this); this.stash = new K.Stash(this); this.site = new K.BuildingSite(this); this.sweep = new K.SweepAttack(this); this.demolisher = new K.Demolisher(this); this.play.refreshProps();
-      this.ramparts = new K.Ramparts(this);   // the walk along your stone walls, towers and gate (126-castle-ramparts.js)
+      this.ramparts = new K.Ramparts(this);   // the walk along your stone walls, towers and gate (127-castle-ramparts.js)
       if (this.day.isNight) this.startRaid();
       play.app.rig.set({ dist: 11, pitch: 0.78 }); play.app.rig.maxDist = 44;   // you can never zoom out far enough to see the edge of the world
       this.persist = new K.Persist(this); if (this.saved && this.saved.extras) { try { this.persist.restore(this.saved.extras); } catch (err) { console.warn('could not restore the homestead', err); } }
@@ -293,7 +293,10 @@
       const nav = this.play.nav;
       this.rectTiles(x, z, w, d, rot, (i, j, lx) => { const k = j * nav.w + i; this.occ[k] = 1; if (!gate || Math.abs(lx) > 0.75) nav.walk[k] = 0; });
       const me = this.play.me, aloft = !!this.ramparts && this.ramparts.onRamparts(me);   // up on the walls: a new piece below never moves you
-      if (me && !aloft && !nav.standable(me.x, me.z)) { const q = nav.nearestOk(...nav.tile(me.x, me.z), 8); if (q) { [me.x, me.z] = nav.centre(...q); me.path = null; } }
+      if (me && !aloft && !nav.standable(me.x, me.z)) {
+        const q = nav.nearestOk(...nav.tile(me.x, me.z), 8);
+        if (q) { [me.x, me.z] = nav.centre(...q); me.path = null; }
+      }
     }
     unblockRect(x, z, w, d, rot) { const nav = this.play.nav; this.rectTiles(x, z, w, d, rot, (i, j) => { const k = j * nav.w + i; this.occ[k] = 0; nav.walk[k] = 1; }); }
 

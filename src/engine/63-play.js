@@ -222,12 +222,17 @@
     walkTo(x, z, run, up = false) {
       this.cancelChannel(); this.intent = null; this.target = null;
       const path = this.findMe(x, z, up);
-      if (!path) { this.ov.mark(x, z, true); this.toast(up ? 'No stair up to there: join the wall to a stone tower.' : "You can't get there from here."); this.float({ x, z, y: this.nav.y(x, z), h: 0.3 }, '✕', 'miss'); return false; }
+      if (!path) {
+        this.ov.mark(x, z, true);
+        this.toast(up ? 'No stair up to there: join the wall to a stone tower.' : "You can't get there from here.");
+        this.float({ x, z, y: this.nav.y(x, z), h: 0.3 }, '✕', 'miss');
+        return false;
+      }
       const end = path[path.length - 1] || [x, z];
       this.me.path = path; this.me.run = run; this.ov.mark(end[0], end[1]); this.ov.path([this.me.x, this.me.z], path);
       return true;
     }
-    /* the hero's path to (x, z): on the ground, or (up) on the ramparts; stairs join the two (122-castle-ramparts.js) */
+    /* the hero's path to (x, z): on the ground, or (up) on the ramparts; stairs join the two (127-castle-ramparts.js) */
     findMe(x, z, up = false) {
       const ramp = this.ramparts();
       if (ramp && (up || ramp.onRamparts(this.me))) return ramp.route(this.me, x, z, up);
@@ -443,7 +448,7 @@
       a.y += (gy - a.y) * Math.min(1, dt * 14);
       if (Math.abs(gy - a.y) > 0.6) a.y = gy;
     }
-    /* the castle's ramparts (122-126-castle-ramparts), when this game mode has them */
+    /* the castle's ramparts (123-127-castle-ramp*.js), when this game mode has them */
     ramparts() { return this.ext && this.ext.ramparts ? this.ext.ramparts : null; }
     updatePlayer(dt) {
       const me = this.me; me.cdT -= dt;
