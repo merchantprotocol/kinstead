@@ -137,6 +137,7 @@
         k.box('straw', 0, 1.3, 0, 0.36, 0.03, 0.34); k.box('straw', 0, 1.33, 0, 0.2, 0.12, 0.2); k.box('paintRed', 0, 1.34, 0, 0.21, 0.035, 0.21);
         k.box('ironDark', -0.24, 1.05, 0, 0.06, 0.07, 0.11); k.box('ironDark', -0.24, 1.1, 0.06, 0.05, 0.05, 0.05); k.box('paintYellow', -0.24, 1.11, 0.095, 0.02, 0.02, 0.03);
       });
+      new K.WorkShedArt(k).draw('farm');   // an open hay shed in front of the barn, where the farmer forks the hay
     },
 
     /* ---------- one 0.5 m square of wheat: tilled furrows, green leaves, golden ears ---------- */
@@ -306,6 +307,7 @@
         for (const s of [-1, 1]) for (let i = -2; i <= 2; i++) k.box('woodMid', s * 0.1, 0.2, i * 0.1, 0.03, 0.42, 0.03, 0, 0, -s * 0.35);
         k.box('hay', 0, 0.3, 0, 0.3, 0.26, 0.44); k.box('hay', 0, 0.56, 0, 0.22, 0.08, 0.34);
       });
+      new K.WorkShedArt(k).draw('barn');   // a little roof on posts over the hay rack
     },
   };
   const proto = K.CastleArt.prototype, base = proto.draw;

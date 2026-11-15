@@ -8,7 +8,7 @@
   const K = G.K;
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const GROUPS = [['terrain', 'Land'], ['defense', 'Walls'], ['farming', 'Farming'], ['trade', 'Trade'], ['producer', 'Workshops'], ['storage', 'Storage'], ['building', 'Buildings']];
-const BUILDABLE = new Set(['dirt', 'palisade', 'gate', 'stone_wall', 'stone_gate', 'watchtower', 'fire_pot', 'farm', 'field', 'silo', 'coop', 'barn', 'market', 'stable', 'bakery', 'butcher', 'library', 'woodcutter', 'quarry', 'storehouse', 'cottage', 'blacksmith']);   // what you can place by the square
+const BUILDABLE = new Set(['dirt', 'palisade', 'gate', 'stone_wall', 'stone_gate', 'stone_tower', 'watchtower', 'fire_pot', 'farm', 'field', 'silo', 'coop', 'barn', 'market', 'stable', 'bakery', 'butcher', 'library', 'bunkhouse', 'woodcutter', 'quarry', 'storehouse', 'cottage', 'blacksmith']);   // what you can place by the square
 
   /** Replace an element's HTML only if it changed; keep its scroll. */
   const patch = (el, html) => { if (el._h === html) return; const top = el.scrollTop; el._h = html; el.innerHTML = html; el.scrollTop = top; };
@@ -16,6 +16,7 @@ const BUILDABLE = new Set(['dirt', 'palisade', 'gate', 'stone_wall', 'stone_gate
   class BuildDrawer {
     constructor(cui, hooks = {}) {
       this.cui = cui; this.g = cui.g; this.c = cui.c; this.hooks = hooks; this.open = false;
+      this.entries = new Map();
       const root = (this.root = document.createElement('div')); root.id = 'cDrawer'; root.className = 'cp';
       root.innerHTML = `<div class="dw-res"></div><div class="dw-body"><div class="dw-list"></div></div>`;
       this.res = root.querySelector('.dw-res'); this.list = root.querySelector('.dw-list');
@@ -34,15 +35,24 @@ const BUILDABLE = new Set(['dirt', 'palisade', 'gate', 'stone_wall', 'stone_gate
       const c = this.c, caps = c.caps(), rates = c.rates(), Ic = K.Icons, ICON = K.CastleUI.ICON;
       return K.CastleUI.RES_ORDER.map((r) => {
         const full = c.amount(r) >= caps[r], rate = rates[r] || 0;
-        return `<div class="res ${full ? 'full' : ''}" data-r="${r}" title="${esc(K.CastleData.resName(r))}: ${c.amount(r)} of ${caps[r]}">${Ic.img(ICON[r], 1)}<b>${c.amount(r)}</b><small>/${caps[r]}</small>${rate ? `<i>+${rate}/min</i>` : ''}${full ? '<em>FULL</em>' : ''}</div>`;
-      }).join('') + (c.amount('troll_heart') ? `<div class="res heart">${Ic.img('heart', 1)}<b>Troll’s heart</b></div>` : '');
+        return `<div class="res ${full ? 'full' : ''}" data-r="${r}" role="button" tabindex="0" title="${esc(K.CastleData.resName(r))}: ${c.amount(r)} of ${caps[r]}">${Ic.img(ICON[r], 1)}<b>${c.amount(r)}</b><small>/${caps[r]}</small>${rate ? `<i>+${rate}/min</i>` : ''}${full ? '<em>FULL</em>' : ''}</div>`;
+      }).join('') + (c.amount('troll_heart') ? `<div class="res heart" data-r="troll_heart" role="button" tabindex="0">${Ic.img('heart', 1)}<b>Troll’s heart</b></div>` : '');
     }
     chips(cost) { const ICON = K.CastleUI.ICON; return Object.entries(cost).map(([r, k]) => `<span class="chip ${this.c.amount(r) >= k ? '' : 'bad'}">${K.Icons.img(ICON[r], 1)}${k}</span>`).join(''); }
     row(x) {
-      return `<button class="dw-row ${x.state}" data-id="${esc(x.id)}" data-kind="${x.kind}" data-why="${esc(x.why || '')}">${this.cui.art.html(x.art || x.id, x.icon, 40)}
-        <div class="dw-t"><b>${esc(x.name)}</b><div class="cost">${this.chips(x.cost)}</div><small>${esc(x.state === 'locked' ? x.why : x.line)}</small></div></button>`;
+      const key = `${x.kind}:${x.id}`;
+      this.entries.set(key, x);
+      return `<div class="dw-entry">
+        <button class="dw-row ${x.state}" data-id="${esc(x.id)}" data-kind="${x.kind}" data-why="${esc(x.why || '')}">
+          ${this.cui.art.html(x.art || x.id, x.icon, 40)}
+          <div class="dw-t"><b>${esc(x.name)}</b><div class="cost">${this.chips(x.cost)}</div>
+            <small>${esc(x.state === 'locked' ? x.why : x.line)}</small></div>
+        </button>
+        <button class="dw-info" data-detail="${esc(key)}" aria-label="Details for ${esc(x.name)}">i</button>
+      </div>`;
     }
     catalogHtml() {
+      this.entries.clear();
       const c = this.c, d = c.data, S = K.CastleUI, rows = [];
       for (const id of d.pieceIds()) {
         if (!BUILDABLE.has(id)) continue;
@@ -59,6 +69,13 @@ const BUILDABLE = new Set(['dirt', 'palisade', 'gate', 'stone_wall', 'stone_gate
 
     /* ---------- picking ---------- */
     onClick(e) {
+      const info = e.target.closest('[data-detail]');
+      if (info) {
+        this.cui.showBuildDetails(this.entries.get(info.dataset.detail));
+        return;
+      }
+      const material = e.target.closest('.res[data-r]');
+      if (material && this.hooks.onMaterial) { this.hooks.onMaterial(material.dataset.r); return; }
       const row = e.target.closest('.dw-row'); if (!row) return;
       if (row.dataset.sell) { this.g.sound.unlock(); this.g.demolisher.setSelling(!this.g.demolisher.selling); return; }
       if (this.g.demolisher && this.g.demolisher.selling) this.g.demolisher.setSelling(false);

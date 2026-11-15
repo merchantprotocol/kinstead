@@ -226,7 +226,8 @@
    "hearthCap": 4,
    "station": "tier1",
    "storageCap": {},
-   "buildRequires": []
+   "buildRequires": [],
+   "description": "Your castle's heart"
   },
   "palisade": {
    "id": "palisade",
@@ -240,7 +241,8 @@
    "hp": 120,
    "effect": "One block of wall, two cubes high. Click, or drag to draw.",
    "artPrompt": "a single straight section of log palisade wall, sharpened pine tops, a light snow dusting",
-   "buildRequires": []
+   "buildRequires": [],
+   "description": "One block of wall, two cubes high"
   },
   "stone_wall": {
    "id": "stone_wall",
@@ -252,9 +254,27 @@
    "requiresCastleLevel": 1,
    "castlePoints": 2,
    "hp": 90,
-   "effect": "One block of wall, one cube high. Two mined stone make one placed cube.",
+   "effect": "One block of wall as tall as the stone gate, walkable on top: climb a stone tower to get up. Two mined stone make one block.",
    "artPrompt": "a single straight section of crenellated fieldstone castle wall with a timber walkway, frost in the cracks",
-   "buildRequires": []
+   "buildRequires": [],
+   "description": "One block of wall, one cube high"
+  },
+  "stone_tower": {
+   "id": "stone_tower",
+   "name": "Stone tower",
+   "category": "defense",
+   "cost": {
+    "wood": 10,
+    "stone": 40
+   },
+   "requiresCastleLevel": 1,
+   "castlePoints": 0,
+   "hp": 400,
+   "effect": "A stone corner tower with stairs inside. Stone walls and the stone gate join it; climb it to walk along the tops of your walls. Needs a quarry.",
+   "artPrompt": "a square crenellated stone castle tower with an arched doorway and a stair inside",
+   "buildRequires": [
+    "quarry"
+   ]
   },
   "gatehouse": {
    "id": "gatehouse",
@@ -270,7 +290,8 @@
    "effect": "The way in. Walls joined to the gatehouse make the courtyard: anything inside is safe from frosting.",
    "artPrompt": "a small stone gatehouse with a heavy timber portcullis gate, two squat flanking turrets, iron studs",
    "ruin": true,
-   "buildRequires": []
+   "buildRequires": [],
+   "description": "The way in"
   },
   "watchtower": {
    "id": "watchtower",
@@ -283,14 +304,15 @@
    "requiresCastleLevel": 1,
    "castlePoints": 4,
    "hp": 300,
-   "effect": "A lookout with a bowman. It shoots wolves, bears and raiders within 12 m, day and night. Needs a quarry.",
+   "effect": "A lookout with a bowman. It shoots wolves, bears and raiders within 24 m, day and night. Needs a quarry.",
    "artPrompt": "a tall square timber watchtower on a stone base with a roofed archer platform and a ladder",
    "dps": 4,
    "dpsManned": 6,
    "rangeM": 6,
    "buildRequires": [
     "quarry"
-   ]
+   ],
+   "description": "A lookout with a bowman"
   },
   "ember_brazier": {
    "id": "ember_brazier",
@@ -308,7 +330,8 @@
    "artPrompt": "a stone-and-iron brazier on three legs with a glowing bed of orange ember shards and rising sparks",
    "dps": 4,
    "rangeM": 3,
-   "buildRequires": []
+   "buildRequires": [],
+   "description": "At night, burns frost creatures within 3 m for 4 dmg/s"
   },
   "woodcutter": {
    "id": "woodcutter",
@@ -344,7 +367,8 @@
    "buildRequires": [
     "cottage"
    ],
-   "paybackMin": 1.7
+   "paybackMin": 1.7,
+   "description": "A woodcutter's hut"
   },
   "quarry": {
    "id": "quarry",
@@ -380,7 +404,8 @@
    "buildRequires": [
     "woodcutter"
    ],
-   "paybackMin": 1.7
+   "paybackMin": 1.7,
+   "description": "Cuts stone for you, steadily"
   },
   "mine": {
    "id": "mine",
@@ -417,7 +442,8 @@
     }
    ],
    "buildRequires": [],
-   "paybackMin": 3.8
+   "paybackMin": 3.8,
+   "description": "Built on the iron outcrop in the Iron Hills (outside the walls)"
   },
   "great_hall": {
    "id": "great_hall",
@@ -454,7 +480,8 @@
    ],
    "buildRequires": [],
    "paybackMin": 3.5,
-   "paybackMinRestored": 1.8
+   "paybackMinRestored": 1.8,
+   "description": "Feasts and taxes: produces gold"
   },
   "chapel": {
    "id": "chapel",
@@ -473,7 +500,8 @@
     "ember_shard": 1
    },
    "buildRequires": [],
-   "paybackMin": 6.8
+   "paybackMin": 6.8,
+   "description": "A small fire-shrine: produces ember shards (the only steady source besides raids)"
   },
   "storehouse": {
    "id": "storehouse",
@@ -529,7 +557,8 @@
    ],
    "buildRequires": [
     "quarry"
-   ]
+   ],
+   "description": "Your goods pile up here"
   },
   "smithy": {
    "id": "smithy",
@@ -548,7 +577,8 @@
    "ruin": true,
    "station": "tier2",
    "upgradeDiscountPct": 25,
-   "buildRequires": []
+   "buildRequires": [],
+   "description": "Forge + anvil"
   },
   "ember_forge": {
    "id": "ember_forge",
@@ -567,7 +597,8 @@
    "buildRequires": [
     "smithy"
    ],
-   "station": "tier3"
+   "station": "tier3",
+   "description": "Crafts the Ember brand"
   },
   "barracks": {
    "id": "barracks",
@@ -596,7 +627,8 @@
      "requiresCastleLevel": 3
     }
    ],
-   "buildRequires": []
+   "buildRequires": [],
+   "description": "Your kin sleep here: they deal +20% damage at night and wake instantly at dawn"
   },
   "dirt": {
    "id": "dirt",
@@ -610,7 +642,8 @@
    "hp": 0,
    "effect": "Raises the ground by one cube. Stack it to reshape the land.",
    "artPrompt": "a cube of packed dirt",
-   "buildRequires": []
+   "buildRequires": [],
+   "description": "Raises the ground by one cube"
   },
   "gate": {
    "id": "gate",
@@ -624,7 +657,8 @@
    "hp": 70,
    "effect": "A solid gate, four squares wide, with an arch. You walk through; creatures do not. Press R to turn it.",
    "artPrompt": "a small wooden fort gate with sharpened posts",
-   "buildRequires": []
+   "buildRequires": [],
+   "description": "A solid gate, four squares wide, with an arch"
   },
   "blacksmith": {
    "id": "blacksmith",
@@ -641,7 +675,8 @@
    "artPrompt": "a stone blacksmith workshop with a chimney",
    "buildRequires": [
     "quarry"
-   ]
+   ],
+   "description": "A forge for weapons"
   },
   "stone_gate": {
    "id": "stone_gate",
@@ -659,7 +694,8 @@
    "artPrompt": "a stone castle gate arch with a raised timber drawbridge",
    "buildRequires": [
     "blacksmith"
-   ]
+   ],
+   "description": "A stone arch with a great timber drawbridge"
   },
   "cottage": {
    "id": "cottage",
@@ -674,7 +710,8 @@
    "hp": 0,
    "effect": "Your home. Sleep here, keep your door, and stay out of the cold. Build it anywhere you like, whenever you like, but build it first.",
    "artPrompt": "a small timber cottage with a thatched roof",
-   "buildRequires": []
+   "buildRequires": [],
+   "description": "Your home"
   },
   "fire_pot": {
    "id": "fire_pot",
@@ -689,7 +726,8 @@
    "hp": 80,
    "effect": "A pot of burning coals. Lights up your camp at night, and standing near it keeps the cold off.",
    "artPrompt": "an iron fire pot on a stone base",
-   "buildRequires": []
+   "buildRequires": [],
+   "description": "A pot of burning coals"
   },
   "farm": {
    "id": "farm",
@@ -706,7 +744,8 @@
    "artPrompt": "Farm",
    "buildRequires": [
     "cottage"
-   ]
+   ],
+   "description": "A barn for a farmer"
   },
   "field": {
    "id": "field",
@@ -722,7 +761,8 @@
    "artPrompt": "Wheat field",
    "buildRequires": [
     "farm"
-   ]
+   ],
+   "description": "One square of tilled field, sown with wheat"
   },
   "silo": {
    "id": "silo",
@@ -739,7 +779,8 @@
    "artPrompt": "Grain silo",
    "buildRequires": [
     "farm"
-   ]
+   ],
+   "description": "Stores up to 200 wheat"
   },
   "market": {
    "id": "market",
@@ -757,7 +798,8 @@
    "artPrompt": "Marketplace",
    "buildRequires": [
     "cottage"
-   ]
+   ],
+   "description": "A big market hall you can walk into, in four sections: wheat and bread, meat and eggs, weapons, raw materials"
   },
   "coop": {
    "id": "coop",
@@ -774,7 +816,8 @@
    "artPrompt": "Chicken coop",
    "buildRequires": [
     "farm"
-   ]
+   ],
+   "description": "A hen house"
   },
   "barn": {
    "id": "barn",
@@ -791,7 +834,8 @@
    "artPrompt": "Cattle barn",
    "buildRequires": [
     "farm"
-   ]
+   ],
+   "description": "Buy cows here for 10 wheat each"
   },
   "stable": {
    "id": "stable",
@@ -808,7 +852,8 @@
    "artPrompt": "Stable",
    "buildRequires": [
     "farm"
-   ]
+   ],
+   "description": "Comes with two horses"
   },
   "bakery": {
    "id": "bakery",
@@ -825,7 +870,8 @@
    "artPrompt": "Bakery",
    "buildRequires": [
     "farm"
-   ]
+   ],
+   "description": "The baker turns wheat from your market into bread you can eat"
   },
   "butcher": {
    "id": "butcher",
@@ -842,7 +888,8 @@
    "artPrompt": "Butcher shop",
    "buildRequires": [
     "barn"
-   ]
+   ],
+   "description": "The butcher turns your spare cows and chickens into meat for the market"
   },
   "library": {
    "id": "library",
@@ -860,7 +907,26 @@
    "artPrompt": "Library",
    "buildRequires": [
     "storehouse"
-   ]
+   ],
+   "description": "Full of books"
+  },
+  "bunkhouse": {
+   "id": "bunkhouse",
+   "name": "Bunkhouse",
+   "category": "building",
+   "cost": {
+    "wood": 120,
+    "stone": 60
+   },
+   "requiresCastleLevel": 1,
+   "castlePoints": 0,
+   "hp": 400,
+   "effect": "Bunks for your townsfolk. At dusk your workers walk in and sleep here; at dawn they walk out to work.",
+   "artPrompt": "a long timber bunkhouse with a thatched roof, rows of wooden bunk beds and a stove inside",
+   "buildRequires": [
+    "cottage"
+   ],
+   "description": "Where your workers sleep at night"
   }
  },
  "keepUpgrade": {

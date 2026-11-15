@@ -154,6 +154,7 @@
         for (const e of [-0.24, 0.24]) k.box('woodMid', kx + e, y, kz, 0.05, 0.02, 0.44);
       }
       k.box('woodDark', kx, 0, kz - 0.32, 0.6, 0.03, 0.03);
+      new K.WorkShedArt(k).draw('woodcutter');   // an open work shed over the chopping block and the saw-horse
       return k;
     },
 
@@ -216,11 +217,17 @@
       k.box('stoneLight', ax - 0.1, 0.32, az - 0.1, 0.22, 0.2, 0.24, 0.2); k.box('whitewash', ax + 0.1, 0.32, az + 0.12, 0.2, 0.18, 0.22, -0.3);
       // a sign by the path: crossed picks on a pale board
       k.box('woodDark', -0.15, 0, 0.98, 0.07, 1.25, 0.07); board(k, -0.15, 1.12, 1.02, 0.56, 0.42, 'paintWhite', PIC.picks, 1.25);
+      new K.WorkShedArt(k).draw('quarry');   // a lean-to against the face, where the masons dress stone
       return k;
     },
 
     /* ---------------- the storehouse: a whitewashed, half-timbered warehouse; big open doors with goods inside, a loading deck and a hoist ---------------- */
     storehouse(k, o) {
+      frame(k, -1.15, 0, 0); ART.storeBody(k, o); k.pop();   // the warehouse on the left,
+      new K.MillArt(k, o).draw();                            // and the mill you can walk into on the right
+      return k;
+    },
+    storeBody(k, o) {
       const L2 = (o.level || 1) >= 2, cx = 0, cz = -0.38, w = 2.4, d = 1.36, H = L2 ? 1.95 : 1.45, front = cz + d / 2, plinth = 0.25;
       k.box('stoneLight', cx, 0, cz, w + 0.08, plinth, d + 0.08); k.box('stoneMid', cx, 0, cz, w + 0.12, 0.06, d + 0.12);
       k.box('whitewash', cx, plinth, cz, w, H, d);
@@ -272,7 +279,6 @@
       if (L2) {   // a second-floor window pair either side of the loft
         for (const s of [-1, 1]) { k.box('woodDark', cx + s * 0.95, plinth + 1.35, front + 0.02, 0.36, 0.4, 0.04); k.box('window', cx + s * 0.95, plinth + 1.38, front + 0.04, 0.28, 0.34, 0.02); }
       }
-      return k;
     },
 
     /* ---------------- the market's street stall row: four stalls, one per section, in front of the hall ---------------- */

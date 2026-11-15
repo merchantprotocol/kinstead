@@ -26,7 +26,7 @@
       this.effects = new K.Effects(game.group, this.effectsEnv());
       this.ctx = { game, play, effects: this.effects, editor: this.editor, ledger: this.ledger };
       this.belt = new K.Toolbelt([new K.SwordTool(), new K.AxeTool(), new K.PickaxeTool(), new K.ShovelTool(), new K.HammerTool()], (tool) => this.onSelect(tool), game.cui.root);   // inside #castleui so the panel styles apply
-      this.drawer = new K.BuildDrawer(game.cui);
+      this.drawer = new K.BuildDrawer(game.cui, { onMaterial: (id) => game.buildingPanel.material(id) });
       this.archery = new K.Archery(game);
       this.arms = new K.WeaponDrawer(game.cui, this.belt); this.belt.onWeaponsChanged = () => this.arms.update(); this.belt.onWeaponSlot = (was) => { if (was) this.arms.toggle(); else this.arms.show(); };   // clicking the weapon slot opens the weapon drawer
       this.belt.onModeSlot = (tool, was) => { const b = this.g.brush; if (b) { if (was) b.drawer.toggle(); else b.drawer.show(); } };   // click the shovel to open its modes
@@ -87,6 +87,7 @@
         if (!this.g.sweep.clickFoe(e, this.tool)) P.walkTo(e.x, e.z, false);
         return true;
       }
+      if (P.rampartClick(sx, sy, e)) return false;   // a wall top under the cursor: play walks you up there
       if (e && this.g.sweep.clickFoe(e, this.tool)) return true;   // sword + a foe in reach: swing now, as fast as you click
       if (e) { const t = K.WorkTarget.forEntity(this.ctx, e); if (!t) return false; this.engage(t); return true; }
       const p = P.app.pickGround(sx, sy); if (!p) return false;

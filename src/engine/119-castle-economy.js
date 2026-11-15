@@ -3,11 +3,11 @@
    are kept, and you see the stores grow.
      Ledger     what one building holds
      Fields     the wheat squares you draw around a farm: they grow sprout, green, gold, then give a wheat
-     Cart       a handcart carrying goods from one building to another, along the ground
+     (the handcarts are K.Cart, 119a-castle-cart.js: a worker always pulls them)
      Economy    the whole thing: planting, growing, sending carts, the market's piles and the silo's fill level, saving */
 (function (G) {
   const K = G.K, THREE = G.THREE, TILE = K.TILE;
-  const GROW = 180, FIELD_REACH = 14, FARM_CAP = 40, SILO_CAP = 200, MARKET_CAP = 999, CART_LOAD = 10, CART_SPEED = 2.2;
+  const GROW = 180, FIELD_REACH = 14, FARM_CAP = 40, SILO_CAP = 200, MARKET_CAP = 999, CART_LOAD = 10;
   const STAGE_COLOR = [0x9fe070, 0x55b844, 0xf6c845], STAGE_H = [0.12, 0.32, 0.5];
   /** one wheat square as a single geometry of unit height: 4 rows of stalks with fat ears on top, shaded dark at the root and
       bright at the tip (vertex colours), so the per-square stage colour reads as sprouts, green wheat, then golden wheat */
@@ -46,16 +46,18 @@
     }
     key(i, j) { return i + ',' + j; }
     has(i, j) { return this.tiles.has(this.key(i, j)); }
-    add(i, j, age = 0) { if (this.tiles.size >= this.max) return false; this.tiles.set(this.key(i, j), { i, j, age }); this.dirty = true; return true; }
+    add(i, j, age = 0, owner = this.eco.ownerId || null) { if (this.tiles.size >= this.max) return false; this.tiles.set(this.key(i, j), { i, j, age, owner }); this.dirty = true; return true; }
     remove(i, j) { this.tiles.delete(this.key(i, j)); this.dirty = true; }
     stage(t) { return Math.min(2, Math.floor(t.age / (GROW / 3))); }
     /** grow everything; a square that turns ripe gives its wheat to the nearest farm with room */
     grow(dt) {
+      let changed = false;
       for (const t of this.tiles.values()) {
         const s0 = this.stage(t); t.age += dt;
-        if (t.age >= GROW) { const x = (t.i + 0.5) * TILE, z = (t.j + 0.5) * TILE, farm = this.eco.nearestFarm(x, z); if (farm && this.eco.ledger(farm).add('wheat', 1)) { t.age = 0; this.dirty = true; } else t.age = GROW; continue; }   // a full barn: it waits ripe
-        if (this.stage(t) !== s0) this.dirty = true;
+        if (t.age >= GROW && (!this.eco.ownerId || t.owner === this.eco.ownerId)) { const x = (t.i + 0.5) * TILE, z = (t.j + 0.5) * TILE, farm = this.eco.nearestFarm(x, z); if (farm && this.eco.ledger(farm).add('wheat', 1)) { t.age = 0; this.dirty = true; changed = true; } else t.age = GROW; continue; }
+        if (this.stage(t) !== s0) { this.dirty = true; changed = true; }
       }
+      if (changed) this.eco.changed('fields');
     }
     draw() {
       if (!this.dirty) return; this.dirty = false; const nav = this.eco.g.play.nav; let n = 0;
@@ -67,28 +69,6 @@
     }
     dispose() { this.eco.g.group.remove(this.mesh); this.mesh.geometry.dispose(); this.mesh.material.dispose(); }
   }
-
-  class Cart {
-    constructor(eco, from, to, good, n) {
-      this.eco = eco; this.from = from; this.to = to; this.good = good; this.n = n; const g = eco.g, P = g.play;
-      const k = new K.VoxKit(); k.box('planks', 0, 0.28, 0, 0.6, 0.3, 0.9); k.box('timber', 0, 0.58, -0.6, 0.06, 0.06, 0.6, 0, 0.5); k.box({ wheat: 'hay', egg: 'linen', milk: 'plaster', beef: 'leather', stone: 'ashlar', iron: 'iron' }[good] || 'wood', 0, 0.58, 0, 0.5, 0.18, 0.7); if (good === 'wood') for (let q = 0; q < 3; q++) k.geo('bark', K.VoxKit.CYL8, -0.15 + q * 0.15, 0.82, 0, Math.PI / 2, 0, 0, 0.07, 0.8, 0.07); if (good === 'stone') for (let q = 0; q < 3; q++) k.box('ashlar', -0.15 + q * 0.15, 0.76, -0.1 + (q % 2) * 0.2, 0.14, 0.14, 0.14, q);
-      for (const [x, z] of [[-0.34, 0.2], [0.34, 0.2]]) k.geo('wood', K.VoxKit.CYL, x, 0.24, z, 0, 0, Math.PI / 2, 0.5, 0.06, 0.5);
-      this.mesh = new THREE.Group(); for (const m of k.meshes(g.R.bmats)) this.mesh.add(m); g.group.add(this.mesh);
-      this.a = { x: from.x, z: from.z, y: P.nav.y(from.x, from.z), view: { setFacing() {} }, path: null };
-      this.a.path = P.nav.find(from.x, from.z, to.x, to.z, { range: 2.4, maxNodes: 20000 }) || [[to.x, to.z]];
-    }
-    /** false once delivered */
-    update(dt) {
-      const P = this.eco.g.play, a = this.a, p0x = a.x, p0z = a.z;
-      if (a.path && a.path.length) P.move(a, dt, CART_SPEED); a.y = P.nav.y(a.x, a.z);
-      this.mesh.position.set(a.x, a.y, a.z); if (Math.hypot(a.x - p0x, a.z - p0z) > 1e-4) this.mesh.rotation.y = Math.atan2(a.x - p0x, a.z - p0z);
-      if (a.path && a.path.length) return true;
-      if (this.n > 0) { const left = this.eco.ledger(this.to).add(this.good, this.n); if (left < this.n) this.eco.ledger(this.from).add(this.good, this.n - left); }   // what does not fit goes back (an empty-handed cart is a courier's run: it just shows the haul)
-      this.dispose(); return false;
-    }
-    dispose() { this.eco.g.group.remove(this.mesh); }
-  }
-
 
   /* ---------- livestock ---------- */
   const KINDS = {
@@ -143,7 +123,7 @@
 
   /** every animal you own, what they make, what they eat, and what hunts them */
   class Livestock {
-    constructor(eco) { this.eco = eco; this.g = eco.g; this.herds = new Map(); this.clock = 0; this.scanT = 0; }
+    constructor(eco) { this.eco = eco; this.g = eco.g; this.herds = new Map(); this.clock = 0; this.scanT = 0; this.orders = new K.LivestockOrders(this); }
     get all() { const out = []; for (const h of this.herds.values()) out.push(...h); return out; }
     herd(p) { let h = this.herds.get(p.uid); if (!h) this.herds.set(p.uid, (h = [])); return h; }
     blocker() { const g = this.g, T = K.TILE; return (i, j) => g.gateTiles.has(i + ',' + j) || g.insideBuilding((i + 0.5) * T, (j + 0.5) * T); }
@@ -152,19 +132,20 @@
       return null;
     }
     /** buy an animal for its building, paid in wheat */
-    buy(p) {
+    buy(p, opts = {}) {
       const g = this.g, kind = p.type === 'coop' ? 'chicken' : 'cow', s = KINDS[kind], h = this.herd(p);
       if (h.length >= s.max) { g.cui.toast(`This ${p.type === 'coop' ? 'coop' : 'barn'} is full (${s.max} ${kind}s).`); return false; }
       if (!this.eco.takeWheat(s.price)) { g.cui.toast(`A ${kind} costs ${s.price} wheat. Grow more wheat first.`); g.sound.play('clank'); return false; }
       if (!this.spawn(kind, p)) { this.eco.ledger(p).add('wheat', s.price); g.cui.toast('There is no room around the building for it.'); return false; }
-      g.sound.play('thunk'); g.cui.toast(`You bought a ${kind} (${h.length} now).`); g.changed(); return true;
+      this.eco.changed('herds');
+      g.sound.play('thunk'); if (!opts.quiet) g.cui.toast(`You bought a ${kind} (${h.length} now).`); g.changed(); return true;
     }
     butcher(p) {
       const h = this.herd(p), b = h[h.length - 1], g = this.g; if (!b) return false;
       const got = this.eco.ledger(p).add('beef', 6); if (!got) { g.cui.toast('The barn has no room for the beef.'); return false; }
       this.remove(b); g.cui.toast(`You butchered a cow: ${got} beef in the barn.`); g.changed(); return true;
     }
-    remove(b) { const h = this.herds.get(b.home.uid); if (h) { const i = h.indexOf(b); if (i >= 0) h.splice(i, 1); } b.dispose(); }
+    remove(b) { const h = this.herds.get(b.home.uid); if (h) { const i = h.indexOf(b); if (i >= 0) h.splice(i, 1); } b.dispose(); this.eco.changed('herds'); }
     /** once a second: lay, milk, eat */
     tick(dt) {
       for (const b of this.all) {
@@ -172,6 +153,7 @@
         if (s.eats) { b.hunger += dt; if (b.hunger >= s.eats) { b.fed = this.eco.takeWheat(1, false); b.hunger = 0; } }
         if (!b.fed) continue; b.t += dt; if (b.t >= s.every) { b.t = 0; l.add(s.good, 1); }
       }
+      this.orders.tick(dt);
       if ((this.scanT -= dt) <= 0) { this.scanT = 5; this.scan(); }
     }
     update(dt) { this.clock += dt; for (const b of this.all) b.update(dt); }
@@ -200,13 +182,15 @@
       g.cui.toast(`${by && by.bear ? 'A bear' : 'A wolf'} took one of your ${b.kind}s! Keep your animals inside walls.`); g.sound.play('hit'); g.changed();
     }
     tidy(live) { for (const [uid, h] of this.herds) if (!live.has(uid)) { for (const b of h) b.dispose(); this.herds.delete(uid); } }
-    toJSON() { const o = {}; for (const [uid, h] of this.herds) if (h.length) o[uid] = h.map((b) => [b.kind, +b.x.toFixed(2), +b.z.toFixed(2)]); return o; }
-    restore(o) { for (const [uid, list] of Object.entries(o || {})) { const p = this.g.castle.pieces.find((q) => q.uid === +uid); if (!p) continue; for (const [kind, x, z] of list) this.herd(p).push(new Beast(this, kind, p, x, z)); } }
+    toJSON() { const o = {}; for (const [uid, h] of this.herds) if (h.length) o[uid] = h.map((b) => [b.kind, +b.x.toFixed(2), +b.z.toFixed(2)]); return { herds: o, orders: this.orders.toJSON() }; }
+    restore(o) { if (o && (o.herds || o.orders)) { this.orders.restore(o.orders); o = o.herds || {}; } for (const [uid, list] of Object.entries(o || {})) { const p = this.g.castle.pieces.find((q) => q.uid === +uid); if (!p) continue; for (const [kind, x, z] of list) this.herd(p).push(new Beast(this, kind, p, x, z)); } }
     dispose() { for (const b of this.all) b.dispose(); this.herds.clear(); }
   }
 
   class Economy {
-    constructor(game) { this.g = game; this.ledgers = new Map(); this.carts = []; this.piles = new Map(); this.fields = new Fields(this); this.t = 0; this.drawT = 0; this.vaults = new Map(); this.stock = new K.Livestock(this); }
+    constructor(game) { this.g = game; this.ledgers = new Map(); this.listeners = new Set(); this.ownerId = null; this.carts = []; this.piles = new Map(); this.fields = new Fields(this); this.t = 0; this.drawT = 0; this.vaults = new Map(); this.stock = new K.Livestock(this); }
+    onChange(listener) { this.listeners.add(listener); return () => this.listeners.delete(listener); }
+    changed(kind) { for (const listener of this.listeners) listener(kind); }
     get pieces() { return this.g.castle.pieces; }
     of(type) { return this.pieces.filter((p) => p.type === type); }
     ledger(p) {
@@ -236,7 +220,7 @@
       const blk = c.blocker('field'); if (blk) { if (!quiet) g.cui.toast(blk[0].toUpperCase() + blk.slice(1) + '.'); return false; }
       if (!c.spend(c.buildCost('field'))) { if (!quiet) g.cui.toast('You need wood to plough a field.'); return false; }
       const d = g.play.doc, [i, j] = d.tileOf(x, z), k = j * d.w + i; d.terrain[k] = K.T.DIRT; g.R.tilesChanged(i, j, i + 1, j + 1); if (g.tools.editor) g.tools.editor.version++;
-      this.fields.add(i, j, Math.random() * 20); g.xp.built('field'); g.sound.play('thunk'); g.changed(); return true;
+      this.fields.add(i, j, Math.random() * 20); this.changed('fields'); g.xp.built('field'); g.sound.play('thunk'); g.changed(); return true;
     }
     /* ---------- the day's work ---------- */
     update(dt) {
@@ -251,16 +235,16 @@
       for (const f of this.of('farm')) {
         const l = this.ledger(f), w = l.amount('wheat'); if (w < CART_LOAD || this.carts.some((c) => c.from === f)) continue;
         const dest = this.of('silo').filter((s) => this.ledger(s).room('wheat') >= CART_LOAD).concat(this.of('market'))[0]; if (!dest) continue;
-        this.carts.push(new Cart(this, f, dest, 'wheat', l.take('wheat', CART_LOAD)));
+        this.carts.push(new K.Cart(this, f, dest, 'wheat', l.take('wheat', CART_LOAD)));
       }
       const mk = this.of('market')[0];
       if (mk) for (const b of this.of('coop').concat(this.of('barn'))) {   // eggs, milk and beef go to the market by the cartload
         if (this.carts.some((c) => c.from === b)) continue; const l = this.ledger(b);
-        for (const good of ['egg', 'milk', 'beef']) if (l.amount(good) >= CART_LOAD) { this.carts.push(new Cart(this, b, mk, good, l.take(good, CART_LOAD))); break; }
+        for (const good of ['egg', 'milk', 'beef']) if (l.amount(good) >= CART_LOAD) { this.carts.push(new K.Cart(this, b, mk, good, l.take(good, CART_LOAD))); break; }
       }
       for (const s of this.of('silo')) {   // a nearly full silo sends its surplus to the market
         const l = this.ledger(s), m = this.of('market')[0]; if (!m || l.amount('wheat') < SILO_CAP - CART_LOAD || this.carts.some((c) => c.from === s)) continue;
-        this.carts.push(new Cart(this, s, m, 'wheat', l.take('wheat', CART_LOAD)));
+        this.carts.push(new K.Cart(this, s, m, 'wheat', l.take('wheat', CART_LOAD)));
       }
     }
     /** a building that was taken down: its stock spills as pickups, its ledger goes */
@@ -293,15 +277,15 @@
     /** a two-purse view of a building's store (the purse screen works on it like a chest) */
     vaultFor(p) { const l = this.ledger(p); let v = this.vaults.get(p.uid); if (!v) { v = { res: l.goods, items: {}, weapons: [] }; this.vaults.set(p.uid, v); } v.res = l.goods; return v; }
     /* ---------- saving ---------- */
-    toJSON() { const led = {}; for (const [uid, l] of this.ledgers) led[uid] = l.goods; return { ledgers: led, herds: this.stock.toJSON(), fields: [...this.fields.tiles.values()].map((t) => [t.i, t.j, Math.round(t.age)]) }; }
+    toJSON() { const led = {}; for (const [uid, l] of this.ledgers) led[uid] = l.goods; return { ledgers: led, livestock: this.stock.toJSON(), fields: [...this.fields.tiles.values()].map((t) => [t.i, t.j, Math.round(t.age)]) }; }
     restore(x) {
       if (!x) return; for (const [uid, goods] of Object.entries(x.ledgers || {})) { const p = this.pieces.find((q) => q.uid === +uid); if (p) Object.assign(this.ledger(p).goods, goods); }
-      if (x.herds) this.stock.restore(x.herds);
+      if (x.livestock) this.stock.restore(x.livestock); else if (x.herds) this.stock.restore(x.herds);
       const d = this.g.play.doc; for (const [i, j, age] of x.fields || []) { this.fields.add(i, j, age); const k = j * d.w + i; d.terrain[k] = K.T.DIRT; }
       if ((x.fields || []).length) this.g.R.tilesChanged(0, 0, d.w, d.h);
     }
     dispose() { this.stock.dispose(); this.fields.dispose(); for (const c of this.carts) c.dispose(); for (const v of this.piles.values()) this.g.group.remove(v.grp); }
   }
 
-  Object.assign(K, { Ledger, Fields, Cart, Economy, Livestock, Beast, LIVESTOCK: KINDS });
+  Object.assign(K, { Ledger, Fields, Economy, Livestock, Beast, LIVESTOCK: KINDS });
 })(typeof window !== 'undefined' ? window : globalThis);

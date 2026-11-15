@@ -7,7 +7,9 @@
   const r3 = (v) => Math.round(v * 1000) / 1000;
   class BuilderApp extends K.BuilderAppInput {
     resize() {
-      const tb = $('top').offsetHeight || 46; $('tools').style.top = $('insp').style.top = (tb + 18) + 'px'; $('insp').style.maxHeight = `calc(100vh - ${tb + 80}px)`;
+      const tb = $('top').offsetHeight || 46;
+      $('tools').style.top = $('insp').style.top = (tb + 18) + 'px';
+      $('insp').style.maxHeight = `calc(100vh - ${tb + 80}px)`;
       const w = Math.round(this.stage.clientWidth) || 1600, h = Math.round(this.stage.clientHeight) || 900;
       this.applySize(w, h);
     }
@@ -19,11 +21,20 @@
     }
     renderFrame() {
       const dist = this.rig.cur.dist;
-      this.post.focus = dist; this.post.band = Math.max(dist * 0.07, this.play.active ? 2.4 : 0); this.post.range = Math.max(dist * 0.22, this.play.active ? 4 : 0);   // in play, characters always stay sharp
+      this.post.focus = dist;
+      this.post.band = Math.max(dist * 0.07, this.play.active ? 2.4 : 0);
+      this.post.range = Math.max(dist * 0.22, this.play.active ? 4 : 0);
       const tgt = new V3(this.rig.cur.tx, this.rig.cur.ty, this.rig.cur.tz);
       this.renderer.update(this.time, this.camera, this.post.h, tgt, dist, this.rig.cur.pitch);
       this.post.render(this.renderer.scene, this.camera, this.time);
-      if (this.overlay.scene.visible) { const r = this.renderer3; r.autoClear = false; r.setRenderTarget(null); r.clearDepth(); r.render(this.overlay.scene, this.camera); r.autoClear = true; }
+      if (this.overlay.scene.visible) {
+        const r = this.renderer3;
+        r.autoClear = false;
+        r.setRenderTarget(null);
+        r.clearDepth();
+        r.render(this.overlay.scene, this.camera);
+        r.autoClear = true;
+      }
     }
     frame() {
       const now = performance.now(), dt = Math.min(0.05, (now - this.last) / 1000); this.last = now;
@@ -35,12 +46,24 @@
       if (this.play.active) this.play.ui.frame(dt);
       else if (!this.roleT || now - this.roleT > 400) { this.roleT = now; this.overlay.roles(); }
       this.frames.push(now); while (this.frames.length && now - this.frames[0] > 1000) this.frames.shift();
-      if (!this.fpsT || now - this.fpsT > 500) { this.fpsT = now; $('sFps').textContent = `${this.frames.length} fps${this.renderer.pending ? ' · painting ' + this.renderer.pending + ' chunk jobs' : ''}`; }
+      if (!this.fpsT || now - this.fpsT > 500) {
+        this.fpsT = now;
+        const pending = this.renderer.pending;
+        const jobs = pending ? ` · painting ${pending} chunk jobs` : '';
+        $('sFps').textContent = `${this.frames.length} fps${jobs}`;
+      }
     }
     /* test hook: deterministic capture at a given size and time (same as the diorama's) */
     capture(w, h, t, view, sharp) {
       this.renderer.finishAll(); const q = this.quality; if (sharp) this.quality = 2;
-      if (view === 'closeup') this.frameHero(true); else if (view === 'overview') { const b = this.doc.objects.find((o) => o.kind === 'bridge'); this.rig.set({ tx: b.a[0] - 1.8, ty: 0, tz: b.a[1] - 0.4, yaw: -0.2, pitch: 0.7, dist: 21 }, true); }
+      if (view === 'closeup') this.frameHero(true);
+      else if (view === 'overview') {
+        const bridge = this.doc.objects.find((object) => object.kind === 'bridge');
+        this.rig.set({
+          tx: bridge.a[0] - 1.8, ty: 0, tz: bridge.a[1] - 0.4,
+          yaw: -0.2, pitch: 0.7, dist: 21,
+        }, true);
+      }
       this.applySize(w, h); this.fixedTime = t; this.overlay.scene.visible = false; this.frame(); this.overlay.scene.visible = true; this.fixedTime = null;
       const url = this.renderer3.domElement.toDataURL('image/jpeg', 0.9); this.quality = q; this.resize(); return url;
     }
