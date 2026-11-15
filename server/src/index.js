@@ -14,10 +14,15 @@ import { MessageRouter } from './MessageRouter.js';
 import { FarmSync } from './FarmSync.js';
 import { MobRelay } from './MobRelay.js';
 import { Resync } from './Resync.js';
+import { PlotRecycler } from './PlotRecycler.js';
+import { RoomStats } from './RoomStats.js';
+import { PieceHp } from './PieceHp.js';
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    const stats = url.pathname.match(/^\/ws\/([a-z0-9_-]{1,40})\/stats$/i);
+    if (stats) return env.ROOM.get(env.ROOM.idFromName(stats[1])).fetch(request);
     const match = url.pathname.match(/^\/ws\/([a-z0-9_-]{1,40})$/i);
     if (match) {
       if (request.headers.get('Upgrade') !== 'websocket') return new Response('expected a websocket', { status: 426 });
@@ -38,11 +43,12 @@ export class GameRoom {
     this.markets = {}; this.sales = {}; this.storesDirty = false;
     this.lastPeriod = -1; this.ver = { p: 1, s: 1, t: 1, g: 1, f: 1 };
     this.banners = {}; this.invites = {}; this.dirty = false; this.loaded = false; this.timer = null;
-    const services = [PlayerRegistry, WorldState, ClockWeather, Markets, Stores, Banners, Teams, Doors, Tribute, FarmSync, MobRelay, Resync, MessageRouter];
+    const services = [PlayerRegistry, WorldState, ClockWeather, Markets, Stores, Banners, Teams, Doors, Tribute, FarmSync, MobRelay, Resync, PlotRecycler, RoomStats, MessageRouter];
     for (const Service of services) new Service().install(this);
     state.blockConcurrencyWhile(async () => {
       this.plots = (await state.storage.get('plots')) || {};
       const world = await state.storage.get('world'); if (world) this.world = Object.assign(this.world, world);
+      PieceHp.shared.normalize(this.world.pieces);
       this.world.farms = Object.assign({ fields: {}, herds: {}, goods: {} }, this.world.farms || {});
       this.teams = (await state.storage.get('teams')) || {};
       const epoch = await state.storage.get('epoch');
@@ -56,6 +62,7 @@ export class GameRoom {
   }
 
   async fetch(request) {
+    if (/\/stats$/.test(new URL(request.url).pathname)) return this.roomStats.response();
     const pair = new WebSocketPair(), [client, server] = Object.values(pair); server.accept();
     const player = { id: null, cid: null, name: '', slot: -1, x: 0, z: 0, y: 0, f: 0, s: 'idle', tool: '', hp: 0, joined: false };
     this.sockets.set(server, player);
@@ -111,6 +118,7 @@ export class GameRoom {
   }
   onClose(ws, player) {
     if (!this.sockets.has(ws)) return; this.sockets.delete(ws);
+    if (player.joined && player.cid) this.touch(player.cid);
     if (player.joined) this.mobRelay.drop(player.id);
     if (player.joined) this.broadcast({ t: 'leave', id: player.id });
     if (!this.online().length) this.save();

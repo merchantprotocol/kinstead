@@ -5,13 +5,20 @@
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>\"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   class BuildingPanel {
     constructor(game) { this.g = game; this.c = game.castle; this.selected = null; this.root = document.createElement('div'); this.root.id = 'cInspector'; this.root.hidden = true; document.body.appendChild(this.root); this.click = (e) => this.onClick(e); this.root.addEventListener('click', this.click); this.key = (e) => { if (e.key === 'Escape' && !this.root.hidden) this.close(); }; document.addEventListener('keydown', this.key); }
+    /** a team's shown name (its banner's, else its own), never its raw id */
+    teamName(id) {
+      if (id == null) return null;
+      const team = ((this.g.mp && this.g.mp.teams) || []).find((t) => t.id === id);
+      if (!team) return null;
+      return (team.banner && team.banner.name) || team.name || null;
+    }
     close() { this.root.hidden = true; this.selected = null; }
     open(title, icon, body) { const image = icon && String(icon).startsWith('<') ? icon : K.Icons.img(icon || 'eye', 3); this.root.innerHTML = `<section class="ci-shell"><header>${image}<h2>${esc(title)}<button data-close aria-label="Close">×</button></header><div class="ci-content">${body}</div></section>`; this.root.hidden = false; }
     piece(e) {
       const g = this.g, c = this.c, remote = e.type === 'c_rpiece', p = remote ? e.rec.p : e.piece, d = g.data.piece(p.type); if (!d) return;
-      const peerOwners=g.mp&&g.mp.world&&g.mp.world.owners, legacyOwners=g.mp&&g.mp.owners; const owner = remote ? ((peerOwners&&peerOwners[e.rec.p.owner])||(legacyOwners&&legacyOwners[e.rec.p.owner])||'Another player') : 'You'; const banner = remote && g.mp ? g.mp.teamId(e.rec.p.owner) : null;
+      const peerOwners=g.mp&&g.mp.world&&g.mp.world.owners, legacyOwners=g.mp&&g.mp.owners; const owner = remote ? ((peerOwners&&peerOwners[e.rec.p.owner])||(legacyOwners&&legacyOwners[e.rec.p.owner])||'Another player') : 'You'; const banner = remote && g.mp ? this.teamName(g.mp.teamId(e.rec.p.owner)) : null;
       const pr = remote ? null : c.producesOf(p), stock = remote ? {} : (g.economy ? g.economy.ledger(p).goods : {});
-      const hpMax = g.pieceHpMax(p), statusRows = [`<div class="ci-row"><span>Owner</span><b>${esc(owner)}${banner!=null?` · Team ${esc(banner)}`:''}</b></div>`,`<div class="ci-row"><span>Health</span><b>${Number.isFinite(p.hp) ? Math.ceil(p.hp) : hpMax} / ${hpMax}</b></div>`,`<div class="ci-row"><span>Level</span><b>${p.level || 1}</b></div>`,`<div class="ci-row"><span>Condition</span><b>${remote ? 'Other player’s building' : c.isFrosted(p) ? 'Frosted — production stopped' : c.isFull(p) ? 'Full' : pr ? 'Working' : 'Idle'}</b></div>`], holdings = [];
+      const hpMax = remote && p.hpMax ? p.hpMax : g.pieceHpMax(p), statusRows = [`<div class="ci-row"><span>Owner</span><b>${esc(owner)}${banner!=null?` · Team ${esc(banner)}`:''}</b></div>`,`<div class="ci-row"><span>Health</span><b>${Number.isFinite(p.hp) ? Math.ceil(p.hp) : hpMax} / ${hpMax}</b></div>`,`<div class="ci-row"><span>Level</span><b>${p.level || 1}</b></div>`,`<div class="ci-row"><span>Condition</span><b>${remote ? 'Other player’s building' : c.isFrosted(p) ? 'Frosted — production stopped' : c.isFull(p) ? 'Full' : pr ? 'Working' : 'Idle'}</b></div>`], holdings = [];
       const keeper = !remote && p.gatekeeper, keeperTower = !remote && p.keeperGate;
       if (keeper) statusRows.push(`<div class="ci-row"><span>Archer</span><b>Gatekeeper</b></div>`);
       if (keeperTower) statusRows.push(`<div class="ci-row"><span>Role</span><b>Gatekeeper · ${esc(g.data.piece(keeperTower.type).name)}</b></div>`);

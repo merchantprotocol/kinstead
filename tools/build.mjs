@@ -72,6 +72,8 @@ class EngineManifest {
     '115-castle-mob-caster.js',
     '115-castle-mob-pool.js',
     '115-castle-remote-mobs.js',
+    '115-castle-join-notice.js',
+    '115-castle-freed-plots.js',
     '115-castle-net.js',
     '116-castle-weather.js',
     '117-castle-banner.js',

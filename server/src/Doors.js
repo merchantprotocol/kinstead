@@ -1,4 +1,5 @@
 import { ServerConfig } from './ServerConfig.js';
+import { PieceHp } from './PieceHp.js';
 
 // Copyright (c) 2026 Merchant Protocol. All rights reserved.
 export class Doors {
@@ -33,7 +34,7 @@ export class Doors {
       this.dirty = true; return;
     }
     const pc = this.world.pieces[m.id]; if (!pc || this.mayUse(p, pc.owner) || !this.near(p, pc, 5)) return;
-    if (pc.hp == null) { pc.hpMax = ServerConfig.HP[pc.type] || ServerConfig.HP.default; pc.hp = pc.hpMax; }
+    if (pc.hp == null) { pc.hpMax = PieceHp.shared.of(pc.type); pc.hp = pc.hpMax; }
     const k = (ServerConfig.STONE.has(pc.type) ? (m.tool === 'pickaxe' || m.tool === 'warhammer' ? 2 : 0.6) : (m.tool === 'axe' ? 1.5 : 1));
     pc.hp = Math.max(0, pc.hp - Math.round(dmg * k));
     this.broadcast({ t: 'hp', id: pc.id, hp: pc.hp, max: pc.hpMax });

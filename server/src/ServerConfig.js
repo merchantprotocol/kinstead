@@ -3,7 +3,6 @@
 export class ServerConfig {
   static MAX_PLAYERS = 30;
   static DOOR_HP = 3000;
-  static HP = { palisade: 400, stone_wall: 900, gate: 700, stone_gate: 2500, default: 900 };
   static DMG = { sword: 5, stoneblade: 5, ironsword: 9, spear: 7, warhammer: 18, longbow: 9, bow: 6, axe: 8, pickaxe: 8, shovel: 3, hammer: 4, default: 4 };
   static PLOTS = ServerConfig.buildPlots();
   static CYCLE = { day: 210, night: 100 };
