@@ -22,7 +22,7 @@
       if (!game.mp) return false;
       return [...game.mp.avatars.by.values()].some((r) => r.a && !game.mp.mayUse(r.a.pid) && this.near(r.a, gate, 5.5));
     }
-    night(game) { return game.day.isNight || game.isNightish(); }
+    night(game) { return game.day.isNight; }
   }
 
   class GateKeeper {

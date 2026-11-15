@@ -23,10 +23,10 @@ test('gate policy accepts non-hostile local actors and teammates, but rejects ho
   assert.equal(policy.friendly(player({ remote: true, pid: 'stranger' }), game), false, 'non-team player is refused');
 });
 
-test('gate policy treats night as closed even during the dusk warning', () => { // risk: security
+test('gate policy closes at night but stays responsive during dusk warning', () => { // risk: security
   const policy = new Policy();
-  assert.equal(policy.night({ day: { isNight: false }, isNightish: () => true }), true);
-  assert.equal(policy.night({ day: { isNight: false }, isNightish: () => false }), false);
+  assert.equal(policy.night({ day: { isNight: true }, isNightish: () => true }), true);
+  assert.equal(policy.night({ day: { isNight: false }, isNightish: () => true }), false);
 });
 
 test('gatekeeper opens for a friendly arrival and shuts when a hostile approaches', () => { // risk: hostile exclusion
