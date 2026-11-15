@@ -7,43 +7,6 @@
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const r3 = (v) => Math.round(v * 1000) / 1000;
 
-  /* ---------- undo/redo: tile diffs + object snapshots ---------- */
-  class History {
-    constructor(limit = 200) { this.undoS = []; this.redoS = []; this.limit = limit; }
-    push(op) { this.undoS.push(op); if (this.undoS.length > this.limit) this.undoS.shift(); this.redoS.length = 0; }
-    canUndo() { return this.undoS.length > 0; }
-    canRedo() { return this.redoS.length > 0; }
-    undo() { const op = this.undoS.pop(); if (op) this.redoS.push(op); return op; }
-    redo() { const op = this.redoS.pop(); if (op) this.undoS.push(op); return op; }
-    clear() { this.undoS.length = 0; this.redoS.length = 0; }
-  }
-
-  /* records the first-touch value of every tile a stroke changes */
-  class TileStroke {
-    constructor(doc) { this.doc = doc; this.old = new Map(); this.box = [1e9, 1e9, -1e9, -1e9]; }
-    set(i, j, t, hq) {
-      const d = this.doc; if (!d.inside(i, j)) return false;
-      const k = d.idx(i, j), ot = d.terrain[k], oh = d.height[k];
-      const nt = t == null ? ot : t, nh = hq == null ? oh : clamp(Math.round(hq), -128, 127);
-      if (nt === ot && nh === oh) return false;
-      if (!this.old.has(k)) this.old.set(k, [ot, oh]);
-      d.terrain[k] = nt; d.height[k] = nh;
-      const b = this.box; b[0] = Math.min(b[0], i); b[1] = Math.min(b[1], j); b[2] = Math.max(b[2], i + 1); b[3] = Math.max(b[3], j + 1);
-      return true;
-    }
-    touched(k) { return this.old.has(k); }
-    finish() {
-      if (!this.old.size) return null;
-      const n = this.old.size, idx = new Int32Array(n), ot = new Uint8Array(n), oh = new Int8Array(n), nt = new Uint8Array(n), nh = new Int8Array(n);
-      let q = 0; for (const [k, [a, b]] of this.old) { idx[q] = k; ot[q] = a; oh[q] = b; nt[q] = this.doc.terrain[k]; nh[q] = this.doc.height[k]; q++; }
-      return { idx, ot, oh, nt, nh, box: this.box.slice() };
-    }
-    static apply(doc, td, which) {
-      const t = which === 'old' ? td.ot : td.nt, h = which === 'old' ? td.oh : td.nh;
-      for (let q = 0; q < td.idx.length; q++) { doc.terrain[td.idx[q]] = t[q]; doc.height[td.idx[q]] = h[q]; }
-    }
-  }
-
   /* ---------- tools ---------- */
   class Tool {
     constructor(app) { this.app = app; }
@@ -69,7 +32,7 @@
       }
       return out;
     }
-    down(e, p) { if (!p) return; this.stroke = new TileStroke(this.doc); this.last = p; this.start = p; this.begin(e, p); this.dab(p); }
+    down(e, p) { if (!p) return; this.stroke = new K.TileStroke(this.doc); this.last = p; this.start = p; this.begin(e, p); this.dab(p); }
     move(e, p) {
       this.hover(p); if (!this.stroke || !p) return;
       const d = Math.hypot(p.x - this.last.x, p.z - this.last.z), step = Math.max(0.2, this.size * TILE * 0.4);
@@ -78,7 +41,7 @@
       this.last = p;
     }
     up() { if (!this.stroke) return; const td = this.stroke.finish(); this.stroke = null; if (td) this.app.pushOp({ label: this.label(), tiles: td }); }
-    cancel() { if (this.stroke) { const td = this.stroke.finish(); this.stroke = null; if (td) { TileStroke.apply(this.doc, td, 'old'); this.app.renderer.tilesChanged(...td.box); } } }
+    cancel() { if (this.stroke) { const td = this.stroke.finish(); this.stroke = null; if (td) { K.TileStroke.apply(this.doc, td, 'old'); this.app.renderer.tilesChanged(...td.box); } } }
     begin() {}
     dab(p) {
       let b = [1e9, 1e9, -1e9, -1e9], any = false;
@@ -228,7 +191,7 @@
       const b = [Math.round(p.x / TILE) * TILE, Math.round(p.z / TILE) * TILE];
       const x0 = Math.min(a[0], b[0]), x1 = Math.max(a[0], b[0]), z0 = Math.min(a[1], b[1]), z1 = Math.max(a[1], b[1]);
       if (x1 - x0 < 1.5 || z1 - z0 < 1.5) { this.app.toast('Drag out a room at least 3 × 3 tiles.'); return; }
-      const ui = this.app.ui, doc = this.doc, st = new TileStroke(doc);
+      const ui = this.app.ui, doc = this.doc, st = new K.TileStroke(doc);
       if (ui.floor) for (let j = Math.round(z0 / TILE); j < Math.round(z1 / TILE); j++) for (let i = Math.round(x0 / TILE); i < Math.round(x1 / TILE); i++) if (doc.type(i, j) !== T.CHASM) st.set(i, j, T.SLATE, null);
       const td = st.finish(); if (td) this.app.renderer.tilesChanged(...td.box);
       const before = JSON.stringify(doc.objects);
@@ -451,7 +414,7 @@
       this.post = new K.PostPipeline(r);
       this.renderer = new K.WorldRenderer(r);
       this.overlay = null;
-      this.history = new History();
+      this.history = new K.History();
       this.ui = { size: { paint: 3, height: 3, carve: 4 }, terrain: T.PATH, hmode: 'raise', step: 0.5, level: 0, cmode: 'carve', depth: -8.5, wallH: 2.4, ruin: 2.0, pillars: true, floor: true, bridgeW: 1.6, prop: 'pine', propS: 1 };
       this.tools = { select: new SelectTool(this), paint: new PaintTool(this), height: new HeightTool(this), carve: new CarveTool(this), wall: new WallTool(this), room: new RoomTool(this), bridge: new BridgeTool(this), prop: new PropTool(this) };
       this.time = 0; this.last = performance.now(); this.fixedTime = null; this.frames = []; this.view = 'orbit';
@@ -509,7 +472,7 @@
     }
     applyOp(op, which) {
       const doc = this.doc;
-      if (op.tiles) { TileStroke.apply(doc, op.tiles, which); this.renderer.tilesChanged(...op.tiles.box); }
+      if (op.tiles) { K.TileStroke.apply(doc, op.tiles, which); this.renderer.tilesChanged(...op.tiles.box); }
       if (op.objs) { doc.objects = JSON.parse(which === 'old' ? op.objs[0] : op.objs[1]); if (this.sel && !doc.obj(this.sel)) this.sel = null; this.renderer.objectsChanged(); }
       this.overlay.selection(); this.panel(); this.updateButtons();
     }
@@ -947,5 +910,5 @@
   const segD = (x, z, a, b) => { const dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz || 1, t = clamp(((x - a[0]) * dx + (z - a[1]) * dz) / l2, 0, 1); return Math.hypot(x - a[0] - dx * t, z - a[1] - dz * t); };
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const describe = (o) => (o.kind === 'prop' ? (PropBuilder.PROPS[o.type] || { name: o.type }).name : o.kind === 'building' ? (K.BUILDING_PREFABS[o.prefab] || {name:'Building'}).name : o.kind === 'bridge' ? 'Bridge' : o.closed ? 'Ruined room' : 'Wall');
-  Object.assign(K, { BuilderApp, History, TileStroke });
+  Object.assign(K, { BuilderApp });
 })(typeof window !== 'undefined' ? window : globalThis);

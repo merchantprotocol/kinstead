@@ -19,11 +19,11 @@ class EngineManifest {
   static PAINT = ['11-core.js', '13-textures.js', '20-world.js'];
   /* main thread only, in dependency order (buildings need THREE, K.TexturePainter and K.WorldDoc) */
   static MAIN = [
-    '12-sprites.js', '14-post.js', '30-render.js',
+    '12-sprites.js', '14-post.js', '30-render.js', '31-camera-rig.js',
     '65-voxkit3d.js', '66-characters3d.js', '67-actor3d.js',   // 3D voxel characters; play picks the view class via K.ActorViews
     '70-building-tex.js', '71-building-data.js', '72-voxkit.js', '73-furniture.js', '74-recipes.js', '75-building-mesh.js', '76-interactions.js', '77-building-edit.js',
     '@castle-data', '@castle-art', '80-castle-rules.js',
-    '50-gen.js', '55-store.js', '56-items.js', '57-actors.js', '58-nav.js', '59-interact.js', '78-building-game.js', '62-playui.js', '63-play.js', '60-app.js', '79-building-ui.js',
+    '50-gen.js', '55-store.js', '56-items.js', '57-actors.js', '58-nav.js', '59-interact.js', '78-building-game.js', '62-playui.js', '63-play.js', '61-app-history.js', '60-app.js', '79-building-ui.js',
     '81-castle-world.js', '82-castle-mesh.js','82b-art-defense.js','82c-art-producers.js','82d-art-farming.js', '83-castle-game.js', '84-castle-ui.js', '85-castle-cursors.js', '86-castle-toolbelt.js', '87-castle-effects.js', '88-castle-work.js', '89-castle-tools.js', '90-castle-walls.js', '91-castle-combat.js', '92-castle-demolish.js', '93-castle-drawer.js', '94-castle-wolf.js', '95-castle-hut.js', '96-castle-vitals.js', '97-castle-wild.js', '98-hut-world.js', '99-castle-calendar.js', '100-castle-bow.js', '101-castle-minimap.js', '102-castle-arms.js', '103-castle-armory.js','104-castle-site.js','105-castle-stash.js','106-castle-plunder.js','107-castle-purse.js','108-castle-persist.js','109-castle-ground.js','110-castle-bear.js','111-castle-breach.js','112-castle-beasts.js','113-castle-drawbridge.js','114-castle-xp.js','115-castle-net.js','116-castle-weather.js','117-castle-banner.js','118-castle-towers.js','119-castle-economy.js','120-castle-workers.js','121-castle-wildgame.js', '122-castle-inspector.js',
   ];
   /* game data inlined as K.CASTLE_DATA (src/data is the single source; tests read the same file) */
