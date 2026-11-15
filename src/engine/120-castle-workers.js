@@ -61,7 +61,7 @@
     }
     update(dt) {
       if ((this.keepT -= dt) <= 0) { this.keepT = 2; this.syncKeepers(); this.syncHalls(); }
-      for (const j of this.jobs) j.update(dt);
+      for (const j of this.jobs) { j.update(dt); j.tick(dt); }
       this.runTimers(dt); this.turnStones(dt);
       if (this.bubbles) { this.bubbles.update(dt); this.chatter.update(dt); }
       const mp = this.g.mp; if (!mp) return; if (!this.hooked) this.hook(mp);

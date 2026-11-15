@@ -30,7 +30,7 @@
     }
     idle(e, dt) {
       const shop = this.shop; if (!shop) return;
-      const due = (this.cool -= dt) <= 0; if (due) this.cool = 8;
+      const due = this.cool <= 0; if (due) this.cool = 8;
       if (due && this.orders[0]) { this.forgeOrder(e, shop); return; }
       const l = this.market && this.counter ? this.eco.ledger(this.market) : null;
       if (!due || !l || l.amount('wood') < 2 || l.amount('arrow') >= 80) { this.w.shop.queue(this, e, shop, 'smith', 7); return; }

@@ -28,7 +28,7 @@
     }
     idle(e, dt) {
       const m = this.market, spec = this.hall; if (!spec) return;
-      const due = (this.cool -= dt) <= 0;
+      const due = this.cool <= 0;
       if (this.type === 'stable' || !due || !m || !this.counter) { if (due) this.cool = 6; this.w.shop.queue(this, e, spec, this.type, 7); return; }
       const ran = this.type === 'bakery' ? this.w.baker.round(this, e) : this.type === 'butcher' ? this.butcherRound(e) : this.brew(e);
       if (!ran) this.w.shop.queue(this, e, spec, this.type, 7);

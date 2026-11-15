@@ -35,6 +35,8 @@
       this.idle(e, dt);
     }
     idle() {}
+    /** every frame: the trade's own cooldown runs down, busy or not */
+    tick(dt) { this.cool -= dt; }
     /** meet another worker here: both stop and face each other and say their lines. give = { prop, toMe }: a load passes hands
         (toMe: they hand theirs over; otherwise I hand mine to them and they carry it off) */
     meet(e, other, mine, theirs, give) {

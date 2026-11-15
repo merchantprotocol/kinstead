@@ -13,7 +13,7 @@
     meals() { return this.g.purse.hearth.tray.reduce((s, t) => s + (t.n || 1), 0); }
     /** the meal the market's goods make right now, if the hearth has room and it is time */
     mealToCook(dt) {
-      if ((this.cool -= dt) > 0) return null; this.cool = 6;
+      if (this.cool > 0) return null; this.cool = 6;
       const m = this.market; if (!m || this.meals() >= Cook.PANTRY_MAX) return null;
       const l = this.eco.ledger(m); return K.MEALS.find((r) => Object.entries(r.need).every(([g, n]) => l.amount(g) >= n)) || null;
     }
