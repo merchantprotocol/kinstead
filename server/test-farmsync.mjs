@@ -13,7 +13,7 @@ class FakeRoom {
       },
       farms: { fields: {}, herds: {}, goods: {} },
     };
-    this.ver = { p: 1 };
+    this.ver = { p: 1, f: 1 };
     this.dirty = false;
     this.messages = [];
   }
@@ -40,7 +40,8 @@ test('farm sync persists crop updates, owner-isolates herd state, and rejects fo
     ['ann', 'ann:1', { milk: 8, beef: 3 }], ['ann', 'ann:2', { egg: 4 }],
   ]);
   assert.equal(room.dirty, true);
-  assert.equal(room.ver.p, 2);
+  assert.equal(room.ver.f, 2);
+  assert.equal(room.ver.p, 1, 'farm changes have their own version, so a sync does not resend every piece');
   assert.equal(room.messages[0].t, 'farm');
 
   sync.snapshot('ann', { fields: [], herds: [['ann:1', 'cow', 1]], goods: [] });
@@ -48,6 +49,22 @@ test('farm sync persists crop updates, owner-isolates herd state, and rejects fo
   assert.equal(Object.keys(room.world.farms.herds).length, 1);
   assert.equal(Object.values(room.world.farms.herds)[0].count, 1);
   assert.equal(Object.keys(room.world.farms.goods).length, 0);
+});
+
+test('an unchanged farm snapshot is not rebroadcast and does not bump any version', () => {
+  // risk: 30-player load — every player re-sends its farm every 8 s; unchanged ones must cost nothing.
+  const room = new FakeRoom(), sync = new FarmSync(room);
+  const farm = () => ({ fields: [[1, 2, 30]], herds: [['ann:1', 'cow', 2]], goods: [] });
+  assert.ok(sync.snapshot('ann', farm()));
+  assert.equal(sync.snapshot('ann', farm()), null);
+  assert.equal(room.messages.length, 1);
+  assert.equal(room.ver.f, 2);
+  const grown = farm();
+  grown.fields[0][2] = 31;
+  assert.ok(sync.snapshot('ann', grown));
+  assert.equal(room.messages.length, 2);
+  assert.equal(room.ver.f, 3);
+  assert.equal(Object.values(room.world.farms.fields)[0].age, 31);
 });
 
 test('an empty farm snapshot is required and malformed updates leave durable state untouched', () => {

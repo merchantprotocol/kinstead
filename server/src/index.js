@@ -12,6 +12,8 @@ import { Doors } from './Doors.js';
 import { Tribute } from './Tribute.js';
 import { MessageRouter } from './MessageRouter.js';
 import { FarmSync } from './FarmSync.js';
+import { MobRelay } from './MobRelay.js';
+import { Resync } from './Resync.js';
 
 export default {
   async fetch(request, env) {
@@ -34,9 +36,9 @@ export class GameRoom {
     this.teams = {}; this.gates = {}; this.lastHit = {};
     this.epoch = Date.now(); this.seed = 7; this.respawns = {}; this.stores = {};
     this.markets = {}; this.sales = {}; this.storesDirty = false;
-    this.lastPeriod = -1; this.ver = { p: 1, s: 1, t: 1 };
+    this.lastPeriod = -1; this.ver = { p: 1, s: 1, t: 1, g: 1, f: 1 };
     this.banners = {}; this.invites = {}; this.dirty = false; this.loaded = false; this.timer = null;
-    const services = [PlayerRegistry, WorldState, ClockWeather, Markets, Stores, Banners, Teams, Doors, Tribute, FarmSync, MessageRouter];
+    const services = [PlayerRegistry, WorldState, ClockWeather, Markets, Stores, Banners, Teams, Doors, Tribute, FarmSync, MobRelay, Resync, MessageRouter];
     for (const Service of services) new Service().install(this);
     state.blockConcurrencyWhile(async () => {
       this.plots = (await state.storage.get('plots')) || {};
@@ -99,6 +101,7 @@ export class GameRoom {
         ]);
         this.broadcast({ t: 'tick', p: batch });
       }
+      this.mobRelay.tick(online);
       if (Date.now() - last > ServerConfig.SAVE_MS) { last = Date.now(); this.save(); }
     }, ServerConfig.TICK_MS);
   }
@@ -108,6 +111,7 @@ export class GameRoom {
   }
   onClose(ws, player) {
     if (!this.sockets.has(ws)) return; this.sockets.delete(ws);
+    if (player.joined) this.mobRelay.drop(player.id);
     if (player.joined) this.broadcast({ t: 'leave', id: player.id });
     if (!this.online().length) this.save();
   }
