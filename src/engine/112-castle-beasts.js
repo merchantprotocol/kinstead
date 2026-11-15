@@ -25,7 +25,7 @@
     retreat() { this.mode = 'leave'; this.leave = this.g.L.outside.slice().sort((p, q) => dist(q, this.a) - dist(p, this.a))[0]; this.a.path = null; }
     pickFood() {
       const a = this.a, now = this.P.t;
-      return this.g.home.stores.filter((s) => s.res === 'food' && s.present && s.amount >= 1 && !(this.bad.get(s) > now)).sort((p, q) => dist(p.ent, a) - dist(q.ent, a))[0] || null;
+      return this.g.home.stores.filter((s) => (s.res === 'food' || s.res === 'bread') && s.present && s.amount >= 1 && !(this.bad.get(s) > now)).sort((p, q) => dist(p.ent, a) - dist(q.ent, a))[0] || null;
     }
     update(dt) {
       const g = this.g, a = this.a, me = this.P.me; if (!this.tickDead(dt)) return;
@@ -56,7 +56,7 @@
     constructor(game) { this.g = game; this.t = 0; this.chk = 10; this.next = 0; this.shutOut = 0; }
     get wild() { return this.g.wild; }
     bears() { return this.g.play.actors.filter((a) => a.alive && a.bear); }
-    foodStores() { return this.g.home.stores.filter((s) => s.res === 'food' && s.present && s.amount >= 1); }
+    foodStores() { return this.g.home.stores.filter((s) => (s.res === 'food' || s.res === 'bread') && s.present && s.amount >= 1); }   // a bear wants everything edible; wolves only want raw meat
     /** could a wolf get to this food (walk, or dig through dirt)? */
     wolfCanReach(from, store) {
       const probe = { x: from.x, z: from.z, speed: 2.8, view: { setState() {}, setFacing() {}, state: '' }, atk: 0 };
@@ -69,7 +69,7 @@
       const stores = this.foodStores(); if (!stores.length) return;
       const from = this.wild.edgePoint(); if (!from) return;
       const near = stores.sort((p, q) => dist(p.ent, from) - dist(q.ent, from)).slice(0, 3);
-      if (near.some((s) => this.wolfCanReach(from, s))) { this.shutOut = 0; return; }
+      if (near.some((s) => s.res === 'food' && this.wolfCanReach(from, s))) { this.shutOut = 0; return; }   // wolves can still get at raw meat: no bear yet
       this.shutOut += 6; if (this.shutOut < 60) return;     // the wolves have been shut out for a good while
       this.spawn(from); this.next = this.t + 240; this.shutOut = 0;
     }

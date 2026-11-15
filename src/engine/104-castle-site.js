@@ -167,5 +167,27 @@
     dispose() { this.clearGhost(); }
   }
 
-  Object.assign(K, { Forest, BuildingSite });
+  /** Every other thing you place (gates, workshops, storehouse): press to set it down, hold and swing the mouse to turn
+      it to face that way (in 15-degree steps), let go to build. A plain click builds it facing the way it was going to. */
+  class PieceSteer {
+    constructor(game) { this.g = game; this.stroke = null; }
+    get placing() { const g = this.g, P = g.cui.placing; return P && !g.walls.handles(P.type) && !g.site.handles(P.type) ? P : null; }
+    down(sx, sy) {
+      const P = this.placing; if (!P) return false; this.g.cui.moveGhost(sx, sy); if (!P.at) return true;
+      this.stroke = { x: P.at.x, z: P.at.z, rot: P.at.rot, turned: false }; return true;
+    }
+    drag(sx, sy) {
+      const s = this.stroke, P = this.placing; if (!s || !P) return; const p = this.g.app.pickGround(sx, sy); if (!p) return;
+      const dx = p.x - s.x, dz = p.z - s.z; if (Math.hypot(dx, dz) < 0.8) return;   // a small wobble does not turn it
+      s.rot = Math.round(Math.atan2(dx, dz) / (Math.PI / 12)) * (Math.PI / 12); s.turned = true;
+      const why = this.g.placementOk(P.type, s.x, s.z, s.rot); P.ghost.rotation.y = s.rot; P.ghost.position.set(s.x, this.g.play.nav.y(s.x, s.z), s.z); K.CastleArt.tintGhost(P.ghost, !why); P.at = { x: s.x, z: s.z, rot: s.rot, why };
+      this.g.play.ui.tip(why ? `<b>Can’t build here</b> · ${why}` : `<b>${this.g.data.piece(P.type).name}</b> · let go to build it facing this way`, sx, sy);
+    }
+    up(sx, sy) {
+      const s = this.stroke; this.stroke = null; if (!s) return; const g = this.g, P = g.cui.placing; if (!P || !P.at) return;
+      g.buildAt(P.type, P.at.x, P.at.z, s.rot); g.cui.stopPlacing();
+    }
+  }
+
+  Object.assign(K, { Forest, BuildingSite, PieceSteer });
 })(typeof window !== 'undefined' ? window : globalThis);

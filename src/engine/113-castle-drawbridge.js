@@ -57,5 +57,38 @@
     dispose() { this.g.group.remove(this.mesh); this.restore(); this.archTiles((i, j) => this.g.gateTiles.delete(i + ',' + j)); }
   }
 
-  K.Drawbridge = Drawbridge; K.STONE_GATE_SIZE = ARCH;
+  /** The wooden gate: two planked leaves on the end posts. Shut, nobody walks through (you click it to open); open, anyone can.
+      It shuts itself again once you walk away. Same API as Drawbridge so the game treats them alike. */
+  class WoodGate {
+    constructor(game, piece) {
+      this.g = game; this.p = piece; this.open = false; this.angle = 0; this.away = 0;
+      this.mesh = new THREE.Group(); this.leaves = [];
+      for (const s of [-1, 1]) {
+        const k = new K.VoxKit(); k.box('planks', -s * 0.5, 0.02, 0, 0.8, 0.98, 0.12); k.box('timber', -s * 0.5, 0.22, 0.07, 0.8, 0.09, 0.04); k.box('timber', -s * 0.5, 0.7, 0.07, 0.8, 0.09, 0.04); k.box('iron', -s * 0.9, 0.45, 0.08, 0.06, 0.12, 0.04);
+        const leaf = new THREE.Group(); for (const m of k.meshes(game.R.bmats)) leaf.add(m); leaf.position.set(s * 0.9, 0, 0); this.mesh.add(leaf); this.leaves.push([s, leaf]);   // hinged on the end posts
+      }
+      this.mesh.position.set(piece.x, game.play.nav.y(piece.x, piece.z), piece.z); this.mesh.rotation.y = piece.rot; game.group.add(this.mesh);
+    }
+    get nav() { return this.g.play.nav; }
+    tiles(fn) { const p = this.p; this.g.rectTiles(p.x, p.z, 2, 0.5, p.rot, fn); }
+    apply() {
+      const g = this.g, nav = this.nav, w = nav.w;
+      this.tiles((i, j) => { const k = j * w + i; g.occ[k] = 1; nav.walk[k] = this.open ? 1 : 0; if (this.open) g.gateTiles.delete(i + ',' + j); else g.gateTiles.add(i + ',' + j); });
+    }
+    occupied() { let busy = false; const nav = this.nav; this.tiles((i, j) => { for (const a of this.g.play.actors) if ((a.alive || a === this.g.play.me) && nav.tile(a.x, a.z).join() === i + ',' + j) busy = true; }); return busy; }
+    toggle() {
+      const g = this.g;
+      if (this.open) { if (this.occupied()) { g.cui.toast('Something is in the gateway.'); return; } this.open = false; g.sound.play('thunk'); g.cui.toast('Gate shut.'); }
+      else { this.open = true; this.away = 0; g.sound.play('clank'); g.cui.toast('Gate open.'); }
+      this.apply();
+    }
+    update(dt) {
+      const target = this.open ? 1.5 : 0; this.angle += (target - this.angle) * Math.min(1, dt * 7);
+      for (const [s, leaf] of this.leaves) leaf.rotation.y = s * this.angle;
+      if (this.open) { const me = this.g.play.me, d = Math.hypot(me.x - this.p.x, me.z - this.p.z); this.away = d > AUTO_CLOSE_DIST ? this.away + dt : 0; if (this.away > 2 && !this.occupied()) { this.open = false; this.apply(); this.g.cui.toast('The gate swings shut.'); } }
+    }
+    dispose() { this.g.group.remove(this.mesh); this.tiles((i, j) => this.g.gateTiles.delete(i + ',' + j)); }
+  }
+
+  K.WoodGate = WoodGate; K.Drawbridge = Drawbridge; K.STONE_GATE_SIZE = ARCH;
 })(typeof window !== 'undefined' ? window : globalThis);

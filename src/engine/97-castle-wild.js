@@ -56,7 +56,7 @@
       this.noWay = !a.path; const moved = a.path ? P.move(a, dt, speed) : false; this.anim(moved, speed); return moved;   // noWay: the ground does not connect (a shut door)
     }
     /** tiles this creature may never path through: every gate. (You walk through your own gate; nothing else does.) */
-    blocker() { const g = this.g; return (i, j) => g.gateTiles.has(i + ',' + j); }
+    blocker() { const g = this.g; return (i, j) => g.gateTiles.has(i + ',' + j) || g.home.door.shutFor(i, j); }
     face(t) { this.a.view.setFacing(t.x - this.a.x, t.z - this.a.z); }
     anim(moving, speed = 3) {
       const v = this.a.view; if (v.state === 'attack' || v.state === 'hurt' || v.state === 'action') return;

@@ -41,9 +41,10 @@
       return {
         floorY: (x, z) => play.nav.y(x, z), hero: () => play.me, time: () => play.t,
         sound: (n) => g.sound.play(n), shake: (s) => { g.shakeT = Math.max(g.shakeT || 0, s); },
-        canTake: (kind) => kind === 'furn' || g.castle.amount(kind) < (g.castle.caps()[kind] || 0),
+        canTake: (kind) => kind === 'furn' || (kind === 'bread' && play.player.canAdd('bread', 1)) || g.castle.amount(kind) < (g.castle.caps()[kind] || 0),
         notifyFull: (kind) => { if (play.t - this.fullAt < 2) return; this.fullAt = play.t; g.cui.toast(`Your ${K.CastleData.resName(kind)} store is full.`); g.cui.flashRes(kind); },
         grant: (p) => {
+          if (p.kind === 'bread') { play.player.addItem('bread', p.value); play.float(play.me, '+1 bread', 'loot'); g.sound.play('gather'); return; }   // loaves go in your bag
           if (p.payload && p.payload.restore) { p.payload.restore(); g.sound.play('thunk'); return; }   // a stolen piece of furniture coming home
           const c = g.castle, got = Math.round(p.exact || p.kind === 'dirt' ? c.add(p.kind, p.value) : c.gather(p.kind, p.value));
           if (got > 0) { play.float(play.me, `+${got}`, 'loot', K.CastleUI.ICON[p.kind]); g.cui.bump(p.kind); g.sound.play('gather'); g.changed(); }

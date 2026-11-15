@@ -6,7 +6,7 @@
 (function (G) {
   const K = G.K, THREE = G.THREE;
   const rnd = (a, b) => a + Math.random() * (b - a);
-  const COLOR = { dirt: 0x6b4a2b, stone: 0x9aa3b0, wood: 0x6a4424, iron: 0x9a5a3a, snow: 0xeef5fb, leaf: 0x1f4a32, gold: 0xe2a63a, ember_shard: 0xff7a2a, food: 0xd9824a, furn: 0xb07a3a };
+  const COLOR = { dirt: 0x6b4a2b, stone: 0x9aa3b0, wood: 0x6a4424, iron: 0x9a5a3a, snow: 0xeef5fb, leaf: 0x1f4a32, gold: 0xe2a63a, ember_shard: 0xff7a2a, food: 0xc9484f, bread: 0xd9a050, furn: 0xb07a3a };
 
   /** Shared geometry + materials, and the one place that makes a little mesh of a given kind. */
   class Materials {

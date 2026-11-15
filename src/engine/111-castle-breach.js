@@ -55,6 +55,7 @@
     /** what stops a step from tile p to tile t, or null when it is open */
     classify(p, t) {
       const nav = this.nav, w = nav.w, k = t[1] * w + t[0], pk = p[1] * w + p[0], piece = this.pieceOn(t[0], t[1]);
+      if (piece && GATES.has(piece.type) && piece.bridge && piece.bridge.open) return null;   // an open gate is just a way through
       if (piece && (!nav.walk[k] || GATES.has(piece.type) || this.g.gateTiles.has(t[0] + ',' + t[1]))) return this.breakable(piece) ? { piece } : { stuck: true };
       if (!nav.walk[k]) return { stuck: true };   // a tree, a rock, water, the house
       if (Math.abs(nav.S[k] - nav.S[pk]) > this.climb) { const hi = nav.S[k] > nav.S[pk] ? t : p; return this.raised(hi[0], hi[1]) ? { dig: hi } : { stuck: true }; }   // too steep: dig your dirt, give up on a hole or a cliff

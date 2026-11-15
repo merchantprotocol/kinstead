@@ -16,14 +16,15 @@
   const STORES = (() => {
     const out = [
       { id: 'wood', kind: 'barrel', name: 'Wood barrel', res: 'wood', dx: 2.5, dz: 2.9 }, { id: 'stone', kind: 'barrel', name: 'Stone barrel', res: 'stone', dx: 3.25, dz: 2.5 },
-      { id: 'food', kind: 'barrel', name: 'Food barrel', res: 'food', dx: 2.05, dz: 3.6, own: 6 },
-      { id: 'larder', kind: 'crate', name: 'Food crate', res: 'food', dx: 0.45, dz: 3.8, own: 5 },
+      { id: 'food', kind: 'barrel', name: 'Meat barrel', res: 'food', dx: 2.05, dz: 3.6, own: 6 },
+      { id: 'larder', kind: 'crate', name: 'Meat crate', res: 'food', dx: 0.45, dz: 3.8, own: 5 },
+      { id: 'bread1', kind: 'crate', name: 'Crate of bread', res: 'bread', dx: -2.1, dz: 3.0, own: 8 }, { id: 'bread2', kind: 'crate', name: 'Crate of bread', res: 'bread', dx: -2.9, dz: 2.4, own: 8 }, { id: 'bread3', kind: 'crate', name: 'Crate of bread', res: 'bread', dx: 1.3, dz: 3.2, own: 6 },
       { id: 'arrows1', kind: 'crate', name: 'Arrow crate', res: 'arrow', dx: -0.7, dz: 3.9, own: 14 }, { id: 'arrows2', kind: 'crate', name: 'Arrow crate', res: 'arrow', dx: -1.45, dz: 3.6, own: 12 },
     ];
     /* piled against the walls of the house: barrels and stacked crates, nearly all food. dx/dz are metres from the house centre. */
     const pile = (tag, spots) => spots.forEach(([dx, dz], i) => out.push(i % 3 === 1
-      ? { id: `${tag}${i}`, kind: 'crate', stack: 2, name: 'Stacked crates of food', res: 'food', dx, dz, own: 10 }
-      : { id: `${tag}${i}`, kind: i % 3 === 0 ? 'barrel' : 'crate', name: i % 3 === 0 ? 'Barrel of food' : 'Crate of food', res: 'food', dx, dz, own: i % 3 === 0 ? 8 : 5 }));
+      ? { id: `${tag}${i}`, kind: 'crate', stack: 2, name: 'Stacked crates of raw meat', res: 'food', dx, dz, own: 10 }
+      : { id: `${tag}${i}`, kind: i % 3 === 0 ? 'barrel' : 'crate', name: i % 3 === 0 ? 'Barrel of raw meat' : 'Crate of raw meat', res: 'food', dx, dz, own: i % 3 === 0 ? 8 : 5 }));
     pile('w', [[-3.1, -1.2], [-3.1, -0.4], [-3.1, 0.4], [-3.1, 1.2], [-3.75, -0.8], [-3.75, 0], [-3.75, 0.8]]);          // west wall, two deep
     pile('e', [[3.1, -1.2], [3.1, -0.4], [3.1, 0.4], [3.1, 1.2], [3.75, -0.8], [3.75, 0], [3.75, 0.8]]);                 // east wall, two deep
     pile('n', [[-2, -2.2], [-1.2, -2.2], [-0.4, -2.2], [0.4, -2.2], [1.2, -2.2], [2, -2.2], [-1.6, -2.85], [-0.4, -2.85], [0.8, -2.85], [1.9, -2.85]]);   // behind the house, two deep
@@ -49,7 +50,8 @@
     /** the voxel model: subclasses build the container, this adds what is in it */
     draw(def) { throw new Error('Store.draw'); }
     contents(k, res, top = 0.5) {
-      if (res === 'food') { k.box('bread', -0.08, top, 0.02, 0.16, 0.08, 0.1, 0.4); k.box('bread', 0.08, top, -0.05, 0.14, 0.08, 0.1, -0.3); k.box('food', 0, top, 0.09, 0.1, 0.06, 0.08); }
+      if (res === 'bread') { k.box('bread', -0.08, top, 0.02, 0.16, 0.08, 0.1, 0.4); k.box('bread', 0.08, top, -0.05, 0.14, 0.08, 0.1, -0.3); k.box('bread', 0, top + 0.08, 0.04, 0.14, 0.07, 0.1, 0.1); }
+      else if (res === 'food') { k.box('food', -0.08, top, 0.02, 0.15, 0.09, 0.11, 0.4); k.box('food', 0.08, top, -0.05, 0.13, 0.08, 0.1, -0.3); k.box('food', 0, top, 0.09, 0.1, 0.07, 0.08); }   // raw meat
       else if (res === 'wood') for (const [bx, bz, r] of [[-0.07, 0, 0.2], [0.07, 0.02, -0.2], [0, -0.07, 0.6]]) k.box('wood', bx, top, bz, 0.05, 0.28, 0.05, r, 0.5, 0.2);
       else if (res === 'arrow') for (let i = -2; i <= 2; i++) { k.box('wood', i * 0.06, top, 0.02 * i, 0.02, 0.32, 0.02, 0, 0.1 * i, 0.05 * i); k.box('snow', i * 0.06, top + 0.3, 0.02 * i, 0.05, 0.05, 0.02); }   // arrows, feathers up
       else if (res === 'stone') { k.box('boulder', -0.07, top, 0, 0.14, 0.1, 0.12, 0.3); k.box('boulder', 0.07, top, 0.04, 0.12, 0.09, 0.1, -0.4); }
@@ -101,7 +103,7 @@
   class Door {
     static HP = 60; static REPAIR_WOOD = 3;
     constructor(home) {
-      this.home = home; this.open = false; this.hp = Door.HP; this.broken = false; const g = home.g, b = home.spec, d = b.doors.find((q) => q.kind === 'exterior');
+      this.home = home; this.open = false; this.locked = false; this.hp = Door.HP; this.broken = false; const g = home.g, b = home.spec, d = b.doors.find((q) => q.kind === 'exterior');
       this.tiles = []; for (let k = 0; k < d.w; k++) this.tiles.push([b.x + d.x + k, b.z + d.z]);   // the doorway tiles (the row just inside the door)
       const cx = (b.x + d.x + d.w / 2) * TILE, cz = (b.z + d.z + 0.5) * TILE, fy = g.play.nav.y(cx, cz);
       const k = new K.VoxKit(), w = d.w * TILE - 0.06;
@@ -112,6 +114,8 @@
       this.apply();
     }
     get blocked() { return !this.open && !this.broken; }
+    /** a shut door that is not bolted opens for you by itself, so for planning your walk it is open; creatures still treat it as shut */
+    shutFor(i, j) { return !this.open && !this.broken && this.tiles.some(([a, b]) => a === i && b === j); }
     /** an armed enemy hits the door; at 0 it is broken (open for good until you repair it) */
     hurt(n) {
       if (this.broken) return; this.hp -= n; const g = this.home.g; g.play.float(this.ent, '-' + n, 'hurt');
@@ -124,11 +128,17 @@
     }
     /** write the door into the ground: shut = the doorway tiles cannot be walked */
     apply() {
-      const nav = this.home.g.play.nav; for (const [i, j] of this.tiles) nav.walk[j * nav.w + i] = this.open ? 1 : 0;
+      const nav = this.home.g.play.nav; for (const [i, j] of this.tiles) nav.walk[j * nav.w + i] = (this.open || !this.locked) && !this.broken || this.broken ? 1 : 0;
       this.leaf.visible = !this.broken;   // one leaf only: shut across the doorway, or swung open into the room
     }
     /** swing the leaf toward open or shut */
-    update(dt) { const t = this.open ? 1.35 : 0, step = dt * 6; this.angle += Math.max(-step, Math.min(step, t - this.angle)); this.leaf.rotation.y = this.angle; }
+    /** it opens as you walk up and shuts behind you, unless you bolted it by shutting it yourself */
+    auto() {
+      if (this.broken || this.locked) return; const g = this.home.g, me = g.play.me; if (!me.alive) return; const d = Math.hypot(me.x - this.ent.x, me.z - this.ent.z);
+      if (!this.open && d < 1.9) { this.open = true; this.apply(); g.sound.play('clank'); }
+      else if (this.open && d > 2.8 && !this.occupied()) { this.open = false; this.apply(); g.sound.play('thunk'); }
+    }
+    update(dt) { this.auto(); const t = this.open ? 1.35 : 0, step = dt * 6; this.angle += Math.max(-step, Math.min(step, t - this.angle)); this.leaf.rotation.y = this.angle; }
     /** something (you or a creature) is standing in the doorway */
     occupied() {
       const P = this.home.g.play, r = 0.55;
@@ -137,8 +147,8 @@
     toggle() {
       const g = this.home.g;
       if (this.broken) { this.repair(); return; }
-      if (!this.open) { this.open = true; g.sound.play('clank'); g.cui.toast('The door is open. Anyone can walk in.'); }
-      else { if (this.occupied()) { g.cui.toast('Something is in the way.'); g.sound.play('clank'); return; } this.open = false; g.sound.play('thunk'); g.cui.toast('Door shut.'); }
+      if (!this.open) { this.open = true; this.locked = false; g.sound.play('clank'); g.cui.toast('Door open. It opens and shuts for you by itself.'); }
+      else { if (this.occupied()) { g.cui.toast('Something is in the way.'); g.sound.play('clank'); return; } this.open = false; this.locked = true; g.sound.play('thunk'); g.cui.toast('Door bolted shut. Click it to unbolt.'); }
       this.apply();
     }
   }
@@ -184,6 +194,17 @@
     takeArrows(store) {
       const g = this.g; if (!store || store.amount <= 0) { g.cui.toast('Nothing left to take.'); return; }
       const n = store.rob(8); g.castle.add('arrow', n); g.play.float(g.play.me, `+${n} arrows`, 'loot'); g.sound.play('gather'); g.changed();
+    }
+    /** bread: eat a loaf on the spot (a good bit of strength) or take one with you */
+    eatBread(store) {
+      const g = this.g; if (!store || store.amount <= 0) { g.cui.toast('Nothing left to take.'); return; }
+      const hp = K.BUILDING_DATA.FOOD.bread.hp, p = g.play.player; if (p.hp >= p.stats().hpMax) { g.cui.toast('You are not hungry.'); return; }
+      store.rob(1); p.heal(hp); g.play.float(g.play.me, `+${hp}`, 'heal'); g.sound.play('gather');
+    }
+    takeBread(store) {
+      const g = this.g, p = g.play.player; if (!store || store.amount <= 0) { g.cui.toast('Nothing left to take.'); return; }
+      if (!p.canAdd('bread', 1)) { g.cui.toast('Your bag is full.'); return; }
+      store.rob(1); p.addItem('bread', 1); g.play.float(g.play.me, '+1 bread', 'loot'); g.sound.play('gather');
     }
     takeFood(store) {
       const g = this.g, p = g.play.player; if (!store || store.amount <= 0) { g.cui.toast('Nothing left to take.'); return; }

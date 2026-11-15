@@ -209,7 +209,7 @@
       this.kinActors = {}; this.troll = null;
       this.restoreNodes();
       this.raid = null;
-      this.cui = new K.CastleUI(this); this.vitals = new K.Vitals(this); this.wild = new K.Wild(this); this.calendar.on((ev) => this.onCalendar(ev)); this.tools = new K.CastleTools(this); this.minimap = new K.Minimap(this); this.walls = new K.WallDrawer(this); this.xp = this.xp || new K.Experience(this); this.forest = new K.Forest(this); this.brush = new K.GroundBrush(this); this.purse = new K.Purse(this); this.stash = new K.Stash(this); this.site = new K.BuildingSite(this); this.sweep = new K.SweepAttack(this); this.demolisher = new K.Demolisher(this); this.play.refreshProps();
+      this.cui = new K.CastleUI(this); this.vitals = new K.Vitals(this); this.wild = new K.Wild(this); this.calendar.on((ev) => this.onCalendar(ev)); this.tools = new K.CastleTools(this); this.minimap = new K.Minimap(this); this.walls = new K.WallDrawer(this); this.xp = this.xp || new K.Experience(this); this.forest = new K.Forest(this); this.brush = new K.GroundBrush(this); this.steer = new K.PieceSteer(this); this.purse = new K.Purse(this); this.stash = new K.Stash(this); this.site = new K.BuildingSite(this); this.sweep = new K.SweepAttack(this); this.demolisher = new K.Demolisher(this); this.play.refreshProps();
       if (this.day.isNight) this.startRaid();
       play.app.rig.set({ dist: 11, pitch: 0.78 }); play.app.rig.maxDist = 44;   // you can never zoom out far enough to see the edge of the world
       this.persist = new K.Persist(this); if (this.saved && this.saved.extras) { try { this.persist.restore(this.saved.extras); } catch (err) { console.warn('could not restore the homestead', err); } }
@@ -282,7 +282,7 @@
     addPieceMesh(p) {
       const m = this.art.piece(p.type, { level: p.level }); this.place(m, p.x, p.z, p.rot); this.meshes.set('p' + p.uid, m);
       if (p.frosted || this.castle.isFrosted(p)) this.setFrost(p, true);
-      if (p.type === 'stone_gate' && !p.bridge) p.bridge = new K.Drawbridge(this, p);
+      if (K.Breacher.GATES.has(p.type) && !p.bridge) p.bridge = p.type === 'gate' ? new K.WoodGate(this, p) : new K.Drawbridge(this, p);
       this.blockPiece(p); return m;
     }
     /* a piece's footprint blocks the ground (walls a hair longer so a run of them has no gaps) */
@@ -301,8 +301,8 @@
     gateTilesOf(p) { const out = [], [w, d] = CastleArt.size(p.type); this.rectTiles(p.x, p.z, w, d, p.rot, (i, j) => out.push(i + ',' + j)); return out; }
     isSanctuary(x, z) { return this.insideBuilding(x, z) || this.gateTiles.has(Math.floor(x / TILE) + ',' + Math.floor(z / TILE)); }
     blockPiece(p) {
-      if (p.type === 'stone_gate') { if (p.bridge) p.bridge.apply(); return; }   // its tiles follow the drawbridge: shut, nothing passes; lowered, you do
-      if (p.type === 'gate') { const nav = this.play.nav; this.rectTiles(p.x, p.z, 2, 0.5, p.rot, (i, j) => { this.occ[j * nav.w + i] = 1; this.gateTiles.add(i + ',' + j); }); return; }   // occupied for building, but you can walk through
+      if (K.Breacher.GATES.has(p.type)) { if (p.bridge) p.bridge.apply(); return; }   // a gate's tiles follow its leaves or bridge: shut, nothing passes; open, you do
+      if (p.type === 'gate_old') { const nav = this.play.nav; this.rectTiles(p.x, p.z, 2, 0.5, p.rot, (i, j) => { this.occ[j * nav.w + i] = 1; this.gateTiles.add(i + ',' + j); }); return; }   // occupied for building, but you can walk through
       const [w, d] = CastleArt.size(p.type); this.blockRect(p.x, p.z, this.walls.handles(p.type) ? w + 0.04 : w, d, p.rot, p.type === 'gatehouse'); }
     /* the piece standing on this ground point, or null */
     pieceAt(x, z, pad = 0.2) {
@@ -350,7 +350,7 @@
       } else if (e.type === 'c_piece') {
         const p = e.piece, up = c.upgradeInfo(p);
         if (this.tools.tool.id === 'hammer' && c.canDemolish(p)) act('demolish', 'Take down…', 'hammer', () => this.demolisher.ask(p), { range: e.r + 0.8 });   // hammer only, and it asks
-        if (p.type === 'stone_gate' && p.bridge) act('bridge', p.bridge.open ? 'Raise the drawbridge' : 'Lower the drawbridge', 'hand', () => p.bridge.toggle(), { range: 3.4 });
+        if (K.Breacher.GATES.has(p.type) && p.bridge) act('bridge', p.type === 'gate' ? (p.bridge.open ? 'Shut the gate' : 'Open the gate') : (p.bridge.open ? 'Raise the drawbridge' : 'Lower the drawbridge'), 'hand', () => p.bridge.toggle(), { range: p.type === 'gate' ? 2.6 : 3.4 });
         if (up) { const pb = c.upgradePayback(p), why = c.upgradeBlocker(p); act('upgrade', `Upgrade to Level 2: ${fmtCost(c.upgradeCost(p))}${pb != null ? ` · pays back in ${pb.toFixed(1)} min` : ''}${why ? ' (' + why + ')' : ''}`, 'hammer', () => this.upgrade(p), { range: e.r + 0.8 }); }
         const st = { smithy: 'craft_iron_sword', ember_forge: 'craft_ember_brand' }[p.type];
         if (st && !c.weapons.has(this.data.recipe(st).id.replace('craft_', ''))) act('craft', `Forge ${this.data.item(st.replace('craft_', '')).name} · ${fmtCost(this.data.recipe(st).inputs)}`, st === 'craft_iron_sword' ? 'sword' : 'brand', () => this.craft(st), { range: e.r + 0.8 });
@@ -362,7 +362,8 @@
       } else if (e.type === 'c_barrel') {
         const rg = e.r + 0.8, st = e.store;
         if (st.pile) act('take', `Pick up the ${e.name.toLowerCase()} (${st.amount})`, 'hand', () => this.stash.take(st), { range: rg }); else
-        if (e.res === 'food') act('take', `Take a turnip (${st.amount} left)`, 'hand', () => this.home.takeFood(st), { range: rg });
+        if (e.res === 'bread') { act('eat', `Eat a loaf (+${K.BUILDING_DATA.FOOD.bread.hp} strength · ${st.amount} left)`, 'hand', () => this.home.eatBread(st), { range: rg }); act('take', 'Take a loaf', 'hand', () => this.home.takeBread(st), { range: rg }); }
+        else if (e.res === 'food') act('take', `Take some raw food (${st.amount} left)`, 'hand', () => this.home.takeFood(st), { range: rg });
         else if (e.res === 'arrow') act('take', `Take arrows (${st.amount} left)`, 'hand', () => this.home.takeArrows(st), { range: rg });
         else act('look', `${e.name}: ${st.amount} ${K.CastleData.resName(e.res)}`, 'eye', () => this.cui.toast(`${st.amount} ${K.CastleData.resName(e.res)} stored here.`), { range: rg });
         if (!st.pile && st.stock != null && st.stock > 0) act('pickup', `Pick up everything (${st.stock})`, 'hand', () => this.stash.take(st), { range: rg });   // crates and barrels can be emptied into your purse and put down elsewhere
@@ -853,9 +854,9 @@
     click(sx, sy) { this.sound.unlock(); return this.tools.click(sx, sy); }
     pointerMove(sx, sy) { return this.cui.pointerMove(sx, sy); }
     rightClick(sx, sy) { return this.stash.rightClick(sx, sy); }
-    pointerDown(sx, sy) { return this.brush.down(sx, sy) || this.site.down(sx, sy) || this.walls.down(sx, sy) || this.demolisher.down(sx, sy); }
-    pointerDrag(sx, sy) { this.brush.drag(sx, sy); this.site.drag(sx, sy); this.walls.drag(sx, sy); this.demolisher.drag(sx, sy); }
-    pointerUp(sx, sy) { this.brush.up(sx, sy); this.site.up(sx, sy); this.walls.up(sx, sy); this.demolisher.up(sx, sy); }
+    pointerDown(sx, sy) { return this.brush.down(sx, sy) || this.site.down(sx, sy) || this.steer.down(sx, sy) || this.walls.down(sx, sy) || this.demolisher.down(sx, sy); }
+    pointerDrag(sx, sy) { this.brush.drag(sx, sy); this.site.drag(sx, sy); this.steer.drag(sx, sy); this.walls.drag(sx, sy); this.demolisher.drag(sx, sy); }
+    pointerUp(sx, sy) { this.brush.up(sx, sy); this.site.up(sx, sy); this.steer.up(sx, sy); this.walls.up(sx, sy); this.demolisher.up(sx, sy); }
     key(e) {
       this.sound.unlock();
       if (e.key === 'Escape') { if (!this.dismissTop()) { if (this.onLeave) this.onLeave(); } return true; }   // Esc closes what is open, else leaves the game
