@@ -1,15 +1,12 @@
 /* Copyright (c) 2026 Merchant Protocol. All rights reserved. */
 (function (G) {
   const K = G.K, THREE = G.THREE, V3 = THREE.Vector3;
-  const { TILE, HQ, T, TERRAINS, PRESETS, WorldDoc, PropBuilder } = K;
-  const $ = (id) => document.getElementById(id);
-  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-  const r3 = (v) => Math.round(v * 1000) / 1000;
   class BuilderApp extends K.BuilderAppInput {
+    static byId(id) { return document.getElementById(id); }
     resize() {
-      const tb = $('top').offsetHeight || 46;
-      $('tools').style.top = $('insp').style.top = (tb + 18) + 'px';
-      $('insp').style.maxHeight = `calc(100vh - ${tb + 80}px)`;
+      const tb = BuilderApp.byId('top').offsetHeight || 46;
+      BuilderApp.byId('tools').style.top = BuilderApp.byId('insp').style.top = (tb + 18) + 'px';
+      BuilderApp.byId('insp').style.maxHeight = `calc(100vh - ${tb + 80}px)`;
       const w = Math.round(this.stage.clientWidth) || 1600, h = Math.round(this.stage.clientHeight) || 900;
       this.applySize(w, h);
     }
@@ -50,7 +47,7 @@
         this.fpsT = now;
         const pending = this.renderer.pending;
         const jobs = pending ? ` · painting ${pending} chunk jobs` : '';
-        $('sFps').textContent = `${this.frames.length} fps${jobs}`;
+        BuilderApp.byId('sFps').textContent = `${this.frames.length} fps${jobs}`;
       }
     }
     /* test hook: deterministic capture at a given size and time (same as the diorama's) */

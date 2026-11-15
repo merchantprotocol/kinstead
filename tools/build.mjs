@@ -19,7 +19,9 @@ class EngineManifest {
   static PAINT = ['11-core.js', '13-textures.js', '20-world.js'];
   /* main thread only, in dependency order (buildings need THREE, K.TexturePainter and K.WorldDoc) */
   static MAIN = [
-    '12-sprites.js', '14-post.js', '30-render.js', '31-camera-rig.js', '32-prop-builder.js', '33-render-support.js', '34-world-renderer-core.js', '35-world-renderer.js',
+    '12-sprites.js', '14-post.js', '30-render.js', '30a-geometry-builder.js',
+    '30b-geometry-primitives.js', '31-camera-rig.js', '32-prop-builder.js',
+    '33-render-support.js', '34-world-renderer-core.js', '35-world-renderer.js',
     '65-voxkit3d.js', '66-characters3d.js', '67-actor3d.js',   // 3D voxel characters; play picks the view class via K.ActorViews
     '70-building-tex.js', '71-building-data.js', '72-voxkit.js', '73-furniture.js', '74-recipes.js', '75-building-mesh.js', '76-interactions.js', '77-building-edit.js',
     '@castle-data', '@castle-art', '80-castle-rules.js',
