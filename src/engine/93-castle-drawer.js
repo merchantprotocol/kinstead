@@ -40,12 +40,20 @@ const BUILDABLE = new Set(['dirt', 'palisade', 'gate', 'stone_wall', 'stone_gate
     }
     chips(cost) { const ICON = K.CastleUI.ICON; return Object.entries(cost).map(([r, k]) => `<span class="chip ${this.c.amount(r) >= k ? '' : 'bad'}">${K.Icons.img(ICON[r], 1)}${k}</span>`).join(''); }
     row(x) {
-      const key = `${x.kind}:${x.id}`; this.entries.set(key, x);
-      return `<div class="dw-entry"><button class="dw-row ${x.state}" data-id="${esc(x.id)}" data-kind="${x.kind}" data-why="${esc(x.why || '')}">${this.cui.art.html(x.art || x.id, x.icon, 40)}
-        <div class="dw-t"><b>${esc(x.name)}</b><div class="cost">${this.chips(x.cost)}</div><small>${esc(x.state === 'locked' ? x.why : x.line)}</small></div></button><button class="dw-info" data-detail="${esc(key)}" aria-label="Details for ${esc(x.name)}">i</button></div>`;
+      const key = `${x.kind}:${x.id}`;
+      this.entries.set(key, x);
+      return `<div class="dw-entry">
+        <button class="dw-row ${x.state}" data-id="${esc(x.id)}" data-kind="${x.kind}" data-why="${esc(x.why || '')}">
+          ${this.cui.art.html(x.art || x.id, x.icon, 40)}
+          <div class="dw-t"><b>${esc(x.name)}</b><div class="cost">${this.chips(x.cost)}</div>
+            <small>${esc(x.state === 'locked' ? x.why : x.line)}</small></div>
+        </button>
+        <button class="dw-info" data-detail="${esc(key)}" aria-label="Details for ${esc(x.name)}">i</button>
+      </div>`;
     }
     catalogHtml() {
-      this.entries.clear(); const c = this.c, d = c.data, S = K.CastleUI, rows = [];
+      this.entries.clear();
+      const c = this.c, d = c.data, S = K.CastleUI, rows = [];
       for (const id of d.pieceIds()) {
         if (!BUILDABLE.has(id)) continue;
         const ruin = c.ruinOpen(id), p = d.piece(id), why = c.blocker(id, { ruin, ignoreCost: true }); if (why && /already/.test(why)) continue;
@@ -61,7 +69,11 @@ const BUILDABLE = new Set(['dirt', 'palisade', 'gate', 'stone_wall', 'stone_gate
 
     /* ---------- picking ---------- */
     onClick(e) {
-      const info = e.target.closest('[data-detail]'); if (info) { this.cui.showBuildDetails(this.entries.get(info.dataset.detail)); return; }
+      const info = e.target.closest('[data-detail]');
+      if (info) {
+        this.cui.showBuildDetails(this.entries.get(info.dataset.detail));
+        return;
+      }
       const row = e.target.closest('.dw-row'); if (!row) return;
       if (row.dataset.sell) { this.g.sound.unlock(); this.g.demolisher.setSelling(!this.g.demolisher.selling); return; }
       if (this.g.demolisher && this.g.demolisher.selling) this.g.demolisher.setSelling(false);

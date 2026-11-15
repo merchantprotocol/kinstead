@@ -69,9 +69,13 @@
         <div id="cRadial" hidden></div><div id="cPlace" class="cp" hidden></div><div id="cBanner" hidden></div><div id="cBook" class="cp" hidden></div><div id="cModal" hidden></div>`;
       document.body.appendChild(root);
       this.$ = (id) => root.querySelector('#' + id);
+      this.buildDetails = new K.BuildDetailsDialog(this);
       this.$('cBar').addEventListener('click', (e) => { const b = e.target.closest('[data-a]'); if (!b) return; this.g.sound.unlock(); const a = b.dataset.a; if (a === 'build') this.toggleRadial(); else if (a === 'book') this.toggleBook(); else if (a === 'bell') this.g.ringBell(); });
-      this.$('cModal').addEventListener('click', (e) => { if (e.target === this.$('cModal') || e.target.closest('[data-detail-close]')) this.closeBuildDetails(); else if (e.target.closest('[data-detail-build]')) { const x = this.detailCard; this.closeBuildDetails(); const i = this.cards().out.findIndex((q) => q.id === x.id && q.kind === x.kind); if (i >= 0) this.pickCard(i); } });
-      this.detailKey = (e) => { if (e.key === 'Escape' && !this.$('cModal').hidden) this.closeBuildDetails(); }; document.addEventListener('keydown', this.detailKey);
+      this.$('cRadial').addEventListener('click', (event) => {
+        const card = event.target.closest('[data-card]');
+        if (card) this.pickCard(+card.dataset.card);
+        else if (event.target.id === 'cRadial' || event.target.closest('[data-close]')) this.toggleRadial(false);
+      });
       this.$('cBook').addEventListener('click', (e) => { if (e.target.closest('[data-close]')) this.toggleBook(false); });
       this.$('cPlace').addEventListener('click', (e) => { if (e.target.closest('[data-close]')) this.stopPlacing(); if (e.target.closest('[data-rot]')) this.rotate(); });
       this.render();
@@ -80,7 +84,7 @@
       const d = castle.data.piece(type); if (!d || !d.produces) return '';
       return castle.payback.line(castle.buildCost(type, opts), d.produces);
     }
-    dispose() { this.stopPlacing(); this.root.remove(); }
+    dispose() { this.buildDetails.dispose(); this.stopPlacing(); this.root.remove(); }
     toast(m) { this.g.app.toast(m); }
 
     /* ---------- HUD ---------- */
@@ -237,31 +241,48 @@
       this.radialHtml = html; this.$('cRadial').innerHTML = html;
     }
     pickCard(i) {
-      const x = this.cardList && this.cardList[i]; if (!x) return; const g = this.g, play = g.play;
-      this.toggleRadial(false);
-      this.activateCard(x);
+      const x = this.cardList && this.cardList[i];
+      if (x) this.activateCard(x);
     }
     activateCard(x) {
-      if (!x) return; const g = this.g, play = g.play;
-      if (x.kind === 'upgrade') { g.upgrade(x.piece); return; }
-      if (x.kind === 'place') { this.startPlacing(x.id); return; }
-      const walk = (ent, actId) => { const act = g.actionsFor(ent).find((a) => a.id === actId); if (act) play.doAction(ent, act); };
-      if (x.kind === 'ruin') walk(g.ruinEnts[x.id], 'repair');
-      else if (x.kind === 'site') walk(g.outcropEnt, 'mine');
-      else if (x.kind === 'heart') walk(g.keepEnt, 'bind');
-      else if (x.kind === 'craft') { const st = this.c.data.recipe(x.rid).station; if (st === 'keep') walk(g.keepEnt, 'craft'); else { const p = this.c.pieces.find((q) => q.type === st); if (p) walk(g.pieceEnt(p), 'craft'); } }
+      if (!x) return;
+      const g = this.g, play = g.play;
+      this.toggleRadial(false);
+      if (x.kind === 'upgrade') {
+        g.upgrade(x.piece);
+        return;
+      }
+      if (x.kind === 'place') {
+        this.startPlacing(x.id);
+        return;
+      }
+      const walk = (entity, actionId) => {
+        const action = g.actionsFor(entity).find((item) => item.id === actionId);
+        if (action) play.doAction(entity, action);
+      };
+      if (x.kind === 'ruin') {
+        walk(g.ruinEnts[x.id], 'repair');
+        return;
+      }
+      if (x.kind === 'site') {
+        walk(g.outcropEnt, 'mine');
+        return;
+      }
+      if (x.kind === 'heart') {
+        walk(g.keepEnt, 'bind');
+        return;
+      }
+      if (x.kind === 'craft') {
+        const station = this.c.data.recipe(x.rid).station;
+        if (station === 'keep') {
+          walk(g.keepEnt, 'craft');
+          return;
+        }
+        const piece = this.c.pieces.find((item) => item.type === station);
+        if (piece) walk(g.pieceEnt(piece), 'craft');
+      }
     }
-    showBuildDetails(x) {
-      if (!x) return; this.detailCard = x;
-      const d = this.c.data.piece(x.id) || {}, cost = x.cost || {}, resources = Object.entries(cost).map(([r, n]) => { const have = this.c.amount(r), ok = have >= n; return `<div class="detail-cost ${ok ? 'enough' : 'short'}"><span>${Icons.img(ICON[r] || r, 1)} ${esc(K.CastleData.resName(r))}</span><b>${n}</b><span>You have ${have}${ok ? ' ✓' : ` · need ${n - have} more`}</span></div>`; }).join('');
-      const missing = Object.entries(cost).filter(([r,n]) => this.c.amount(r) < n).map(([r,n]) => `${n-this.c.amount(r)} ${K.CastleData.resName(r)}`);
-      const prod = d.produces ? `<p><b>Production:</b> ${Object.entries(d.produces).map(([r,n]) => `${n} ${K.CastleData.resName(r)}/min`).join(', ')}</p>` : '';
-      const pb = x.pb != null ? `<p><b>Payback:</b> ${x.pb.toFixed(1)} min${this.c.has('smithy') && x.kind === 'upgrade' ? ' (Smithy discount)' : ''}</p>` : '';
-      const hp = d.hp ? `<p><b>Durability:</b> ${d.hp} HP</p>` : '';
-      const needs = (d.buildRequires || []).map((id) => this.c.data.piece(id).name).join(', '), canBuild = this.cards().out.some((q) => q.id === x.id && q.kind === x.kind), count = this.c.pieces.filter((p) => p.type === x.id).length, escalates = x.kind === 'place' && !K.Castle.FLAT.has(x.id) && count > 0;
-      const detail = this.$('cModal'); detail.innerHTML = `<div class="build-detail" role="dialog" aria-modal="true"><button class="cb detail-x" data-detail-close aria-label="Close details">×</button><div class="detail-head">${this.art.html(x.art || x.id, x.icon, 76)}<div><h2>${esc(x.name)}</h2><p>${esc(d.description || SHORT[x.id] || d.effect || x.line || '')}</p></div></div><h3>Materials</h3>${resources || '<p>No materials required.</p>'}<p class="detail-verdict ${missing.length || !canBuild ? 'short' : 'enough'}">${missing.length ? `Missing: ${missing.join(', ')}` : canBuild ? 'You can build this' : `Not buildable yet${x.why ? ` · ${x.why}` : ''}`}</p><h3>What it does</h3>${prod}${pb}${hp}<p>${esc(d.effect || '')}</p>${d.castlePoints ? `<p><b>Castle points:</b> ${d.castlePoints}</p>` : ''}<p><b>Requirements:</b> Castle Level ${d.requiresCastleLevel || 1}${needs ? ` · ${esc(needs)}` : ''}${d.maxCount ? ` · max ${d.maxCount}` : ''}</p>${escalates ? `<p><b>Price rule:</b> extra copies cost 1.6× more; this is copy ${count + 1}’s current price.</p>` : ''}<button class="cb pri detail-build" data-detail-build ${canBuild ? '' : 'disabled'}>${canBuild ? 'Build' : 'Not available yet'}</button></div>`; detail.hidden = false;
-    }
-    closeBuildDetails() { this.$('cModal').hidden = true; this.detailCard = null; }
+    showBuildDetails(card) { this.buildDetails.open(card); }
 
     /* ---------- placement ---------- */
     startPlacing(type) {
@@ -293,6 +314,7 @@
     pointerMove(sx, sy) { if (!this.placing) return false; this.moveGhost(sx, sy); return true; }
     key(e) {
       const k = e.key.toLowerCase();
+      if (this.buildDetails.handleKey(e)) return true;
       if (!this.$('cModal').hidden) { if (e.key === 'Escape' || e.key === 'Enter') { const b = this.$('cModal').querySelector('.cb.pri'); if (b) b.click(); } return true; }
       if (e.key === 'Escape') { if (this.g.demolisher && this.g.demolisher.selling) { this.g.demolisher.setSelling(false); return true; } if (this.placing) { this.stopPlacing(); return true; } if (this.radialOpen) { this.toggleRadial(false); return true; } if (this.bookOpen) { this.toggleBook(false); return true; } return false; }
       if (k === 'b') { this.g.tools.toggleHammer(); return true; }
