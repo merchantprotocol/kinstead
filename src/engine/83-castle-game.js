@@ -914,7 +914,8 @@
       // book ticks, HUD, save
       if (this.dirty) { this.dirty = false; this.cui.render(); this.play.refreshProps(); this.checkBook(); this.equipBest(play.player); }
       this.cui.frame(dt);
-      this.saveT += dt; if (this.saveT > 10) { this.saveT = 0; this.save(); }
+      const nowMs = performance.now();   // real time, not game time: game time crawls on slow machines (dt is clamped)
+      if (nowMs - (this.lastSaveMs || 0) > 10000) { this.lastSaveMs = nowMs; this.save(); }
     }
     applyNight() {
       const R = this.R, k = this.nightK, b = this.base; if (!b) return;
@@ -963,7 +964,7 @@
     key(e) {
       if (!this.ready) return false;
       this.sound.unlock();
-      if (e.key === 'Escape') { if (!this.dismissTop()) { if (this.onLeave) this.onLeave(); } return true; }   // Esc closes what is open, else leaves the game
+      if (e.key === 'Escape') { if (!this.dismissTop()) this.askLeave(); return true; }   // Esc closes what is open, else asks before leaving the game
       if (this.mp && this.mp.key(e)) return true;
       if (e.key.toLowerCase() === 'e' && !e.ctrlKey && !e.metaKey && !e.altKey) { this.vitals.eat(); return true; }   // eat from your bag
       if (e.key.toLowerCase() === 't' && !e.ctrlKey && !e.metaKey && !e.altKey) { this.purse.openTab('team'); return true; }   // T: your team
@@ -974,6 +975,14 @@
     pickHeight(e) { return K.WorkTarget.TOOL_FOR[e.type] ? 4.5 : Infinity; }
     pickable(e) { return this.tools ? this.tools.canInteract(e) : true; }
     /* close the topmost thing; false when nothing was open */
+    /** a stray Esc must never drop a player out of a shared game: ask first (a second Esc on the question keeps playing) */
+    askLeave() {
+      if (!this.onLeave) return;
+      this.cui.modal('<h2>Leave the game?</h2><p>Your town is saved. You can come back to it any time.</p>', [
+        { label: 'Keep playing', pri: true },
+        { label: 'Leave', run: () => this.onLeave() },
+      ]);
+    }
     dismissTop() {
       const cui = this.cui, ui = this.play.ui;
       if (this.vitals && this.vitals.sleeping) { this.vitals.wake(); return true; }
