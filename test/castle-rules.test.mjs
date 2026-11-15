@@ -19,7 +19,7 @@ function engine() {
 }
 const K = engine();
 const data = () => new K.CastleData(RAW);
-const fresh = () => { const c = new K.Castle(data()); c.light(); return c; };
+const fresh = () => { const c = new K.Castle(data()); c.extraHas = (t) => t === 'cottage'; c.light(); return c; };   // the cottage is built outside the piece list: tests start with it standing
 const give = (c, o) => { for (const [r, n] of Object.entries(o)) c.stores[r] = n; };
 
 test('economy: a Woodcutter makes 6 wood a minute and stops at the cap', () => {   // risk: core economy
@@ -81,7 +81,7 @@ test('ruins repair at half cost, rounded up, once', () => {   // risk: money
 });
 
 test('Castle Level: thresholds from distinct piece types, gates, and the hearth cap', () => {   // risk: core rules
-  const c = new K.Castle(data());
+  const c = new K.Castle(data()); c.extraHas = (t) => t === 'cottage';
   assert.equal(c.cl(), 0); assert.equal(c.blocker('palisade', { ignoreCost: true }), null, 'you can build before the hearth is lit');
   assert.match(c.blocker('storehouse', { ignoreCost: true }), /Quarry/, 'the building tree still gates what you can build');
   c.light(); assert.equal(c.cl(), 1);
