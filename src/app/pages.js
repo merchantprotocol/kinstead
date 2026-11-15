@@ -104,6 +104,7 @@
       const net = await K.Net.join(this.s.router.param('map') || 'main'), layout = new K.HutLayout(new K.WorldPlan(), net ? net.slot : Math.max(0, Math.min(29, +this.s.router.param('plot') || 0)));   // ?plot=N picks a plot when playing alone (for testing)   // a plot of your own (or plot 0 when playing alone)
       step(25, 'Shaping the land…'); await frame();
       app.setDoc(new K.HutWorldBuilder(layout).build()); app.dirtySince = false;
+      app.startLoop();
       step(55, 'Raising your homestead…'); await frame();
       this.castle = app.play.ext = new K.CastleGame(app.play, { layout, net, resume: this.s.router.param('new') !== '1' });
       const setPlay = app.setPlay.bind(app); setPlay(true);

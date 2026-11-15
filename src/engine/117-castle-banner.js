@@ -1,11 +1,10 @@
 /* Copyright (c) 2026 Merchant Protocol. All rights reserved. */
 /* Kinstead · banners. Everyone flies a banner: a colour, a logo and a name (the team's name, once you are on a team).
-   Click yourself to choose them. Your character wears the colour, your cottage and gates fly a flag with your logo, and
+   Open your purse (click yourself) and pick the Team tab to choose them. Your character wears the colour, your cottage and gates fly a flag with your logo, and
    everything of yours reads as yours when someone hovers or clicks it. When you invite someone, they take on your
    team's banner (whatever they flew before is replaced).
      Emblems       the twelve logos, drawn as little pictures
      BannerBook    whose banner is what (yours, and everyone else's), and who is told when it changes
-     BannerEditor  the screen you get when you click yourself
      Flags         the flags that stand by cottages and gates */
 (function (G) {
   const K = G.K, THREE = G.THREE;
@@ -45,7 +44,7 @@
     }
     get meId() { return this.net ? this.net.id : 'me'; }
     on(fn) { this.listeners.push(fn); }
-    static fallback(id) { let h = 0; for (const c of String(id)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return { name: '', color: h % 12, logo: h % 12, team: null }; }
+    static fallback(id) { let h = 0; for (const c of String(id)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return { name: '', color: [0, 1, 3, 4, 5, 6, 7, 10, 2][h % 9], logo: h % 12, team: null }; }   // a lively colour, never a grey
     get(id) { if (id === this.meId && !this.net) return Object.assign({ team: null }, this.local || BannerBook.fallback('me')); return this.by[id] || BannerBook.fallback(id); }
     mine() { return this.get(this.meId); }
     hexOf(id) { return COLORS[this.get(id).color % 12]; }
@@ -59,34 +58,6 @@
       if (this.net) { this.by[this.meId] = Object.assign({ team: (this.by[this.meId] || {}).team || null }, b); this.send(b); }
       this.set({});
     }
-  }
-
-  class BannerEditor {
-    constructor(game) {
-      this.g = game; const root = (this.root = document.createElement('div')); root.id = 'cBanner'; root.hidden = true; game.cui.root.appendChild(root);
-      root.addEventListener('pointerdown', (e) => e.stopPropagation()); root.addEventListener('click', (e) => this.onClick(e));
-      root.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Escape') this.close(); }); this.draft = null;
-    }
-    get isOpen() { return !this.root.hidden; }
-    open() { const b = this.g.banners.mine(); this.draft = { name: b.name || '', color: b.color, logo: b.logo, onTeam: !!b.team }; this.root.hidden = false; this.render(); }
-    close() { this.root.hidden = true; }
-    render() {
-      const d = this.draft, c = hex(COLORS[d.color]);
-      this.root.innerHTML = `<div class="bn"><h2>Your banner</h2><p>${d.onTeam ? 'You fly your team’s banner. Changing it changes it for the whole team.' : 'Pick a colour and a logo, and name your team. People you invite will fly it too.'}</p>
-        <div class="bn-prev" style="background:${c}"><img src="${Emblems.url(d.logo)}" alt=""><b>${esc(d.name || 'Your team')}</b></div>
-        <h4>Colour</h4><div class="sw">${COLORS.map((x, i) => `<button class="${i === d.color ? 'on' : ''}" data-c="${i}" style="background:${hex(x)}" aria-label="colour ${i + 1}"></button>`).join('')}</div>
-        <h4>Logo</h4><div class="lg">${EMBLEMS.map((e, i) => `<button class="${i === d.logo ? 'on' : ''}" data-l="${i}" title="${e[0]}" style="background:${c}"><img src="${Emblems.url(i)}" alt="${e[0]}"></button>`).join('')}</div>
-        <h4>Team name</h4><input maxlength="24" placeholder="Name your team" value="${esc(d.name)}">
-        <div class="bn-act"><button data-save class="pri">Save</button><button data-close>Cancel</button></div></div>`;
-      const input = this.root.querySelector('input'); input.addEventListener('input', () => { d.name = input.value; const b = this.root.querySelector('.bn-prev b'); if (b) b.textContent = d.name || 'Your team'; });
-    }
-    onClick(e) {
-      const d = this.draft, t = e.target.closest('button'); if (!t) { if (e.target === this.root) this.close(); return; }
-      if (t.dataset.c != null) { d.color = +t.dataset.c; this.render(); } else if (t.dataset.l != null) { d.logo = +t.dataset.l; this.render(); }
-      else if (t.hasAttribute('data-save')) { this.g.banners.choose({ name: d.name.trim().slice(0, 24), color: d.color, logo: d.logo }); this.close(); this.g.cui.toast('Banner saved.'); }
-      else if (t.hasAttribute('data-close')) this.close();
-    }
-    dispose() { this.root.remove(); }
   }
 
   /** a pole with a flag in the owner's colour and logo, standing by a cottage or a gate */
@@ -107,5 +78,5 @@
     dispose() { for (const k of [...this.by.keys()]) this.unflag(k); for (const t of this.logoTex.values()) t.dispose(); }
   }
 
-  Object.assign(K, { Emblems, BannerBook, BannerEditor, Flags, BANNER_COLORS: COLORS });
+  Object.assign(K, { Emblems, BannerBook, Flags, BANNER_COLORS: COLORS, BANNER_EMBLEMS: EMBLEMS });
 })(typeof window !== 'undefined' ? window : globalThis);

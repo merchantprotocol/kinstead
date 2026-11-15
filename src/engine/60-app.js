@@ -465,10 +465,12 @@
       this.generate(4242, 64, 48, true);
       this.storeReady = this.initStore();
       const loop = () => { this.frame(); this.raf = requestAnimationFrame(loop); };
-      loop();
+      if (G.KINSTEAD_HOLD_LOADING) this.deferLoop = loop; else loop();   // the castle page draws nothing until its own world is ready: no wasted frames of the placeholder while it loads
       if (!G.KINSTEAD_HOLD_LOADING) { const l = $('loading'); if (l) { l.classList.add('done'); setTimeout(() => l.remove(), 500); } }   // the castle page keeps the loading screen up until its own world is ready
       return this;
     }
+    /** begin drawing frames (the castle page calls this once its world is in) */
+    startLoop() { if (this.deferLoop) { const f = this.deferLoop; this.deferLoop = null; f(); } }
     get doc() { return this.renderer.doc; }
     /* ---- document lifecycle ---- */
     setDoc(doc, label) {

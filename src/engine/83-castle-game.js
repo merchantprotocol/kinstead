@@ -229,7 +229,7 @@
       this.kinActors = {}; this.troll = null;
       this.restoreNodes();
       this.raid = null;
-      this.cui = new K.CastleUI(this); this.vitals = new K.Vitals(this); this.wild = new K.Wild(this); this.calendar.on((ev) => this.onCalendar(ev)); this.tools = new K.CastleTools(this); this.minimap = new K.Minimap(this); this.xp = this.xp || new K.Experience(this); this.weather = new K.Weather(this); this.banners = new K.BannerBook(this, this.net); this.bannerEd = new K.BannerEditor(this); this.flags = new K.Flags(this); this.banners.on(() => this.applyLook()); this.applyLook(); this.forest = new K.Forest(this); this.brush = new K.GroundBrush(this); this.steer = new K.PieceSteer(this); this.purse = new K.Purse(this); this.stash = new K.Stash(this); this.site = new K.BuildingSite(this); this.sweep = new K.SweepAttack(this); this.demolisher = new K.Demolisher(this); this.play.refreshProps();
+      this.cui = new K.CastleUI(this); this.vitals = new K.Vitals(this); this.wild = new K.Wild(this); this.calendar.on((ev) => this.onCalendar(ev)); this.tools = new K.CastleTools(this); this.minimap = new K.Minimap(this); this.xp = this.xp || new K.Experience(this); this.weather = new K.Weather(this); this.banners = new K.BannerBook(this, this.net); this.flags = new K.Flags(this); this.banners.on(() => this.applyLook()); this.applyLook(); this.forest = new K.Forest(this); this.brush = new K.GroundBrush(this); this.steer = new K.PieceSteer(this); this.purse = new K.Purse(this); this.stash = new K.Stash(this); this.site = new K.BuildingSite(this); this.sweep = new K.SweepAttack(this); this.demolisher = new K.Demolisher(this); this.play.refreshProps();
       if (this.day.isNight) this.startRaid();
       play.app.rig.set({ dist: 11, pitch: 0.78 }); play.app.rig.maxDist = 44;   // you can never zoom out far enough to see the edge of the world
       this.persist = new K.Persist(this); if (this.saved && this.saved.extras) { try { this.persist.restore(this.saved.extras); } catch (err) { console.warn('could not restore the homestead', err); } }
@@ -239,7 +239,7 @@
     }
     exit() {
       this.play.app.rig.maxDist = null; if (this.minimap) this.minimap.dispose(); if (this.vitals) this.vitals.dispose(); if (this.home) this.home.dispose();
-      this.save(); if (this.tools) this.tools.dispose(); if (this.sweep) this.sweep.dispose(); if (this.demolisher) this.demolisher.dispose(); if (this.site) this.site.dispose(); if (this.brush) this.brush.dispose(); if (this.mp) this.mp.dispose(); if (this.weather) this.weather.dispose(); if (this.flags) this.flags.dispose(); if (this.bannerEd) this.bannerEd.dispose(); if (this.purse) this.purse.dispose();
+      this.save(); if (this.tools) this.tools.dispose(); if (this.sweep) this.sweep.dispose(); if (this.demolisher) this.demolisher.dispose(); if (this.site) this.site.dispose(); if (this.brush) this.brush.dispose(); if (this.mp) this.mp.dispose(); if (this.weather) this.weather.dispose(); if (this.flags) this.flags.dispose(); if (this.purse) this.purse.dispose();
       if (this.origPlace) this.R.placeDynamics = this.origPlace;
       this.R.scene.remove(this.group); this.cui && this.cui.dispose(); document.body.classList.remove('castle');
     }
@@ -783,11 +783,11 @@
     shake(s) { this.shakeT = Math.max(this.shakeT, s); }
     pushLights() {
       const R = this.R, c = this.castle, L = this.L, f = this.flareT > 0 ? 1 + Math.min(1.5, this.flareT) : 1;
-      if (c.lit) R.lightSrc.push({ x: L.hearth.x, y: 1.4, z: L.hearth.z, color: 0xff8a3c, base: 16 * f * (0.6 + 0.4 * this.nightK), dist: Math.max(8, this.glowR * 1.5), ph: 0.3, fire: true });
+      if (c.lit && this.home.built) R.lightSrc.push({ x: this.home.center.x - 1.6, y: 1.4, z: this.home.center.z - 0.4, color: 0xff8a3c, base: 16 * f * (0.6 + 0.4 * this.nightK), dist: Math.max(8, this.glowR * 1.5), ph: 0.3, fire: true });
       for (const p of c.pieces) if (p.type === 'ember_brazier' || p.type === 'ember_forge' || p.type === 'smithy') R.lightSrc.push({ x: p.x, y: 1.3, z: p.z, color: 0xff8a3c, base: 6, dist: 5, ph: p.uid, fire: true });
     }
     /* thaw: snow tiles inside radius r become frozen earth / cobbles; animated as a wave over `dur` seconds */
-    meltTo(r, dur) { this.melt = { from: this.meltR || 0, to: r, t: 0, dur: Math.max(0.01, dur) }; if (!dur) this.stepMelt(1); }
+    meltTo(r, dur) { /* the thawing ring around the hearth belonged to the old castle game: the snow stays snow */ }
     stepMelt(k) {
       const m = this.melt; if (!m) return; const r = lerp(m.from, m.to, clamp(k, 0, 1)), r0 = this.meltR || 0; if (r <= r0 + 0.01) { if (k >= 1) this.melt = null; return; }
       const doc = this.play.doc, L = this.L, T = K.T, [i0, j0] = doc.tileOf(L.keep.x - r, L.keep.z - r), [i1, j1] = doc.tileOf(L.keep.x + r, L.keep.z + r);
@@ -900,6 +900,7 @@
       if (e.key === 'Escape') { if (!this.dismissTop()) { if (this.onLeave) this.onLeave(); } return true; }   // Esc closes what is open, else leaves the game
       if (this.mp && this.mp.key(e)) return true;
       if (e.key.toLowerCase() === 'e' && !e.ctrlKey && !e.metaKey && !e.altKey) { this.vitals.eat(); return true; }   // eat from your bag
+      if (e.key.toLowerCase() === 't' && !e.ctrlKey && !e.metaKey && !e.altKey) { this.purse.openTab('team'); return true; }   // T: your team
       if (e.key.toLowerCase() === 'i' && !e.ctrlKey && !e.metaKey && !e.altKey) { this.purse.toggle(); return true; }
       return this.cui.key(e) || this.tools.key(e);
     }
@@ -909,7 +910,6 @@
     /* close the topmost thing; false when nothing was open */
     dismissTop() {
       const cui = this.cui, ui = this.play.ui;
-      if (this.bannerEd && this.bannerEd.isOpen) { this.bannerEd.close(); return true; }
       if (this.vitals && this.vitals.sleeping) { this.vitals.wake(); return true; }
       if (this.purse && this.purse.isOpen) { this.purse.close(); return true; }
       if (this.brush && this.brush.drawer.isOpen) { this.brush.drawer.close(); return true; }

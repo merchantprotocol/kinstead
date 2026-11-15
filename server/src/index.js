@@ -182,7 +182,7 @@ export class GameRoom {
   }
 
   /* ---------- banners: a colour, a logo and a name; a team shares one ---------- */
-  defaultBanner(id) { let h = 0; for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0; return { name: '', color: h % 12, logo: h % 12 }; }
+  defaultBanner(id) { let h = 0; for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0; return { name: '', color: [0, 1, 3, 4, 5, 6, 7, 10, 2][h % 9], logo: h % 12 }; }
   clean(b, fallback) { b = b || {}; return { name: String(b.name == null ? fallback.name : b.name).slice(0, 24), color: Math.max(0, Math.min(11, b.color == null ? fallback.color : b.color | 0)), logo: Math.max(0, Math.min(11, b.logo == null ? fallback.logo : b.logo | 0)) }; }
   /** what a settler (online or not) flies: their team's banner if they are on a team, else their own */
   resolved(id) { const t = this.teams[this.teamOf(id)]; const b = t && t.banner ? t.banner : this.banners[id] || this.defaultBanner(id); return Object.assign({}, b, { team: t ? t.id : null }); }
@@ -219,7 +219,7 @@ export class GameRoom {
   /* ---------- keys: only the owner (or their team) may open a gate or door ---------- */
   onOpen(p, m) {
     if (m.slot != null) { const d = this.world.doors[m.slot]; if (!d || (!d.broken && !this.mayUse(p, d.owner))) { this.send(this.wsOf(p), { t: 'locked', what: 'door', slot: m.slot }); return; } this.broadcast({ t: 'door', slot: m.slot, open: !!m.open }); return; }
-    const pc = this.world.pieces[m.id]; if (!pc || !this.near(p, pc, 8)) return;
+    const pc = this.world.pieces[m.id]; if (!pc) return;   // no distance rule: a gate shuts itself behind its owner from wherever they are
     if (!this.mayUse(p, pc.owner)) { this.send(this.wsOf(p), { t: 'locked', what: 'gate', id: m.id }); return; }
     this.gates[m.id] = !!m.open; this.broadcast({ t: 'gate', id: m.id, open: !!m.open });
   }

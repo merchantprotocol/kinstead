@@ -102,10 +102,10 @@
 
   class PurseWindow {
     constructor(purse) {
-      this.p = purse; this.g = purse.g; this.mode = null; this.there = null; this.forge = null; this.me = new PurseHoldings(this.g);
+      this.p = purse; this.g = purse.g; this.mode = null; this.there = null; this.forge = null; this.tab = 'items'; this.draft = null; this.me = new PurseHoldings(this.g);
       const root = this.root = document.createElement('div'); root.id = 'cPurse'; root.hidden = true; this.g.cui.root.appendChild(root);
       root.addEventListener('click', (e) => this.onClick(e)); root.addEventListener('dragstart', (e) => this.onDrag(e)); root.addEventListener('dragover', (e) => { if (e.target.closest('.pp')) e.preventDefault(); }); root.addEventListener('drop', (e) => this.onDrop(e)); root.addEventListener('dragend', (e) => this.onDragEnd(e)); root.addEventListener('contextmenu', (e) => this.onContext(e));
-      root.addEventListener('pointerdown', (e) => e.stopPropagation());
+      root.addEventListener('pointerdown', (e) => e.stopPropagation()); root.addEventListener('keydown', (e) => { if (e.target && e.target.tagName === 'INPUT') e.stopPropagation(); });
     }
     get isOpen() { return !this.root.hidden; }
     open(there, forge) { this.there = there || null; this.forge = forge || null; this.root.hidden = false; this.render(); }
@@ -125,14 +125,37 @@
       const mats = f.pending ? `<div class="mats">${Object.entries(f.pending).map(([res, n]) => `<span class="cs"><img src="${f.glyph(res)}" width="26" height="26" alt="">${n}</span>`).join('')}<em>${f.busy}</em></div>` : '';
       return `<h4>${f.verb}</h4><div class="pg">${recipes}</div>${mats}<h4>Ready</h4>${this.grid(new TrayHoldings(f), 'there')}`;
     }
+    /** the Team tab: your banner (colour, logo, team name) and who is on your team */
+    teamBody() {
+      const g = this.g, E = K.Emblems, COL = K.BANNER_COLORS, hex = (n) => '#' + n.toString(16).padStart(6, '0'), b = g.banners.mine();
+      const d = this.draft || (this.draft = { name: b.name || '', color: b.color, logo: b.logo }), c = hex(COL[d.color % 12]), mp = g.mp, roster = mp ? mp.teamRoster() : [];
+      return `<div class="tmb"><p class="tn">${b.team ? 'You fly your team’s banner. Changing it changes it for everyone on the team.' : 'Pick a colour and a logo, and name your team. Anyone you invite flies it too.'}</p>
+        <div class="bn-prev" style="background:${c}"><img src="${E.url(d.logo)}" alt=""><b>${esc(d.name || 'Your team')}</b></div>
+        <h4>Colour</h4><div class="sw">${COL.map((x, i) => `<button class="${i === d.color ? 'on' : ''}" data-c="${i}" style="background:${hex(x)}" aria-label="colour ${i + 1}"></button>`).join('')}</div>
+        <h4>Logo</h4><div class="lg">${K.BANNER_EMBLEMS.map((e, i) => `<button class="${i === d.logo ? 'on' : ''}" data-l="${i}" title="${e[0]}" style="background:${c}"><img src="${E.url(i)}" alt="${e[0]}"></button>`).join('')}</div>
+        <h4>Team name</h4><input maxlength="24" placeholder="Name your team" value="${esc(d.name)}">
+        <div class="tm-act"><button data-saveb class="pri">Save banner</button>${b.team ? '<button data-leave>Leave team</button>' : ''}</div>
+        ${roster.length ? `<h4>On your team</h4><div class="roster">${roster.map((r) => `<span><i style="background:${hex(COL[r.color % 12])}"></i>${esc(r.name)}</span>`).join('')}</div>` : ''}
+        <p class="tn">${mp ? 'Right-click a player to invite them to your team or demand tribute. Left-click attacks anyone who is not on your team.' : 'Alone on the map for now.'}</p></div>`;
+    }
     render() {
-      const mine = this.panel(this.me.title, 'me', this.grid(this.me, 'me'), 'bag');
+      const solo = !this.there && !this.forge, tabs = solo ? `<div class="tabs"><button data-tab="items" class="${this.tab === 'items' ? 'on' : ''}">Purse</button><button data-tab="team" class="${this.tab === 'team' ? 'on' : ''}">Team</button></div>` : '';
+      const mine = this.panel(this.me.title, 'me', tabs + (solo && this.tab === 'team' ? this.teamBody() : this.grid(this.me, 'me')), 'bag');
       const there = this.forge ? this.panel(this.forge.title, 'there', this.forgeBody(), this.forge.icon) : this.there ? this.panel(this.there.title, 'there', this.grid(this.there, 'there'), /ward/i.test(this.there.title) ? 'bag' : 'wood') : '';
       this.root.innerHTML = `<div class="pw ${there ? 'two' : ''}">${mine}${there}<div class="hint">Click moves a stack · Shift-click one · Right-click half · Drag onto the ground to put it down</div><button class="cb x" data-close>Close <kbd>Esc</kbd></button></div>`;
+      const nm = this.root.querySelector('.tmb input'); if (nm) nm.addEventListener('input', () => { if (this.draft) this.draft.name = nm.value; const pv = this.root.querySelector('.bn-prev b'); if (pv) pv.textContent = nm.value || 'Your team'; });   // typing updates the preview without redrawing
     }
     holdings(side) { return side === 'me' ? this.me : this.forge ? new TrayHoldings(this.forge) : this.there; }
     onClick(e) {
       if (e.target === this.root || e.target.closest('[data-close]')) { this.close(); return; }
+      const tb = e.target.closest('[data-tab]'); if (tb) { this.tab = tb.dataset.tab; this.draft = null; this.render(); return; }
+      const d = this.draft, g = this.g;
+      if (d) {
+        const sw = e.target.closest('[data-c]'), lg = e.target.closest('[data-l]');
+        if (sw) { d.color = +sw.dataset.c; this.render(); return; } if (lg) { d.logo = +lg.dataset.l; this.render(); return; }
+        if (e.target.closest('[data-saveb]')) { g.banners.choose({ name: d.name.trim().slice(0, 24), color: d.color, logo: d.logo }); g.cui.toast('Banner saved.'); this.draft = null; this.render(); return; }
+        if (e.target.closest('[data-leave]')) { if (g.mp) g.mp.net.send({ t: 'team', a: 'leave' }); return; }
+      }
       const rc = e.target.closest('[data-recipe]'); if (rc) { this.forge.make(rc.dataset.recipe); return; }
       const t = e.target.closest('.pt[data-key]'); if (!t) return; this.move(t.dataset.side, t.dataset.key, e.shiftKey ? 1 : 0);   // click: all; shift-click: one
     }
@@ -181,12 +204,13 @@
   }
 
   class Purse {
-    constructor(game) { this.g = game; this.hearth = new Hearth(game); this.win = new PurseWindow(this); this.vaults = new Map(); this.hook(); }
+    constructor(game) { this.g = game; this.hearth = new Hearth(game); if (game.banners) game.banners.on(() => { if (this.win && this.win.isOpen && this.win.tab === 'team' && !this.win.there && !this.win.forge) { this.win.draft = null; this.win.render(); } }); this.win = new PurseWindow(this); this.vaults = new Map(); this.hook(); }
     get isOpen() { return this.win.isOpen; }
     toggle() { if (this.isOpen) this.win.close(); else this.openPurse(); }
     close() { this.win.close(); }
     update() { if (this.isOpen) this.win.render(); }
-    openPurse() { this.win.open(null); }
+    openPurse() { this.win.tab = 'items'; this.win.open(null); }
+    openTab(tab) { if (this.isOpen && this.win.tab === tab && !this.win.there && !this.win.forge) { this.win.close(); return; } this.win.tab = tab; this.win.draft = null; this.win.open(null); }
     vault(id) { if (!this.vaults.has(id)) this.vaults.set(id, new Vault()); return this.vaults.get(id); }
     openVault(e) { this.win.open(new VaultHoldings(this.g, this.vault(e.id), e.name || 'Chest')); }
     openForge(forge) { this.win.open(null, forge); }

@@ -52,8 +52,12 @@
       return net;
     }
     constructor(url, cid, name) { this.url = url; this.cid = cid; this.name = name; this.ws = null; this.handlers = {}; this.id = null; this.slot = 0; this.welcome = null; this.ready = false; this.closed = false; this.lastPos = 0; }
-    on(type, fn) { (this.handlers[type] = this.handlers[type] || []).push(fn); }
-    emit(type, m) { for (const f of this.handlers[type] || []) { try { f(m); } catch (e) { console.warn('net handler', type, e); } } }
+    /** messages that arrive before anything is listening (the game is still loading) are kept and handed over, so nobody misses a join */
+    on(type, fn) { (this.handlers[type] = this.handlers[type] || []).push(fn); const b = this.backlog && this.backlog[type]; if (b) { delete this.backlog[type]; for (const m of b) { try { fn(m); } catch (e) { console.warn('net handler', type, e); } } } }
+    emit(type, m) {
+      const hs = this.handlers[type]; if (!hs || !hs.length) { this.backlog = this.backlog || {}; const q = (this.backlog[type] = this.backlog[type] || []); q.push(m); if (q.length > 60) q.shift(); return; }
+      for (const f of hs) { try { f(m); } catch (e) { console.warn('net handler', type, e); } }
+    }
     open() {
       return new Promise((resolve, reject) => {
         let done = false; const fail = (why) => { if (!done) { done = true; reject(new Error(why)); } }, timer = setTimeout(() => fail('timed out'), 15000);   // a busy or slow machine may take a while to answer
@@ -251,9 +255,9 @@
       net.on('welcome', (m) => this.start(m));
       net.on('offline', () => game.cui.toast('Lost the connection. Reconnecting…'));
       this.teams = (net.welcome.teams || []); this.lastOpen = null; this.lastBroken = null; this.lastHit = 0;
-      this.start(net.welcome); this.makeChatBox();
+      this.start(net.welcome, true); this.makeChatBox();
     }
-    start(w) { if (w.clock) { this.net.clock = w.clock; this.net.offset = w.clock.now - Date.now(); } if (this.g.weather && w.weather) this.g.weather.setFromServer(w.weather); this.avatars.clear(); for (const p of w.players || []) this.avatars.add(p); this.world.snapshot(w); this.syncStores(w.stores || []); if (!this.g.resume) this.net.send({ t: 'save', data: null }); }
+    start(w, first) { if (w.clock) { this.net.clock = w.clock; this.net.offset = w.clock.now - Date.now(); } if (this.g.weather && w.weather) this.g.weather.setFromServer(w.weather); if (!first) this.avatars.clear(); for (const p of w.players || []) this.avatars.add(p); this.world.snapshot(w); this.syncStores(w.stores || []); if (!this.g.resume) this.net.send({ t: 'save', data: null }); }
     /** tell the server what you already have on your plot (a game from before multiplayer, or one saved on this device) */
     uploadMine() {
       const g = this.g, tiles = [], d = g.play.doc, h0 = g.persist.h0, t0 = g.persist.t0;
@@ -313,6 +317,20 @@
     slotOf(id) { if (id === 'home') return this.g.L.slot; const m = /^home:(\d+)$/.exec(id); return m ? +m[1] : null; }
     setRespawn(slot, x, z) { this.net.send({ t: 'respawn', slot, x: +x.toFixed(2), z: +z.toFixed(2) }); }
 
+    get me() { return this.net.id; }
+    /** you built your cottage: everyone gets to see it, and its door is yours */
+    announceHome() { const g = this.g; if (g.home.built) this.net.send({ t: 'op', op: { k: 'bld+', id: 'home:' + g.L.slot, spec: g.home.spec, slot: g.L.slot } }); }
+    /** someone else built their cottage */
+    onHouse(m) {
+      if (m.slot === this.g.L.slot) return; this.world.owners[m.owner] = m.name; this.world.owners[m.slot] = m.name; this.world.cottage(m.slot, m.spec, m.owner);
+      const rec = this.world.doors.get(m.slot); if (rec && m.door) { rec.owner = m.door.owner; rec.hp = m.door.hp; rec.max = m.door.hpMax; }
+      this.g.cui.toast(`${m.name} built a cottage.`);
+    }
+    /** who is on your team (including you), with their colours */
+    teamRoster() {
+      const tid = this.teamId(this.me); if (!tid) return []; const t = this.teams.find((x) => x.id === tid);
+      return (t ? t.members : []).map((id) => ({ id, name: id === this.me ? 'You' : (this.avatars.by.get(id) || {}).name || this.world.owners[id] || 'a settler', color: this.g.banners.get(id).color }));
+    }
     teamId(id) { for (const t of this.teams) if (t.members.includes(id)) return t.id; return null; }
     /** do you hold the key for something this settler owns? (yours, or your team's) */
     mayUse(owner) { return !owner || owner === this.me || (!!this.teamId(this.me) && this.teamId(this.me) === this.teamId(owner)); }
