@@ -11,15 +11,15 @@ class FoodFixture {
   constructor() {
     this.castle = { stores: { bread: 1, beef: 1 }, amount: (good) => Math.floor(this.castle.stores[good] || 0),
       rates: () => ({ food: 4 }) };
-    this.workers = { roster: () => [{}, {}] };
+    this.workers = { roster: () => [{}, {}, {}] };   // three townspeople; the hero eats from the bag, not the stores
     this.economy = { g: this, ledgers: new Map(), pieces: [], stock: { all: [] },
       changed() {}, of: () => [] };
     this.food = new K.FoodDemand(this.economy);
   }
 }
 
-test('rations consume preferred food for each resident and player once per minute', () => {
-  // risk: data accuracy — household consumption must include every worker plus the hero and use food preference order.
+test('rations consume preferred food for each townsperson once per minute', () => {
+  // risk: data accuracy — every worker eats one ration from the stores in preference order; the hero is fed by the vitals system instead.
   const game = new FoodFixture();
   game.castle.stores.wheat = 3;
   const result = game.food.consume();

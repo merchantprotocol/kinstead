@@ -95,7 +95,7 @@
       const next = !c.lit ? 'Light the Keep’s hearth to begin' : nx ? (nx.capped ? (cl >= 4 ? esc(c.data.raw.castleLevel.capMessage) : '') : `Next: CL ${nx.cl} at ${nx.need} castle points (${nx.have}/${nx.need})`) : 'The castle burns at its brightest';
       const w = c.bestWeapon();
       const pct = Math.max(0, Math.min(100, 100 * hp / hpMax));
-      const food = g.economy && g.economy.food ? g.economy.food.snapshot() : { made: 0, eaten: 1, minutesLeft: 0 };
+      const food = g.economy && g.economy.food ? g.economy.food.snapshot() : { made: 0, eaten: 0, minutesLeft: Infinity };
       this.$('cHud').innerHTML = this.healthBar(pct, hp) + this.xpBar() + this.foodSummary(food);
 
       if (this.g.tools) this.g.tools.drawer.update();
@@ -108,6 +108,7 @@
         <i style="width:${pct.toFixed(1)}%"></i><span>♥ ${Math.ceil(hp)}</span></div>`;
     }
     foodSummary(food) {
+      if (!food.eaten) return '';   // nobody to feed yet: no ration line
       const tone = food.made - food.eaten < 0 ? 'low' : '';
       const made = Number.isInteger(food.made) ? food.made : food.made.toFixed(1);
       const left = Number.isFinite(food.minutesLeft) ? food.minutesLeft.toFixed(0) : '∞';

@@ -14,8 +14,8 @@
 
     get game() { return this.economy.g; }
     get population() {
-      const workers = this.game.workers ? this.game.workers.roster().length : 0;
-      return workers + 1;
+      // the hero eats from the bag with E (96-castle-vitals.js); only townspeople eat from the stores
+      return this.game.workers ? this.game.workers.roster().length : 0;
     }
 
     consume(personCount = this.population) {
