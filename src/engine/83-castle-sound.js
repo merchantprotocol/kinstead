@@ -5,7 +5,15 @@
 
   class CastleSound {
     constructor() { this.ctx = null; this.vol = 0.35; }
-    unlock() { try { if (!this.ctx) { const AC = G.AudioContext || G.webkitAudioContext; if (AC) this.ctx = new AC(); } if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); } catch (e) { this.ctx = null; } }
+    unlock() {
+      try {
+        if (!this.ctx) {
+          const AC = G.AudioContext || G.webkitAudioContext;
+          if (AC) this.ctx = new AC();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+      } catch (e) { this.ctx = null; }
+    }
     tone(freq, dur, { type = 'sine', vol = 1, at = 0, slide = 0 } = {}) {
       const c = this.ctx; if (!c || c.state !== 'running') return;
       try {

@@ -12,7 +12,9 @@
       c_door: 'doorActions', c_barrel: 'barrelActions', c_worker: 'workerActions', c_kin: 'kinActions',
     };
     /* a building's store you can open, as a second purse */
-    static STORE_LABEL = { market: 'Open the marketplace', silo: 'Look in the silo', farm: 'Look in the farm', coop: 'Collect eggs', barn: 'Look in the cattle barn' };
+    static STORE_LABEL = {
+      market: 'Open the marketplace', silo: 'Look in the silo', farm: 'Look in the farm', coop: 'Collect eggs', barn: 'Look in the cattle barn',
+    };
     /* the workshop that forges a weapon */
     static FORGES = { smithy: 'craft_iron_sword', ember_forge: 'craft_ember_brand' };
 

@@ -119,7 +119,8 @@
       }
       if (!ev) ev = g.day.advance({ lost: !!lost });
       this.raid = null;
-      g.cui.raidResult({ lost: !!lost, loss: lossTxt, drops: r ? r.drops : {}, killed: r ? r.killed : 0, frosted: r ? r.frosted : 0, night: ph, next: ev.phase });
+      const tally = { drops: r ? r.drops : {}, killed: r ? r.killed : 0, frosted: r ? r.frosted : 0 };
+      g.cui.raidResult(Object.assign({ lost: !!lost, loss: lossTxt, night: ph, next: ev.phase }, tally));
       this.onDawn(ph);
       g.changed();
     }

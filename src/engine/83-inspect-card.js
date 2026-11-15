@@ -24,7 +24,8 @@
     barrelCard(e) { return { title: e.name, sub: 'Outside your home', body: 'Your stores. A raider can walk off with some of it.', rows: [] }; }
     keepCard() {
       const c = this.c, raid = this.g.raid;
-      const body = c.lit ? 'Your castle’s heart. Raiders walk at it. Its workbench forges the Stoneblade.' : 'Cold and roofless. Your ember lantern could light its hearth.';
+      const lit = 'Your castle’s heart. Raiders walk at it. Its workbench forges the Stoneblade.';
+      const body = c.lit ? lit : 'Cold and roofless. Your ember lantern could light its hearth.';
       const hp = raid ? `${Math.ceil(raid.keepHp)} / ${c.keepHpMax()}` : c.keepHpMax();
       return { title: 'The Keep', sub: `Castle Level ${c.cl()}`, body, rows: [['Keep HP', hp], ['Glow', c.glowRadius() + ' m']] };
     }

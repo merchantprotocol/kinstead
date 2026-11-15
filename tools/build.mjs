@@ -67,6 +67,7 @@ class EngineManifest {
     '83-entity-directory.js',
     '83-hero-outfitter.js',
     '83-player-relations.js',
+    '83-homestead-setup.js',
     '83-castle-game.js',
     '83-castle-interaction-types.js',
     '83b-piece-floors.js',

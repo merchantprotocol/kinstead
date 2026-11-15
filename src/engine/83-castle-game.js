@@ -58,6 +58,7 @@
       this.entityDir = new K.EntityDirectory(this);
       this.hero = new K.HeroOutfitter(this);
       this.relations = new K.PlayerRelations(this);
+      this.homestead = new K.HomesteadSetup(this);
     }
     get app() { return this.play.app; }
     get R() { return this.play.R; }
@@ -75,9 +76,9 @@
     /* ---------- enter / exit ---------- */
     enter() {
       document.body.classList.add('castle');
-      this.buildScene();
+      this.homestead.buildScene();
       this.hero.placeAtSpawn();
-      this.buildHomestead();
+      this.homestead.build();
       this.hearth.attach();
       this.goalArrow.attach();
       if (this.castle.lit) this.thaw.meltTo(this.castle.glowRadius(), 0);   // thawed ground already earned (resume): melt it at once
@@ -90,44 +91,12 @@
       if (this.day.isNight) this.startRaid();
       this.play.app.rig.set({ dist: 11, pitch: 0.78 });
       this.play.app.rig.maxDist = 44;   // you can never zoom out far enough to see the edge of the world
-      this.restoreHomestead();
+      this.homestead.restoreExtras();
       this.joinServer();
       this.gatekeepers = new K.GateKeeper(this);
       this.gatekeepers.refresh();
       this.cui.toast(this.saved ? 'Welcome back.' : CastleGame.WELCOME);
       G.castle = this;   // test hook (and the console's best friend)
-    }
-    buildScene() {
-      this.art = new K.CastleArt(this.R.bmats);
-      this.group = new THREE.Group();
-      this.group.name = 'castle';
-      this.R.scene.add(this.group);
-      this.floors = new K.PieceFloors(this);
-      this.meshes = new Map();
-      this.occ = new Uint8Array(this.play.nav.w * this.play.nav.h);
-      this.gateTiles = new Set();
-    }
-    /** your hut: the fire, the furniture, the barrels, your pieces. No keep, ruins, outcrop or zone barriers. */
-    buildHomestead() {
-      this.walls = new K.WallDrawer(this);   // before any saved pieces come back: placing and blocking a piece asks it what it is
-      this.smithy = null;
-      this.marketHall = null;
-      this.halls = {};
-      this.forge = null;
-      this.home = new K.Home(this);
-      this.castle.extraHas = (t) => this.hasExtra(t);
-      this.keepMesh = null;
-      this.ruinEnts = {};
-      this.outcropEnt = null;
-      const keep = this.L.keep, door = this.home.doorPoint;
-      this.keepEnt = { id: 'c-home', type: 'c_keep', name: 'Your home', x: keep.x, z: keep.z, y: 0, r: 0.1, h: 2, goal: [door.x, door.z] };
-      if (!this.castle.lit) this.castle.light();
-      for (const p of this.castle.pieces) this.addPieceMesh(p);
-      this.zones.raiseClosed();
-    }
-    /** buildings that live outside K.Castle's pieces (the blacksmith, your cottage, the market, the halls) */
-    hasExtra(t) {
-      return (t === 'blacksmith' && !!this.smithy) || (t === 'cottage' && this.home.built) || (t === 'market' && !!this.marketHall) || !!this.halls[t];
     }
     /** the game's modules that need the scene (each in its own file) */
     startSystems() {
@@ -158,11 +127,6 @@
       this.play.refreshProps();
       this.buildingPanel = new K.BuildingPanel(this);   // the details panel a click on a building opens (122-castle-inspector.js)
       this.ramparts = new K.Ramparts(this);   // the walk along your stone walls, towers and gate (127-castle-ramparts.js)
-    }
-    restoreHomestead() {
-      this.persist = new K.Persist(this);
-      if (!this.saved || !this.saved.extras) return;
-      try { this.persist.restore(this.saved.extras); } catch (err) { console.warn('could not restore the homestead', err); }
     }
     /** after your own save is back, so the shared world wins */
     joinServer() {

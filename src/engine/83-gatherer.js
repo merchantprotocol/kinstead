@@ -32,7 +32,9 @@
         g.sound.play('gather');
       }
       st.charges--;
-      if (e.type === 'c_tree' && st.charges > 0) g.R.setPropState(e.id, 'cut' + Math.min(4, st.max - st.charges));   // the tree visibly shrinks with every swing
+      if (e.type === 'c_tree' && st.charges > 0) {   // the tree visibly shrinks with every swing
+        g.R.setPropState(e.id, 'cut' + Math.min(4, st.max - st.charges));
+      }
       if (st.charges <= 0) this.spent(e, n, st);
       else if (!this.full(r)) this.gather(e);
       else {
