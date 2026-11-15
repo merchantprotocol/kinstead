@@ -265,7 +265,7 @@
       for (const [id, kind, x, z, y, f, st, hp, hpMax, name] of list) {
         const k = this.key(from, id); let r = this.by.get(k);
         if (!r) {
-          const worker = kind.startsWith('worker:'), sprite = worker ? kind.slice(7) : kind === 'bear' ? 'bear' : kind === 'wolf' ? 'wolf' : 'ranger';
+          const worker = kind.startsWith('person:'), sprite = worker ? kind.slice(7) : kind === 'bear' ? 'bear' : kind === 'wolf' ? 'wolf' : 'ranger';
           const a = g.addActor({ id: 'mob:' + k, role: 'remote', spriteId: sprite, name: name || kind, x, z, hpMax: hpMax || 30, atk: 0, def: 0, speed: 3, cd: 1, reach: 1, r: kind === 'bear' ? 0.8 : 0.45, scale: 1, level: 1, info: { xp: 0, loot: [] } });
           a.remote = true; a.hostile = !worker; a.mob = { owner: from, id }; if (worker) a.worker = true; if (kind === 'raider') a.view.setTint(0x6e4a42);
           if (K.GAME_ANIMALS && K.GAME_ANIMALS[kind]) { a.view.dispose(); a.view = new K.AnimalView(g.R, kind); a.view.setPosition(x, y, z); a.gameKind = kind; a.r = K.GAME_ANIMALS[kind].r; }   // a deer, elk, bison or wild horse someone else's game runs
@@ -424,9 +424,9 @@
     castMobs() {
       const g = this.g, list = [];
       for (const a of g.play.actors) {
-        const townsperson = !!a.worker;
+        const townsperson = !!a.worker || (a.role === 'npc' && String(a.id).startsWith('kin:'));
         if (a.remote || a === g.play.me || (!townsperson && (!a.hostile || !(a.wolf || a.bear || a.thief || a.gameKind)))) continue;
-        const d = a.view.dir, kind = townsperson ? 'worker:' + a.spriteId : a.gameKind || (a.bear ? 'bear' : a.wolf ? 'wolf' : 'raider');
+        const d = a.view.dir, kind = townsperson ? 'person:' + a.spriteId : a.gameKind || (a.bear ? 'bear' : a.wolf ? 'wolf' : 'raider');
         list.push([a.id, kind, +a.x.toFixed(2), +a.z.toFixed(2), +(a.y || 0).toFixed(2), +Math.atan2(d.z, d.x).toFixed(2), a.alive ? a.view.state : 'dead', Math.round(a.hp), a.hpMax, a.name]);
         if (list.length >= 40) break;
       }
