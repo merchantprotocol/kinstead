@@ -169,7 +169,7 @@
       const half = (cost) => { const o = {}; for (const [r, n] of Object.entries(cost || {})) { const h = Math.floor(n / 2); if (h > 0) o[r] = h; } return o; };
       const paid = Castle.FLAT.has(p.type) ? this.buildCost(p.type) : Cost.scale(this.data.piece(p.type).cost, Math.pow(1.6, Math.max(0, this.pieces.filter((q) => q.type === p.type).length - 1)));   // what this one cost: the price before it was built
       const out = half(paid);
-      if (p.level >= 2) for (const [r, n] of Object.entries(half(this.upgradeCost(p)))) out[r] = (out[r] || 0) + n;
+      if (p.level >= 2) for (const [r, n] of Object.entries(half(this.upgradeCostFor(p)))) out[r] = (out[r] || 0) + n;
       return out;
     }
     demolish(p) { if (!this.canDemolish(p)) return { ok: false }; const refund = this.refundFor(p); this.pieces.splice(this.pieces.indexOf(p), 1); return { ok: true, refund }; }
@@ -186,10 +186,11 @@
     light() { if (this.lit) return false; this.lit = true; this.hearthCap = this.data.pieces.keep.hearthCap; this.ruins.keep = true; return true; }
     /* ---- Level 2 upgrades (Smithy: 25% off) ---- */
     upgradeInfo(p) { const d = this.data.piece(p.type); return d && d.levels && p.level < 2 ? d.levels[0] : null; }
-    upgradeCost(p) {
-      const lv = this.upgradeInfo(p); if (!lv) return null;
+    upgradeCostFor(p) {
+      const d = this.data.piece(p.type), lv = d && d.levels && d.levels[0]; if (!lv) return {};
       return this.has('smithy') ? Cost.discount(lv.cost, this.data.pieces.smithy.upgradeDiscountPct) : Object.assign({}, lv.cost);
     }
+    upgradeCost(p) { return this.upgradeInfo(p) ? this.upgradeCostFor(p) : null; }
     upgradeBlocker(p, ignoreCost) {
       const lv = this.upgradeInfo(p); if (!lv) return 'no upgrade';
       if (this.cl() < lv.requiresCastleLevel) return `needs Castle Level ${lv.requiresCastleLevel}`;

@@ -94,6 +94,7 @@ class EngineManifest {
     '120-castle-workers.js',
     '121-castle-wildgame.js',
     '122-castle-inspector.js',
+    '123-castle-livestock-orders.js',
     '123-castle-rampart-layer.js',
     '124-castle-tower-stair.js',
     '125-castle-rampart-walker.js',

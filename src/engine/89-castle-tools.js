@@ -26,7 +26,7 @@
       this.effects = new K.Effects(game.group, this.effectsEnv());
       this.ctx = { game, play, effects: this.effects, editor: this.editor, ledger: this.ledger };
       this.belt = new K.Toolbelt([new K.SwordTool(), new K.AxeTool(), new K.PickaxeTool(), new K.ShovelTool(), new K.HammerTool()], (tool) => this.onSelect(tool), game.cui.root);   // inside #castleui so the panel styles apply
-      this.drawer = new K.BuildDrawer(game.cui);
+      this.drawer = new K.BuildDrawer(game.cui, { onMaterial: (id) => game.buildingPanel.material(id) });
       this.archery = new K.Archery(game);
       this.arms = new K.WeaponDrawer(game.cui, this.belt); this.belt.onWeaponsChanged = () => this.arms.update(); this.belt.onWeaponSlot = (was) => { if (was) this.arms.toggle(); else this.arms.show(); };   // clicking the weapon slot opens the weapon drawer
       this.belt.onModeSlot = (tool, was) => { const b = this.g.brush; if (b) { if (was) b.drawer.toggle(); else b.drawer.show(); } };   // click the shovel to open its modes

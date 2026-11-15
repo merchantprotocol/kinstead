@@ -35,8 +35,8 @@ const BUILDABLE = new Set(['dirt', 'palisade', 'gate', 'stone_wall', 'stone_gate
       const c = this.c, caps = c.caps(), rates = c.rates(), Ic = K.Icons, ICON = K.CastleUI.ICON;
       return K.CastleUI.RES_ORDER.map((r) => {
         const full = c.amount(r) >= caps[r], rate = rates[r] || 0;
-        return `<div class="res ${full ? 'full' : ''}" data-r="${r}" title="${esc(K.CastleData.resName(r))}: ${c.amount(r)} of ${caps[r]}">${Ic.img(ICON[r], 1)}<b>${c.amount(r)}</b><small>/${caps[r]}</small>${rate ? `<i>+${rate}/min</i>` : ''}${full ? '<em>FULL</em>' : ''}</div>`;
-      }).join('') + (c.amount('troll_heart') ? `<div class="res heart">${Ic.img('heart', 1)}<b>Troll’s heart</b></div>` : '');
+        return `<div class="res ${full ? 'full' : ''}" data-r="${r}" role="button" tabindex="0" title="${esc(K.CastleData.resName(r))}: ${c.amount(r)} of ${caps[r]}">${Ic.img(ICON[r], 1)}<b>${c.amount(r)}</b><small>/${caps[r]}</small>${rate ? `<i>+${rate}/min</i>` : ''}${full ? '<em>FULL</em>' : ''}</div>`;
+      }).join('') + (c.amount('troll_heart') ? `<div class="res heart" data-r="troll_heart" role="button" tabindex="0">${Ic.img('heart', 1)}<b>Troll’s heart</b></div>` : '');
     }
     chips(cost) { const ICON = K.CastleUI.ICON; return Object.entries(cost).map(([r, k]) => `<span class="chip ${this.c.amount(r) >= k ? '' : 'bad'}">${K.Icons.img(ICON[r], 1)}${k}</span>`).join(''); }
     row(x) {
@@ -74,6 +74,8 @@ const BUILDABLE = new Set(['dirt', 'palisade', 'gate', 'stone_wall', 'stone_gate
         this.cui.showBuildDetails(this.entries.get(info.dataset.detail));
         return;
       }
+      const material = e.target.closest('.res[data-r]');
+      if (material && this.hooks.onMaterial) { this.hooks.onMaterial(material.dataset.r); return; }
       const row = e.target.closest('.dw-row'); if (!row) return;
       if (row.dataset.sell) { this.g.sound.unlock(); this.g.demolisher.setSelling(!this.g.demolisher.selling); return; }
       if (this.g.demolisher && this.g.demolisher.selling) this.g.demolisher.setSelling(false);
