@@ -62,7 +62,7 @@
       return new Promise((resolve, reject) => {
         let done = false; const fail = (why) => { if (!done) { done = true; reject(new Error(why)); } }, timer = setTimeout(() => fail('timed out'), 15000);   // a busy or slow machine may take a while to answer
         const ws = (this.ws = new WebSocket(this.url));
-        ws.onopen = () => ws.send(JSON.stringify({ t: 'hello', cid: this.cid, name: this.name }));
+        ws.onopen = () => ws.send(JSON.stringify({ t: 'hello', cid: this.cid, name: this.name, mv: 2 }));   // mv 2: send me batched creature deltas ('mobz')
         ws.onerror = () => fail('connection failed');
         ws.onclose = () => { fail('closed'); this.onClosed(); };
         ws.onmessage = (e) => {
@@ -235,7 +235,9 @@
     update(dt) {
       for (const r of this.by.values()) {
         const [x, y, front] = this.play.toScreen(r.a.x, r.a.y + (r.a.view.h || 1.6) + 0.35, r.a.z);
-        r.el.style.display = front ? '' : 'none'; r.el.style.transform = `translate(${Math.round(x)}px,${Math.round(y)}px) translate(-50%,-100%)`;
+        const display = front ? '' : 'none', transform = `translate(${Math.round(x)}px,${Math.round(y)}px) translate(-50%,-100%)`;   // DOM writes only on change: 30 plates every frame add up
+        if (r.display !== display) { r.display = display; r.el.style.display = display; }
+        if (front && r.transform !== transform) { r.transform = transform; r.el.style.transform = transform; }
         if (r.sayT > 0 && (r.sayT -= dt) <= 0) { r.el.classList.remove('talking'); r.el.querySelector('span').textContent = ''; }
       }
     }
@@ -256,39 +258,6 @@
     flush() { if (this.dirty) { this.dirty = false; this.g.play.refreshProps(); } }
     dropOwner(owner) { for (const [id, r] of [...this.by]) if (r.s.owner === owner) this.gone(id); }
     entities() { const out = []; for (const r of this.by.values()) if (r.view.present) out.push(r.view.ent); return out; }
-  }
-
-  /** the creatures other players' games are running (their wolves, bears and raiders): you see them, and you can fight them */
-  class RemoteMobs {
-    constructor(game, net) { this.g = game; this.net = net; this.by = new Map(); }
-    key(from, id) { return from + ':' + id; }
-    update(from, list) {
-      const g = this.g, now = g.play.t;
-      for (const [id, kind, x, z, y, f, st, hp, hpMax, name] of list) {
-        const k = this.key(from, id); let r = this.by.get(k);
-        if (!r) {
-          const worker = kind.startsWith('person:'), sprite = worker ? kind.slice(7) : kind === 'bear' ? 'bear' : kind === 'wolf' ? 'wolf' : 'ranger';
-          const a = g.addActor({ id: 'mob:' + k, role: 'remote', spriteId: sprite, name: name || kind, x, z, hpMax: hpMax || 30, atk: 0, def: 0, speed: 3, cd: 1, reach: 1, r: kind === 'bear' ? 0.8 : 0.45, scale: 1, level: 1, info: { xp: 0, loot: [] } });
-          a.remote = true; a.hostile = !worker; a.mob = { owner: from, id }; if (worker) a.worker = true; if (kind === 'raider') a.view.setTint(0x6e4a42);
-          if (K.GAME_ANIMALS && K.GAME_ANIMALS[kind]) { a.view.dispose(); a.view = new K.AnimalView(g.R, kind); a.view.setPosition(x, y, z); a.gameKind = kind; a.r = K.GAME_ANIMALS[kind].r; }   // a deer, elk, bison or wild horse someone else's game runs
-          r = { a, tx: x, tz: z, ty: y, f, st, seen: now }; a.brain = { update: (dt) => this.step(r, dt) }; this.by.set(k, r);
-        }
-        r.tx = x; r.tz = z; r.ty = y; r.f = f; r.st = st; r.seen = now; r.a.hp = hp; r.a.hpMax = hpMax || r.a.hpMax;
-      }
-    }
-    step(r, dt) {
-      const a = r.a, g = this.g; if (g.play.t - r.seen > 2.5) { this.remove(r); return; }   // its owner stopped telling us about it: gone
-      const k = Math.min(1, dt * 9), dx = r.tx - a.x, dz = r.tz - a.z, d = Math.hypot(dx, dz);
-      if (d > 20) { a.x = r.tx; a.z = r.tz; } else { a.x += dx * k; a.z += dz * k; } a.y += (r.ty - a.y) * k;
-      if (d > 0.04) a.view.setFacing(dx, dz); else a.view.setFacing(Math.cos(r.f), Math.sin(r.f));
-      const want = r.st === 'dead' ? 'dead' : r.st === 'attack' ? 'attack' : d > 0.1 ? (d > 0.8 ? 'run' : 'walk') : 'idle';
-      if (a.view.state !== want && !(a.view.state === 'attack' && a.view.stateT < 0.45)) a.view.setState(want);
-      if (r.st === 'dead') a.alive = false;
-    }
-    remove(r) { this.by.delete(this.key(r.a.mob.owner, r.a.mob.id)); this.g.removeActor(r.a); }
-    dropOwner(owner) { for (const r of [...this.by.values()]) if (r.a.mob.owner === owner) this.remove(r); }
-    find(owner, id) { return this.by.get(this.key(owner, id)) || null; }
-    dispose() { for (const r of [...this.by.values()]) this.remove(r); }
   }
 
   /** invitations to join a team: little notices beside the world map, each with Accept and Decline */
@@ -312,11 +281,11 @@
 
   class Multiplayer {
     constructor(game, net) {
-      this.g = game; this.net = net; this.world = new RemoteWorld(game, net); this.avatars = new Avatars(game, net); this.stores = new RemoteStores(game, net); this.mobs = new RemoteMobs(game, net); this.farms = new K.FarmSync(game, this); this.lastSave = -1e9; this.ver = net.welcome.ver || {}; this.syncT = 8; this.mobT = 0; this.t = 0; this.chat = null;
+      this.g = game; this.net = net; this.world = new RemoteWorld(game, net); this.avatars = new Avatars(game, net); this.stores = new RemoteStores(game, net); this.mobs = new K.RemoteMobs(game, net); this.caster = new K.MobCaster(game, net); this.farms = new K.FarmSync(game, this); this.lastSave = -1e9; this.ver = net.welcome.ver || {}; this.syncT = 8; this.t = 0; this.chat = null;
       net.on('join', (m) => { this.avatars.add(m.p); game.cui.toast(`${m.p.name} joined.`); });
       net.on('house', (m) => this.onHouse(m)); net.on('pvphit', (m) => this.onPvpHit(m)); game.banners.on(() => { this.avatars.relook(); this.world.relabel(); });
       net.on('leave', (m) => { const r = this.avatars.by.get(m.id); if (r) game.cui.toast(`${r.name} left.`); this.avatars.remove(m.id); });
-      net.on('resync', (m) => this.onResync(m)); net.on('mobs', (m) => this.mobs.update(m.from, m.list || []));
+      net.on('resync', (m) => this.onResync(m)); net.on('mobs', (m) => this.mobs.update(m.from, m.list || [])); net.on('mobz', (m) => this.mobs.batch(m));
       net.on('mobhurt', (m) => this.onMobHurt(m)); net.on('leave', (m) => this.mobs.dropOwner(m.id));
       net.on('tick', (m) => this.avatars.ticks(m.p));
       net.on('op', (m) => this.onOp(m));
@@ -335,7 +304,7 @@
       this.teams = (net.welcome.teams || []); this.invites = (net.welcome.invites || []).slice(); this.board = new InviteBoard(this); this.lastOpen = null; this.lastBroken = null; this.lastHit = 0;
       this.start(net.welcome, true); this.makeChatBox(); this.board.render();
     }
-    start(w, first) { if (w.clock) { this.net.clock = w.clock; this.net.offset = w.clock.now - Date.now(); } if (this.g.weather && w.weather) this.g.weather.setFromServer(w.weather); if (!first) this.avatars.clear(); for (const p of w.players || []) this.avatars.add(p); this.world.snapshot(w); this.farms.apply(w.world && w.world.farms); this.syncStores(w.stores || []); if (!this.g.resume) this.net.send({ t: 'save', data: null }); }
+    start(w, first) { this.caster.reset(); if (w.clock) { this.net.clock = w.clock; this.net.offset = w.clock.now - Date.now(); } if (this.g.weather && w.weather) this.g.weather.setFromServer(w.weather); if (!first) this.avatars.clear(); for (const p of w.players || []) this.avatars.add(p); this.world.snapshot(w); this.farms.apply(w.world && w.world.farms); this.syncStores(w.stores || []); if (!this.g.resume) this.net.send({ t: 'save', data: null }); }
     /** tell the server what you already have on your plot (a game from before multiplayer, or one saved on this device) */
     uploadMine() {
       const g = this.g, tiles = [], d = g.play.doc, h0 = g.persist.h0, t0 = g.persist.t0;
@@ -422,18 +391,8 @@
       if (m.nodes) { for (const n of Object.values(m.nodes)) this.world.nodeOp(n, true); this.world.objDirty = true; }
       this.ver = m.ver || this.ver;
     }
-    /** the creatures this game runs, told to everyone else a few times a second */
-    castMobs() {
-      const g = this.g, list = [];
-      for (const a of g.play.actors) {
-        const townsperson = !!a.worker || (a.role === 'npc' && String(a.id).startsWith('kin:'));
-        if (a.remote || a === g.play.me || (!townsperson && (!a.hostile || !(a.wolf || a.bear || a.thief || a.gameKind)))) continue;
-        const d = a.view.dir, kind = townsperson ? 'person:' + a.spriteId : a.gameKind || (a.bear ? 'bear' : a.wolf ? 'wolf' : 'raider');
-        list.push([a.id, kind, +a.x.toFixed(2), +a.z.toFixed(2), +(a.y || 0).toFixed(2), +Math.atan2(d.z, d.x).toFixed(2), a.alive ? a.view.state : 'dead', Math.round(a.hp), a.hpMax, a.name]);
-        if (list.length >= 40) break;
-      }
-      if (list.length || this.hadMobs) this.net.send({ t: 'mobs', list }); this.hadMobs = list.length > 0;
-    }
+    /** the creatures this game runs, told to everyone else a few times a second (only what changed) */
+    castMobs() { this.caster.cast(); }
     /** you struck someone else's creature: its owner's game takes the blow */
     mobHit(b) { this.net.send({ t: 'mobhit', to: b.mob.owner, id: b.mob.id, tool: this.g.tools.tool.id }); }
     /** one of your creatures bit another player */
@@ -556,7 +515,7 @@
     update(dt) {
       this.t += dt; this.avatars.update(dt); this.world.flush(); this.stores.flush(); this.farms.update(dt); this.exits();
       if ((this.syncT -= dt) <= 0) { this.syncT = 12; this.net.send({ t: 'sync', v: this.ver }); }   // catch up on anything missed
-      if ((this.mobT -= dt) <= 0) { this.mobT = 0.2; this.castMobs(); }
+      this.caster.update(dt); this.mobs.tick(dt);
       for (const r of this.world.doors.values()) r.door.update(dt);
       for (const r of this.world.pieces.values()) if (r.gate) r.gate.update(dt);
       const d = this.g.home.door; if (this.lastOpen !== d.open) { if (this.lastOpen !== null) this.net.send({ t: 'open', slot: this.g.L.slot, open: d.open }); this.lastOpen = d.open; }
@@ -578,5 +537,5 @@
     dispose() { this.net.close(); this.avatars.dispose(); this.mobs.dispose(); this.farms.dispose(); this.chat.remove(); this.board.dispose(); }
   }
 
-  Object.assign(K, { Identity, NameGate, Net, RemoteWorld, RemoteStores, Avatars, InviteBoard, RemoteMobs, Multiplayer });
+  Object.assign(K, { Identity, NameGate, Net, RemoteWorld, RemoteStores, Avatars, InviteBoard, Multiplayer });
 })(typeof window !== 'undefined' ? window : globalThis);
