@@ -109,6 +109,7 @@ class EngineManifest {
     '118-castle-towers.js',
     '119a-castle-cart.js',
     '119-castle-economy.js',
+    '119b-castle-food-demand.js',
     '120a-work-poser.js',
     '120b-work-bubbles.js',
     '120c-work-errands.js',

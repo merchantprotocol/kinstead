@@ -54,7 +54,7 @@
       W.later(2.2, () => { from.view.carry = was === prop ? null : was; to.view.carry = prop; });
       if (to !== this.a) W.later(5, () => { if (to.view.carry === prop) to.view.carry = null; });
     }
-    report() { return ['All is well.']; }
+    report() { return this.g.economy.food.starving() ? ['I am hungry. Please bring food.'] : ['All is well.']; }
   }
 
   K.WorkerJob = WorkerJob;
