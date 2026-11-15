@@ -21,7 +21,7 @@ export class Markets {
   onBuy(p, m) {
     const [ws] = this.byId(p.id);
     const market = this.markets[String(m.owner || '')];
-    const good = String(m.good || ''), amount = Math.max(1, Math.min(20, m.n | 0));
+    const good = String(m.good || ''), amount = Math.max(1, Math.min(999, m.n | 0));
     const fail = (why) => this.send(ws, { t: 'buyfail', why });
     if (!market || market.owner === p.id) return fail('There is no clerk here to buy from.');
     if (!this.near(p, market, 12)) return fail('Walk up to the market stalls to trade.');

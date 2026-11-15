@@ -142,9 +142,11 @@
     }
     building(id, spec) {
       const g = this.g, doc = this.play.doc; if (doc.obj(id)) return; const s = K.BuildingSpec.normalize(Object.assign({}, spec, { id })); if (/^home:/.test(id)) s.noDoorLeaves = true; doc.objects.push(s);
+      const shop = /^(market|bakery|butcher|library|stable):(.+)$/.exec(id);
+      if (shop) g.addEntitySource(new K.ShopShelfSet(g, shop[1], s, shop[2], s.shopTurns || 0));
       g.R.syncBuildings(true); this.play.nav.applyBuildings(g.R.buildings); this.play.bplay.dirty(); this.play.refreshProps();
     }
-    removeBuilding(id) { const doc = this.play.doc, i = doc.objects.findIndex((o) => o.id === id); if (i < 0) return; doc.objects.splice(i, 1); this.g.R.syncBuildings(true); this.play.nav.applyBuildings(this.g.R.buildings); this.play.refreshProps(); }
+    removeBuilding(id) { const doc = this.play.doc, i = doc.objects.findIndex((o) => o.id === id); this.g.removeEntitySource(id); if (i < 0) return; doc.objects.splice(i, 1); this.g.R.syncBuildings(true); this.play.nav.applyBuildings(this.g.R.buildings); this.play.refreshProps(); }
     addPiece(p) {
       const g = this.g; if (this.pieces.has(p.id) || !g.data.piece(p.type)) return;
       const m = g.art.piece(p.type, { level: 1 }); g.place(m, p.x, p.z, p.rot); const [w, d] = K.CastleArt.size(p.type), rec = { p, mesh: m, w, d, hp: p.hp, hpMax: p.hpMax, gate: null };

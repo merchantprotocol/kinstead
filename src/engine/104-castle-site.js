@@ -177,16 +177,19 @@
     /** the building is up: hook it into the game (and tell everyone else) */
     adopt(type, spec, turns) {
       const g = this.g;
+      if (K.ShopShelfSet.TYPES.has(type)) spec.shopTurns = turns;
       if (type === 'cottage') { g.home.raise(spec); g.homeTurns = turns; g.home.door.apply(); if (g.mp) g.mp.announceHome(); }
-      else if (KINDS[type].hall) { g.halls[type] = { spec, turns }; if (g.mp) g.mp.op({ k: 'bld+', id: type + ':' + g.mp.net.id, spec }); if (g.workers) g.workers.hallBuilt(type, spec, turns); }
-      else if (type === 'market') { g.marketHall = spec; g.marketTurns = turns; if (g.mp) g.mp.op({ k: 'bld+', id: 'market:' + g.mp.net.id, spec }); const f = this.frontOf(spec, turns); g.addFreePiece('market', f.x, f.z, f.rot); }
+      else if (KINDS[type].hall) { g.halls[type] = { spec, turns }; g.addEntitySource(new K.ShopShelfSet(g, type, spec, g.mp ? g.mp.net.id : '', turns)); if (g.mp) g.mp.op({ k: 'bld+', id: type + ':' + g.mp.net.id, spec }); if (g.workers) g.workers.hallBuilt(type, spec, turns); }
+      else if (type === 'market') { g.marketHall = spec; g.marketTurns = turns; g.addEntitySource(new K.ShopShelfSet(g, type, spec, g.mp ? g.mp.net.id : '', turns)); if (g.mp) g.mp.op({ k: 'bld+', id: 'market:' + g.mp.net.id, spec }); const f = this.frontOf(spec, turns); g.addFreePiece('market', f.x, f.z, f.rot); }
       else { g.smithy = spec; g.smithyTurns = turns; if (g.mp) g.mp.op({ k: 'bld+', id: 'smithy:' + g.mp.net.id, spec }); g.forge = g.forge || new K.Forge(g); }
     }
     /** put a saved building back (no cost, no ceremony) */
     restore(type, ti, tj, turns) {
-      const g = this.g, play = this.play, R = g.R; this._type = type; const spec = this.specAt(ti, tj, turns, KINDS[type].id); play.doc.objects.push(spec);
+      const g = this.g, play = this.play, R = g.R; this._type = type; const spec = this.specAt(ti, tj, turns, KINDS[type].id);
+      if (K.ShopShelfSet.TYPES.has(type)) spec.shopTurns = turns;
+      play.doc.objects.push(spec);
       R.syncBuildings(true); play.nav.applyBuildings(R.buildings); play.bplay.dirty(); play.refreshProps();
-      if (type === 'cottage') { g.home.raise(spec); g.homeTurns = turns; g.home.door.apply(); } else if (KINDS[type].hall) { g.halls[type] = { spec, turns }; } else if (type === 'market') { g.marketHall = spec; g.marketTurns = turns; } else { g.smithy = spec; g.smithyTurns = turns; g.forge = g.forge || new K.Forge(g); }
+      if (type === 'cottage') { g.home.raise(spec); g.homeTurns = turns; g.home.door.apply(); } else if (KINDS[type].hall) { g.halls[type] = { spec, turns }; g.addEntitySource(new K.ShopShelfSet(g, type, spec, g.mp ? g.mp.net.id : '', turns)); } else if (type === 'market') { g.marketHall = spec; g.marketTurns = turns; g.addEntitySource(new K.ShopShelfSet(g, type, spec, g.mp ? g.mp.net.id : '', turns)); } else { g.smithy = spec; g.smithyTurns = turns; g.forge = g.forge || new K.Forge(g); }
       this._type = null;
     }
     /** just outside a building's front wall, facing out: where its street stalls go (the door faces south at 0, west at 1, north at 2, east at 3) */
