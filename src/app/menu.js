@@ -19,6 +19,7 @@
       this.$('mContinue').onclick = () => this.router.go('play', { world: 'continue' });
       this.$('mPlay').onclick = () => this.openWorlds();
       this.$('mBuilder').onclick = () => this.router.go('builder');
+      if (this.$('mLab')) this.$('mLab').onclick = () => this.router.go('lab');
       this.$('mSettings').onclick = () => this.openSettings();
       this.doc.querySelectorAll('[data-back]').forEach((b) => (b.onclick = () => this.show('mainPanel')));
       const pick = (e) => { const c = e.target.closest('[data-world]'); if (c) this.router.go('play', { world: c.dataset.world }); };

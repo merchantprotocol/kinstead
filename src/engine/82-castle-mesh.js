@@ -34,11 +34,20 @@
     static size(type) { return SIZE[type] || [2, 2]; }
     /* a THREE.Group for a piece; opts: { ruin, level, built } */
     piece(type, opts = {}) {
+      const hd = !opts.ruin && K.Models ? K.Models.pieceFor(type, opts.level || 1) : null;   // Asset Lab model (src/models/<type>.js) when there is one
+      if (hd) return this.hdPiece(type, hd, opts);
       const kit = new K.VoxKit(), k = this.draw(kit, type, opts);
       const g = new THREE.Group(); g.name = 'castle:' + type;
       for (const m of kit.meshes(this.mats)) g.add(m);
       if (k && k.flames) for (const f of k.flames) g.add(this.flame(f));
       if (opts.level >= 2 && !opts.ruin) this.levelFlag(g, type);
+      return g;
+    }
+    /* a registry model: shared geometry, its own flames, and the Level 2 flag when only a Level 1 model exists */
+    hdPiece(type, hd, opts) {
+      const g = hd.model.object3d(); g.name = 'castle:' + type; g.userData.hd = hd.id;
+      for (const f of hd.model.flamesM()) g.add(this.flame(f));
+      if (opts.level >= 2 && !hd.lv2) this.levelFlag(g, type);
       return g;
     }
     flame([x, y, z, s]) {

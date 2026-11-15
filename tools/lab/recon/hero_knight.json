@@ -1,0 +1,268 @@
+{
+  "id": "hero_knight",
+  "ref": "public/lab/hero_knight.png",
+  "prior": "/mnt/worktrees/_scratch/fidelity-spike/b/knight-mesh.json",
+  "out": "/mnt/worktrees/_scratch/asset-fidelity/recon",
+  "height": 64,
+  "palette": 28,
+  "fit": "height",
+  "symBand": [
+    0.62,
+    0.98
+  ],
+  "edgeErode": 3,
+  "glowBand": 24,
+  "rig": {
+    "centreBand": [
+      14,
+      35
+    ],
+    "neck": 47,
+    "headX": 8,
+    "headCX": 1,
+    "belt": 35,
+    "crotch": 14,
+    "forkX": -5,
+    "shoulderX": 9,
+    "armDrop": 12,
+    "capeZ": -5,
+    "sword": {
+      "hilt": [
+        -17,
+        29,
+        6
+      ],
+      "tip": [
+        -24,
+        9,
+        22
+      ],
+      "r": 2.6,
+      "grip": 5
+    },
+    "shield": {
+      "c": [
+        15,
+        27,
+        9
+      ],
+      "n": [
+        0.92,
+        -0.3,
+        0.25
+      ],
+      "depth": 3,
+      "r": 14
+    },
+    "pivots": {
+      "hips": [
+        0,
+        24,
+        0
+      ],
+      "torso": [
+        0,
+        35,
+        0
+      ],
+      "head": [
+        1,
+        47,
+        2
+      ],
+      "armR": [
+        -10,
+        50,
+        0
+      ],
+      "armL": [
+        11,
+        50,
+        0
+      ],
+      "weapon": [
+        -17,
+        29,
+        6
+      ],
+      "shield": [
+        14,
+        40,
+        4
+      ],
+      "cape": [
+        0,
+        47,
+        -6
+      ],
+      "legR": [
+        -8,
+        16,
+        2
+      ],
+      "legL": [
+        5,
+        16,
+        3
+      ]
+    },
+    "parents": {
+      "hips": null,
+      "torso": "hips",
+      "head": "torso",
+      "armR": "torso",
+      "weapon": "armR",
+      "armL": "torso",
+      "shield": "armL",
+      "cape": "torso",
+      "legR": "hips",
+      "legL": "hips"
+    }
+  },
+  "gain": [
+    1,
+    1,
+    1
+  ],
+  "brightFrac": 0.6,
+  "materials": {
+    "steel": {
+      "rule": "grey",
+      "tones": [
+        "#303135",
+        "#4f5155",
+        "#6b6c6e",
+        "#7b7a78",
+        "#8c8b88",
+        "#a3a19d",
+        "#b6b7b8",
+        "#c3c4c6"
+      ]
+    },
+    "red": {
+      "rule": "red",
+      "tones": [
+        "#4a0f0b",
+        "#6c1912",
+        "#86221a",
+        "#9a281e",
+        "#b5372a"
+      ]
+    },
+    "gold": {
+      "rule": "gold",
+      "tones": [
+        "#a8681c",
+        "#c98a2a",
+        "#e3a43a",
+        "#ffd263"
+      ]
+    },
+    "leather": {
+      "rule": "brown",
+      "tones": [
+        "#43271a",
+        "#5a3522",
+        "#6a4029",
+        "#7d5236"
+      ]
+    },
+    "black": {
+      "rule": "black",
+      "tones": [
+        "#121214",
+        "#1d1e21"
+      ]
+    }
+  },
+  "centreRadius": 3.5,
+  "details": {
+    "sword": {
+      "hilt": [
+        -17,
+        29,
+        6
+      ],
+      "tip": [
+        -24,
+        9,
+        22
+      ],
+      "half": 1.8,
+      "thick": 0.6,
+      "guard": 4.5,
+      "grip": 4,
+      "clear": 3.0,
+      "colours": {
+        "blade": "#8f9194",
+        "edge": "#c3c5c8",
+        "fuller": "#5d5f62",
+        "brass": "#c08a3a",
+        "brassD": "#8a5a22",
+        "grip": "#4a2c1c"
+      }
+    },
+    "decals": [],
+    "helm": {
+      "cx": 1.5,
+      "cz": 6.5,
+      "yaw": 0,
+      "hx": 5.5,
+      "hz": 6.5,
+      "y0": 47,
+      "yd": 57,
+      "y1": 63,
+      "eyeY": 56,
+      "visor": [
+        "XXXXXXXXX",
+        "X...X...X",
+        "X.X.X.X.X",
+        "X.X.X.X.X",
+        "X...X...X",
+        ".X..X..X."
+      ],
+      "tones": [
+        "#7b7a78",
+        "#8c8b88",
+        "#a3a19d",
+        "#8c8b88",
+        "#6b6c6e"
+      ],
+      "light": "#c3c4c6",
+      "band": "#6b6c6e",
+      "black": "#121214",
+      "cut": [
+        8.5,
+        9
+      ],
+      "limits": {
+        "hx": [
+          4.5,
+          6.5
+        ],
+        "hz": [
+          5.5,
+          7.5
+        ],
+        "yaw": [
+          -0.5,
+          0.5
+        ]
+      },
+      "face": "#7b7a78"
+    }
+  },
+  "plate": {
+    "passes": 2,
+    "tol": 15,
+    "minDefault": 3,
+    "minSame": {
+      "black": 9,
+      "gold": 4,
+      "leather": 5
+    },
+    "floor": {
+      "steel": 30
+    }
+  }
+}
