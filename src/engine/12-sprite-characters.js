@@ -63,7 +63,7 @@
         d.px(3, 12, st[6]); d.px(3, 11, st[5]);
         // snow on helm top & mantle
         [[14, 4], [15, 4], [16, 4], [17, 3 + 1]].forEach(([x, y]) => d.has(x, y + b) && d.px(x, y + b, this.palette.snow[3]));
-        for (let x = 8; x < 24; x++) if (hash2(x, 3, 77) < 0.45) { const y = 15 + b + (x < 12 || x > 20 ? 1 : 0); if (d.has(x, y)) d.px(x, y, this.palette.snow[x % 3 ? 2 : 3]); }
+        for (let x = 8; x < 24; x++) if (K.hash2(x, 3, 77) < 0.45) { const y = 15 + b + (x < 12 || x > 20 ? 1 : 0); if (d.has(x, y)) d.px(x, y, this.palette.snow[x % 3 ? 2 : 3]); }
         // knee + gauntlet highlights
         d.px(12, 37, st[6]); d.px(18, 37, st[5]); d.px(8, 28 + b, st[6]);
       });
