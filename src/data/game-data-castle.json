@@ -741,6 +741,39 @@
    "buildRequires": [
     "cottage"
    ]
+  },
+  "coop": {
+   "id": "coop",
+   "name": "Chicken coop",
+   "category": "farming",
+   "cost": {
+    "wood": 14
+   },
+   "requiresCastleLevel": 1,
+   "castlePoints": 0,
+   "hp": 120,
+   "effect": "A hen house. Buy chickens here for 5 wheat each; every chicken lays an egg a minute. Keep them inside a wall or the wolves will have them.",
+   "artPrompt": "Chicken coop",
+   "buildRequires": [
+    "farm"
+   ]
+  },
+  "barn": {
+   "id": "barn",
+   "name": "Cattle barn",
+   "category": "farming",
+   "cost": {
+    "wood": 30,
+    "stone": 10
+   },
+   "requiresCastleLevel": 1,
+   "castlePoints": 0,
+   "hp": 250,
+   "effect": "Buy cows here for 10 wheat each. Cows eat a wheat every 2 minutes and, when fed, give milk. Butcher one for beef. Fence them in: wolves and bears hunt cattle.",
+   "artPrompt": "Cattle barn",
+   "buildRequires": [
+    "farm"
+   ]
   }
  },
  "keepUpgrade": {

@@ -28,7 +28,7 @@
 
   /* piece footprints (m): w along the piece's local x, d along local z; used for nav blocking, raider collision and placement */
   const SIZE = {
-    keep: [4.2, 4.2], palisade: [0.5, 0.5], stone_wall: [0.5, 0.5], dirt: [0.5, 0.5], gate: [2, 0.5], stone_gate: [4, 1.5], blacksmith: [6, 4.5], cottage: [5, 3.5], gatehouse: [3.6, 1.6], watchtower: [1.5, 1.5], ember_brazier: [0.8, 0.8], fire_pot: [0.8, 0.8], farm: [3, 2.5], silo: [1.6, 1.6], market: [3.8, 2.6], field: [0.5, 0.5],
+    keep: [4.2, 4.2], palisade: [0.5, 0.5], stone_wall: [0.5, 0.5], dirt: [0.5, 0.5], gate: [2, 0.5], stone_gate: [4, 1.5], blacksmith: [6, 4.5], cottage: [5, 3.5], gatehouse: [3.6, 1.6], watchtower: [1.5, 1.5], ember_brazier: [0.8, 0.8], fire_pot: [0.8, 0.8], farm: [3, 2.5], silo: [1.6, 1.6], coop: [1.6, 1.4], barn: [3.4, 2.6], market: [3.8, 2.6], field: [0.5, 0.5],
     woodcutter: [2.6, 2.2], quarry: [2.6, 2.2], mine: [2.6, 2.4], great_hall: [5.2, 3.2], chapel: [2.2, 2.6], storehouse: [2.8, 2.2],
     smithy: [3.2, 2.6], ember_forge: [1.8, 1.6], barracks: [4.2, 2.2],
   };
@@ -154,6 +154,19 @@
           k.box('roofSnow', 0, 2.0, -0.58, 3.0, 0.04, 1.38, 0, 0.6); k.box('roofSnow', 0, 2.0, 0.58, 3.0, 0.04, 1.38, 0, -0.6);
           k.box('wood', 0, 0, 1.11, 1.1, 1.3, 0.05); k.box('timber', 0, 0.62, 1.15, 1.1, 0.08, 0.04, 0, 0, 0.85); k.box('timber', 0, 0.62, 1.15, 1.1, 0.08, 0.04, 0, 0, -0.85);
           for (const [x, z] of [[1.7, 0.6], [1.7, 1.15], [1.95, 0.85]]) k.box('hay', x, 0, z, 0.5, 0.42, 0.42); k.box('hay', 1.8, 0.42, 0.88, 0.5, 0.4, 0.42);
+          break;
+        }
+        case 'coop': {   // a little raised hen house with a ramp and straw
+          for (const [x, z] of [[-0.6, -0.5], [0.6, -0.5], [-0.6, 0.5], [0.6, 0.5]]) k.box('timber', x, 0, z, 0.1, 0.4, 0.1);
+          k.box('planks', 0, 0.4, 0, 1.4, 0.75, 1.2); k.box('shingle', 0, 1.15, -0.32, 1.6, 0.1, 0.75, 0, 0.5); k.box('shingle', 0, 1.15, 0.32, 1.6, 0.1, 0.75, 0, -0.5);
+          k.box('soot', 0, 0.5, 0.61, 0.3, 0.32, 0.02); k.box('wood', 0, 0.02, 0.85, 0.28, 0.06, 0.6, 0, 0.6); k.box('straw', 0.45, 0, 0.75, 0.4, 0.15, 0.3);
+          break;
+        }
+        case 'barn': {   // a long cattle barn with a hayloft door and a trough
+          k.box('timber', 0, 0, 0, 3.2, 1.9, 2.4); k.box('shingle', 0, 1.9, -0.68, 3.5, 0.14, 1.6, 0, 0.62); k.box('shingle', 0, 1.9, 0.68, 3.5, 0.14, 1.6, 0, -0.62);
+          k.box('roofSnow', 0, 2.24, -0.62, 3.4, 0.04, 1.4, 0, 0.62); k.box('roofSnow', 0, 2.24, 0.62, 3.4, 0.04, 1.4, 0, -0.62);
+          k.box('wood', 0, 0, 1.21, 1.3, 1.45, 0.05); k.box('timber', 0, 0.7, 1.25, 1.3, 0.08, 0.04, 0, 0, 0.8); k.box('timber', 0, 0.7, 1.25, 1.3, 0.08, 0.04, 0, 0, -0.8);
+          k.box('wood', 0, 1.95, 1.0, 0.5, 0.45, 0.05); k.box('planks', -1.0, 0, 1.6, 1.0, 0.3, 0.35); k.box('hay', -1.0, 0.3, 1.6, 0.9, 0.06, 0.3);
           break;
         }
         case 'silo': {   // a tall round grain store with an iron-banded wall and a cone roof

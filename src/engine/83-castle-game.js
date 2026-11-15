@@ -379,7 +379,12 @@
       } else if (e.type === 'c_piece') {
         const p = e.piece, up = c.upgradeInfo(p);
         if (this.tools.tool.id === 'hammer' && c.canDemolish(p)) act('demolish', 'Take down…', 'hammer', () => this.demolisher.ask(p), { range: e.r + 0.8 });   // hammer only, and it asks
-        if (p.type === 'market' || p.type === 'silo' || p.type === 'farm') { const nm = { market: 'Open the marketplace', silo: 'Look in the silo', farm: 'Look in the barn' }[p.type]; act('store', nm, 'bag', () => this.purse.openLedger(p), { range: e.r + 1.2 }); }   // a building's store, as a second purse
+        if (p.type === 'coop' || p.type === 'barn') {
+          const st = this.economy.stock, kind = p.type === 'coop' ? 'chicken' : 'cow', sp = K.LIVESTOCK[kind], n = st.herd(p).length;
+          act('buy', `Buy a ${kind} · ${sp.price} wheat (${n}/${sp.max}, you have ${this.economy.wheatHeld()} wheat)`, 'bag', () => st.buy(p), { range: e.r + 1.2 });
+          if (p.type === 'barn' && n) act('butcher', 'Butcher a cow for beef', 'sword', () => st.butcher(p), { range: e.r + 1.2 });
+        }
+        if (p.type === 'market' || p.type === 'silo' || p.type === 'farm' || p.type === 'coop' || p.type === 'barn') { const nm = { market: 'Open the marketplace', silo: 'Look in the silo', farm: 'Look in the farm', coop: 'Collect eggs', barn: 'Look in the cattle barn' }[p.type]; act('store', nm, 'bag', () => this.purse.openLedger(p), { range: e.r + 1.2 }); }   // a building's store, as a second purse
         if (K.Breacher.GATES.has(p.type) && p.bridge) act('bridge', p.type === 'gate' ? (p.bridge.open ? 'Shut the gate' : 'Open the gate') : (p.bridge.open ? 'Raise the drawbridge' : 'Lower the drawbridge'), 'hand', () => p.bridge.toggle(), { range: p.type === 'gate' ? 2.6 : 3.4 });
         if (up) { const pb = c.upgradePayback(p), why = c.upgradeBlocker(p); act('upgrade', `Upgrade to Level 2: ${fmtCost(c.upgradeCost(p))}${pb != null ? ` · pays back in ${pb.toFixed(1)} min` : ''}${why ? ' (' + why + ')' : ''}`, 'hammer', () => this.upgrade(p), { range: e.r + 0.8 }); }
         const st = { smithy: 'craft_iron_sword', ember_forge: 'craft_ember_brand' }[p.type];

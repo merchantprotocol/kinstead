@@ -35,6 +35,7 @@
       if ((a.hp < a.hpMax - 0.01 || d < 4.5) && me.alive && !g.isSanctuary(me.x, me.z)) {    // hurt or crowded: it turns on you
         const reach = a.reach + (me.r || 0.3) + 0.35; if (d <= reach) { a.path = null; this.face(me); if (this.cd <= 0) this.bite(me); this.anim(false); } else this.walk(me.x, me.z, reach * 0.8, dt); this.keepOut(); return;
       }
+      if (this.livestock(dt, d, (x, z) => this.walk(x, z, 0.6, dt))) { this.stuckT = 0; this.keepOut(); return; }   // a cow or chicken outside the walls is an easy meal
       if (this.plunder.done) { this.retreat(); return; }
       let st = this.food; if (!st || !st.present || st.amount < 1 || this.bad.get(st) > this.P.t) { st = this.food = this.pickFood(); if (!st) { this.stuckT += dt; if (this.stuckT > 25) this.retreat(); else this.idleAround(dt); return; } }
       const tx = st.ent.x, tz = st.ent.z;

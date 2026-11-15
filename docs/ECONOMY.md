@@ -52,9 +52,9 @@ from it. Everything you own flies your banner.
 
 ## Building it, in phases
 
-1. **Core:** the economy ledger (stock per building), carts, the marketplace with growing piles, the farm with
+1. **Core (built):** the economy ledger (stock per building), carts, the marketplace with growing piles, the farm with
    wheat fields, the grain silo.
-2. **Livestock:** the chicken coop and chickens with eggs; the cattle barn and cows with milk and beef;
+2. **Livestock (built):** the chicken coop and chickens with eggs; the cattle barn and cows with milk and beef;
    predators eat animals outside walls.
 3. **People:** the cook (meals), the smith (weapon orders, spares to market), the clerk (trading with other
    players).

@@ -222,7 +222,7 @@
     vault(id) { if (!this.vaults.has(id)) this.vaults.set(id, new Vault()); return this.vaults.get(id); }
     openVault(e) { this.win.open(new VaultHoldings(this.g, this.vault(e.id), e.name || 'Chest')); }
     openForge(forge) { this.win.open(null, forge); }
-    openLedger(p) { const g = this.g, title = { market: 'Marketplace', silo: 'Grain silo', farm: 'Barn' }[p.type] || 'Store'; this.win.open(new VaultHoldings(g, g.economy.vaultFor(p), title)); }
+    openLedger(p) { const g = this.g, title = { market: 'Marketplace', silo: 'Grain silo', farm: 'Farm', coop: 'Chicken coop', barn: 'Cattle barn' }[p.type] || 'Store'; this.win.open(new VaultHoldings(g, g.economy.vaultFor(p), title)); }
     openHearth() { this.win.open(null, this.hearth); }
     /** chests and wardrobes (the building system's own furniture) open the two-purse screen */
     hook() {

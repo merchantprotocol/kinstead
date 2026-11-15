@@ -65,6 +65,12 @@
     }
     bite(foe) { this.cd = this.a.cd; this.P.swing(this.a, foe); }
     /** who this creature goes for: the nearest player it can reach (you, or another settler), never someone safe indoors */
+    /** an animal of yours left outside the walls: go and take it. false when there is none nearer than the player it would hunt */
+    livestock(dt, d, walk) {
+      const eco = this.g.economy, a = this.a; if (!eco) return false; const b = eco.stock.preyNear(a, Math.min(26, d)); if (!b) return false;
+      if (Math.hypot(b.x - a.x, b.z - a.z) <= a.reach + 0.5) { a.path = null; this.face(b); if ((this.cd -= 0) <= 0) { this.cd = a.cd; a.view.setState('attack'); eco.stock.eaten(b, a); } return true; }
+      walk(b.x, b.z); return true;
+    }
     prey() {
       const P = this.P, g = this.g, a = this.a, cand = [P.me];
       if (g.mp) for (const r of g.mp.avatars.by.values()) cand.push(r.a);
@@ -85,8 +91,9 @@
       if (dist(a, P.me) > 80 && this.mode !== 'retreat') { if (this.plunder) this.plunder.release(); g.removeActor(a); return; }
       if (this.plunder) this.plunder.follow();
       if (this.mode === 'retreat') { if (dist(a, g.home.center) > 66) { if (this.plunder) this.plunder.escape(); g.removeActor(a); return; } const lp = g.wild.leavePoint(a); this.goTo(lp.x, lp.z, a.speed, 1.5, dt); return; }   // it walks away a stretch at a time
-      if (this.nothingHere(d)) { this.idle += dt; if (this.idle > 25) { this.retreat(); return; } this.roam(dt); return; }   // a pack that finds nothing roams on, then leaves
+      if (this.nothingHere(d) && !(g.economy && g.economy.stock.preyNear(a, 26))) { this.idle += dt; if (this.idle > 25) { this.retreat(); return; } this.roam(dt); return; }   // a pack that finds nothing roams on, then leaves
       this.idle = 0;
+      if (this.livestock(dt, d, (x, z) => this.goTo(x, z, a.speed, 0.6, dt))) { this.keepOut(); return; }   // your cows and chickens outside the walls come before you
       if (g.calendar.isNight && this.forage(dt, d)) return;   // at night the smell of your food is what they came for
       if (!me.alive || g.isSanctuary(me.x, me.z) || this.pace > 0) { this.pace -= dt; this.prowl(dt); this.keepOut(); return; }   // you are in your house or at a gate: they circle outside
       this.hunt(dt, d); this.keepOut();
@@ -269,7 +276,7 @@
     attracted() {
       const now = this.t; if (this.attrAt != null && now < this.attrAt) return this.attrVal; this.attrAt = now + 10;
       const g = this.g, me = this.P.me, food = g.home.stores.some((s) => s.res === 'food' && s.present && s.amount >= 1);
-      let yes = food || !g.home.inside(me.x, me.z);
+      let yes = food || !g.home.inside(me.x, me.z) || !!(g.economy && g.economy.stock.anyExposed());
       if (!yes) { const from = this.edgePoint(); if (from) { const probe = { x: from.x, z: from.z, speed: 2.8, view: { setState() {}, setFacing() {}, state: '' }, atk: 0 }, d = g.home.doorPoint; yes = !new K.Breacher(g, probe, 'wolf').makePlan(d.x, d.z, 1.3).stuck; } }   // can a wolf get to the door (or dig to it)?
       return (this.attrVal = yes);
     }
