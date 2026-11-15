@@ -12,10 +12,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { Lab } from './recon-kit.mjs';
+import { DetailKit } from './details.mjs';
 
 export class RigSplitter {
   static ORDER = ['hips', 'torso', 'head', 'armR', 'weapon', 'armL', 'shield', 'cape', 'legR', 'legL'];   // parents before children
-  constructor(recon, rig) { this.r = recon; this.rig = rig; }
+  constructor(recon, rig, cfg = null) { this.r = recon; this.rig = rig; this.cfg = cfg; }
 
   /* centre the figure on x/z (the mean of the hip band), feet on y = 0 */
   centre() {
@@ -31,7 +32,8 @@ export class RigSplitter {
     let t = ((p[0] - a[0]) * d[0] + (p[1] - a[1]) * d[1] + (p[2] - a[2]) * d[2]) / L2; t = Math.max(0, Math.min(1, t));
     return Math.hypot(a[0] + d[0] * t - p[0], a[1] + d[1] * t - p[1], a[2] + d[2] * t - p[2]);
   }
-  bone([x, y, z, c]) {
+  bone([x, y, z, c, forced]) {
+    if (forced) return forced;
     const R = this.rig, sw = R.sword, sh = R.shield;
     if (sw) {
       const u = [sw.tip[0] - sw.hilt[0], sw.tip[1] - sw.hilt[1], sw.tip[2] - sw.hilt[2]], L = Math.hypot(...u), top = sw.hilt.map((v, i) => v - (u[i] / L) * (sw.grip || 5));
@@ -54,8 +56,9 @@ export class RigSplitter {
     return list.filter((v) => !deep(v[0], v[1], v[2]));
   }
   split() {
-    this.centre(); const parts = {};
-    for (const v of this.vox) { const b = this.bone(v); (parts[b] = parts[b] || []).push(v); }
+    this.centre(); if (this.cfg && this.cfg.details) new DetailKit(this, this.cfg).apply();
+    const parts = {};
+    for (const v of this.vox) { const b = this.bone(v); (parts[b] = parts[b] || []).push(v.slice(0, 4)); }
     for (const k in parts) parts[k] = this.hollow(parts[k]);
     this.parts = parts; return parts;
   }
@@ -81,6 +84,6 @@ export class RigSplitter {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const cfg = JSON.parse(fs.readFileSync(process.argv[2], 'utf8')), recon = JSON.parse(fs.readFileSync(path.join(cfg.out, `${cfg.id}-recon.json`), 'utf8'));
-  const s = new RigSplitter(recon, cfg.rig); s.split();
+  const s = new RigSplitter(recon, cfg.rig, cfg); s.split();
   console.log('offset', s.off, JSON.stringify(s.write(path.join('src/models', `${cfg.id}.data.js`)).counts));
 }

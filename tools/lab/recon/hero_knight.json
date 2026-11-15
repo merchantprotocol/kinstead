@@ -175,5 +175,81 @@
       ]
     }
   },
-  "centreRadius": 3.5
+  "centreRadius": 3.5,
+  "details": {
+    "sword": {
+      "hilt": [
+        -17,
+        29,
+        6
+      ],
+      "tip": [
+        -24,
+        9,
+        22
+      ],
+      "half": 1.8,
+      "thick": 0.6,
+      "guard": 4.5,
+      "grip": 4,
+      "clear": 3.0,
+      "colours": {
+        "blade": "#8f9194",
+        "edge": "#c3c5c8",
+        "fuller": "#5d5f62",
+        "brass": "#c08a3a",
+        "brassD": "#8a5a22",
+        "grip": "#4a2c1c"
+      }
+    },
+    "decals": [],
+    "helm": {
+      "cx": 1.5,
+      "cz": 6.5,
+      "yaw": 0,
+      "hx": 5.5,
+      "hz": 6.5,
+      "y0": 47,
+      "yd": 57,
+      "y1": 63,
+      "eyeY": 56,
+      "visor": [
+        "XXXXXXXXX",
+        "X...X...X",
+        "X.X.X.X.X",
+        "X.X.X.X.X",
+        "X...X...X",
+        ".X..X..X."
+      ],
+      "tones": [
+        "#7b7a78",
+        "#8c8b88",
+        "#a3a19d",
+        "#8c8b88",
+        "#6b6c6e"
+      ],
+      "light": "#c3c4c6",
+      "band": "#6b6c6e",
+      "black": "#121214",
+      "cut": [
+        8.5,
+        9
+      ],
+      "limits": {
+        "hx": [
+          4.5,
+          6.5
+        ],
+        "hz": [
+          5.5,
+          7.5
+        ],
+        "yaw": [
+          -0.5,
+          0.5
+        ]
+      },
+      "face": "#7b7a78"
+    }
+  }
 }
