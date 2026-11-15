@@ -143,7 +143,7 @@
 
   /** every animal you own, what they make, what they eat, and what hunts them */
   class Livestock {
-    constructor(eco) { this.eco = eco; this.g = eco.g; this.herds = new Map(); this.clock = 0; this.scanT = 0; }
+    constructor(eco) { this.eco = eco; this.g = eco.g; this.herds = new Map(); this.clock = 0; this.scanT = 0; this.orders = new K.LivestockOrders(this); }
     get all() { const out = []; for (const h of this.herds.values()) out.push(...h); return out; }
     herd(p) { let h = this.herds.get(p.uid); if (!h) this.herds.set(p.uid, (h = [])); return h; }
     blocker() { const g = this.g, T = K.TILE; return (i, j) => g.gateTiles.has(i + ',' + j) || g.insideBuilding((i + 0.5) * T, (j + 0.5) * T); }
@@ -152,12 +152,12 @@
       return null;
     }
     /** buy an animal for its building, paid in wheat */
-    buy(p) {
+    buy(p, opts = {}) {
       const g = this.g, kind = p.type === 'coop' ? 'chicken' : 'cow', s = KINDS[kind], h = this.herd(p);
       if (h.length >= s.max) { g.cui.toast(`This ${p.type === 'coop' ? 'coop' : 'barn'} is full (${s.max} ${kind}s).`); return false; }
       if (!this.eco.takeWheat(s.price)) { g.cui.toast(`A ${kind} costs ${s.price} wheat. Grow more wheat first.`); g.sound.play('clank'); return false; }
       if (!this.spawn(kind, p)) { this.eco.ledger(p).add('wheat', s.price); g.cui.toast('There is no room around the building for it.'); return false; }
-      g.sound.play('thunk'); g.cui.toast(`You bought a ${kind} (${h.length} now).`); g.changed(); return true;
+      g.sound.play('thunk'); if (!opts.quiet) g.cui.toast(`You bought a ${kind} (${h.length} now).`); g.changed(); return true;
     }
     butcher(p) {
       const h = this.herd(p), b = h[h.length - 1], g = this.g; if (!b) return false;
@@ -172,6 +172,7 @@
         if (s.eats) { b.hunger += dt; if (b.hunger >= s.eats) { b.fed = this.eco.takeWheat(1, false); b.hunger = 0; } }
         if (!b.fed) continue; b.t += dt; if (b.t >= s.every) { b.t = 0; l.add(s.good, 1); }
       }
+      this.orders.tick(dt);
       if ((this.scanT -= dt) <= 0) { this.scanT = 5; this.scan(); }
     }
     update(dt) { this.clock += dt; for (const b of this.all) b.update(dt); }
@@ -200,8 +201,8 @@
       g.cui.toast(`${by && by.bear ? 'A bear' : 'A wolf'} took one of your ${b.kind}s! Keep your animals inside walls.`); g.sound.play('hit'); g.changed();
     }
     tidy(live) { for (const [uid, h] of this.herds) if (!live.has(uid)) { for (const b of h) b.dispose(); this.herds.delete(uid); } }
-    toJSON() { const o = {}; for (const [uid, h] of this.herds) if (h.length) o[uid] = h.map((b) => [b.kind, +b.x.toFixed(2), +b.z.toFixed(2)]); return o; }
-    restore(o) { for (const [uid, list] of Object.entries(o || {})) { const p = this.g.castle.pieces.find((q) => q.uid === +uid); if (!p) continue; for (const [kind, x, z] of list) this.herd(p).push(new Beast(this, kind, p, x, z)); } }
+    toJSON() { const o = {}; for (const [uid, h] of this.herds) if (h.length) o[uid] = h.map((b) => [b.kind, +b.x.toFixed(2), +b.z.toFixed(2)]); return { herds: o, orders: this.orders.toJSON() }; }
+    restore(o) { if (o && (o.herds || o.orders)) { this.orders.restore(o.orders); o = o.herds || {}; } for (const [uid, list] of Object.entries(o || {})) { const p = this.g.castle.pieces.find((q) => q.uid === +uid); if (!p) continue; for (const [kind, x, z] of list) this.herd(p).push(new Beast(this, kind, p, x, z)); } }
     dispose() { for (const b of this.all) b.dispose(); this.herds.clear(); }
   }
 
@@ -293,10 +294,10 @@
     /** a two-purse view of a building's store (the purse screen works on it like a chest) */
     vaultFor(p) { const l = this.ledger(p); let v = this.vaults.get(p.uid); if (!v) { v = { res: l.goods, items: {}, weapons: [] }; this.vaults.set(p.uid, v); } v.res = l.goods; return v; }
     /* ---------- saving ---------- */
-    toJSON() { const led = {}; for (const [uid, l] of this.ledgers) led[uid] = l.goods; return { ledgers: led, herds: this.stock.toJSON(), fields: [...this.fields.tiles.values()].map((t) => [t.i, t.j, Math.round(t.age)]) }; }
+    toJSON() { const led = {}; for (const [uid, l] of this.ledgers) led[uid] = l.goods; return { ledgers: led, livestock: this.stock.toJSON(), fields: [...this.fields.tiles.values()].map((t) => [t.i, t.j, Math.round(t.age)]) }; }
     restore(x) {
       if (!x) return; for (const [uid, goods] of Object.entries(x.ledgers || {})) { const p = this.pieces.find((q) => q.uid === +uid); if (p) Object.assign(this.ledger(p).goods, goods); }
-      if (x.herds) this.stock.restore(x.herds);
+      if (x.livestock) this.stock.restore(x.livestock); else if (x.herds) this.stock.restore(x.herds);
       const d = this.g.play.doc; for (const [i, j, age] of x.fields || []) { this.fields.add(i, j, age); const k = j * d.w + i; d.terrain[k] = K.T.DIRT; }
       if ((x.fields || []).length) this.g.R.tilesChanged(0, 0, d.w, d.h);
     }

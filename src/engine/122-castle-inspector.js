@@ -3,7 +3,7 @@
 (function (G) {
   const K = G.K;
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>\"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  class CastleInspector {
+  class BuildingPanel {
     constructor(game) { this.g = game; this.c = game.castle; this.selected = null; this.root = document.createElement('div'); this.root.id = 'cInspector'; this.root.hidden = true; document.body.appendChild(this.root); this.click = (e) => this.onClick(e); this.root.addEventListener('click', this.click); this.key = (e) => { if (e.key === 'Escape' && !this.root.hidden) this.close(); }; document.addEventListener('keydown', this.key); }
     close() { this.root.hidden = true; this.selected = null; }
     open(title, icon, body) { const image = icon && String(icon).startsWith('<') ? icon : K.Icons.img(icon || 'eye', 3); this.root.innerHTML = `<section class="ci-shell"><header>${image}<h2>${esc(title)}<button data-close aria-label="Close">×</button></header><div class="ci-content">${body}</div></section>`; this.root.hidden = false; }
@@ -19,7 +19,16 @@
         const up = c.upgradeInfo(p); if (up) { const blocker = c.upgradeBlocker(p), cost = c.upgradeCost(p), bad = c.missing(cost), benefit = up.produces ? Object.entries(up.produces).map(([r,n])=>`+${n-(pr&&pr[r]||0)} ${K.CastleData.resName(r)}/min`).join(', ') : 'Improved level benefits'; actions.push(`<section class="ci-action"><h3>Upgrade</h3><p>${esc(benefit)}</p><div>${Object.entries(cost).map(([r,n])=>`<span class="${bad[r]?'poor':'enough'}">${n} ${K.CastleData.resName(r)} (have ${c.amount(r)})${bad[r]?` · need ${bad[r]} more`:''}</span>`).join(' · ')}</div>${blocker?`<p>${esc(blocker)}</p>`:''}<button data-upgrade ${(Object.keys(bad).length||blocker)?'disabled':''}>Upgrade</button></section>`); } else actions.push('<p>This building cannot be upgraded.</p>');
         if (c.canDemolish(p)) { const refund=c.refundFor(p), label=Object.entries(refund).map(([r,n])=>`${n} ${K.CastleData.resName(r)}`).join(', ')||'nothing'; actions.push(`<section class="ci-danger"><h3>Take down</h3><p>Refund: ${esc(label)}</p><button data-takedown>Take down…</button></section>`); }
       }
-      this.selected={e,p,remote}; this.open(d.name,this.g.cui.art.html(p.type,K.CastleUI.PIECE_ICON[p.type],84),` <p>${esc(d.effect||K.CastleUI.SHORT[p.type]||'A castle building.')}</p>${rows.join('')}${actions.join('')}`);
+      const available = g.actionsFor(e).filter((a) => !['inspect', 'demolish'].includes(a.id));
+      if (available.length) actions.unshift(`<section class="ci-action"><h3>Options</h3>${available.map((a) => `<button data-building-action="${esc(a.id)}">${esc(a.label)}</button>`).join('')}</section>`);
+      if (!remote && ['coop', 'barn'].includes(p.type)) actions.unshift(this.orderHtml(p));
+      this.selected={e,p,remote,available}; this.open(d.name,this.g.cui.art.html(p.type,K.CastleUI.PIECE_ICON[p.type],84),` <p>${esc(d.effect||K.CastleUI.SHORT[p.type]||'A castle building.')}</p>${rows.join('')}${actions.join('')}`);
+    }
+    orderHtml(p) {
+      const orders=this.g.economy.stock.orders, order=orders.get(p), herd=this.g.economy.stock.herd(p);
+      const kind=p.type==='coop'?'chicken':'cow', price=K.LIVESTOCK[kind].price;
+      const waiting=herd.length>=order.target?'Target reached':this.g.economy.wheatHeld()<price?'Paused: not enough wheat':`Next purchase in ${Math.max(0,Math.ceil(order.remaining))}s`;
+      return `<section class="ci-action"><h3>Buy regularly</h3><p>Keep ${kind}s at ${order.target} · ${esc(waiting)}</p><button data-order-target="${order.target-1}" ${order.target<=1?'disabled':''}>−</button><button data-order-target="${order.target+1}" ${order.target>=K.LIVESTOCK[kind].max?'disabled':''}>+</button><button data-order-toggle>${order.enabled?'Turn off':'Turn on'} · ${price} wheat each</button></section>`;
     }
     material(id) {
       const c=this.c,d=c.data, name=K.CastleData.resName(id), caps=c.caps(), producers=d.pieceIds().map(t=>d.piece(t)).filter(p=>p&&p.produces&&p.produces[id]).map(p=>`${p.name}: +${p.produces[id]}/min`);
@@ -28,17 +37,8 @@
       const body=`<div class="ci-row"><span>In storage</span><b>${c.amount(id)} / ${caps[id] == null?'—':caps[id]}</b></div><h3>How to get more</h3><p>${esc([...nodes,...producers].join(' · ')||'No direct source is defined in the game data.')}</p><h3>Used for</h3><p>${esc(uses.join(' · ')||'No building costs list this material.')}</p><nav>${K.CastleUI.RES_ORDER.map(r=>`<button data-material="${r}">${esc(K.CastleData.resName(r))}</button>`).join('')}</nav>`;
       this.open(name,K.CastleUI.ICON[id],body);
     }
-    onClick(e) { if(e.target.closest('[data-close]')) return this.close(); const m=e.target.closest('[data-material]'); if(m)return this.material(m.dataset.material); if(e.target.closest('[data-upgrade]')){if(this.selected&&!this.selected.remote){this.g.upgrade(this.selected.p);this.piece(this.selected.e);}} if(e.target.closest('[data-takedown]')){const s=this.selected;if(!s||s.remote)return;const refund=this.c.refundFor(s.p),text=Object.entries(refund).map(([r,n])=>`${n} ${K.CastleData.resName(r)}`).join(', ')||'nothing';this.g.cui.modal(`<h2>Take down ${esc(this.g.data.piece(s.p.type).name)}?</h2><p>Refund: ${esc(text)}. This cannot be undone.</p>`,[{label:'Keep it',pri:true},{label:'Yes, take it down',run:()=>{if(this.g.demolishPiece(s.p)){this.close();}}}]);} }
+    onClick(e) { if(e.target.closest('[data-close]')) return this.close(); const toggle=e.target.closest('[data-order-toggle]'), target=e.target.closest('[data-order-target]'); if((toggle||target)&&this.selected&&!this.selected.remote){const s=this.selected, orders=this.g.economy.stock.orders, o=orders.get(s.p); orders.configure(s.p,toggle?{enabled:!o.enabled}:{target:+target.dataset.orderTarget}); this.piece(s.e); this.g.changed(); return;} const action=e.target.closest('[data-building-action]'); if(action && this.selected){const a=this.selected.available.find((x)=>x.id===action.dataset.buildingAction); if(a)this.g.play.doAction(this.selected.e,a,false); return;} const m=e.target.closest('[data-material]'); if(m)return this.material(m.dataset.material); if(e.target.closest('[data-upgrade]')){if(this.selected&&!this.selected.remote){this.g.upgrade(this.selected.p);this.piece(this.selected.e);}} if(e.target.closest('[data-takedown]')){const s=this.selected;if(!s||s.remote)return;const refund=this.c.refundFor(s.p),text=Object.entries(refund).map(([r,n])=>`${n} ${K.CastleData.resName(r)}`).join(', ')||'nothing';this.g.cui.modal(`<h2>Take down ${esc(this.g.data.piece(s.p.type).name)}?</h2><p>Refund: ${esc(text)}. This cannot be undone.</p>`,[{label:'Keep it',pri:true},{label:'Yes, take it down',run:()=>{if(this.g.demolishPiece(s.p)){this.close();}}}]);} }
     dispose(){document.removeEventListener('keydown',this.key);this.root.remove();}
   }
-  K.CastleInspector=CastleInspector;
-  const old=K.CastleGame.prototype.inspect;
-  K.CastleGame.prototype.inspect=function(e){if(e.type==='c_piece'||e.type==='c_rpiece'){if(!this.inspector)this.inspector=new CastleInspector(this);return this.inspector.piece(e);}return old.call(this,e);};
-  const oldDispose=K.CastleGame.prototype.dispose; if(oldDispose) K.CastleGame.prototype.dispose=function(){if(this.inspector)this.inspector.dispose();return oldDispose.apply(this,arguments);};
-  const oldRender=K.BuildDrawer.prototype.resourcesHtml;
-  K.BuildDrawer.prototype.resourcesHtml=function(){return oldRender.call(this).replace(/class="res ([^"]*)" data-r="([^"]+)"/g,'class="res $1" data-r="$2" role="button" tabindex="0"');};
-  const oldCtor=K.BuildDrawer.prototype.constructor;
-  // Attach delegation without modifying the build-list click path.
-  const onDrawerClick=K.BuildDrawer.prototype.onClick;
-  K.BuildDrawer.prototype.onClick=function(e){const r=e.target.closest('.res[data-r]'); if(r){this.g.inspector=this.g.inspector||new CastleInspector(this.g);this.g.inspector.material(r.dataset.r);return;}return onDrawerClick.call(this,e);};
+  K.BuildingPanel=BuildingPanel;
 })(typeof window !== 'undefined' ? window : globalThis);
