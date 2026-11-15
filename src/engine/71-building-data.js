@@ -38,7 +38,11 @@
       sign: { icon: 'home', board: 'signBoard', emblem: false }, props: [{ type: 'woodpile', side: 'l', at: 0 }, { type: 'bench', side: 'r', at: 0 }] },
     keep: { trim: '#3a2a1c', roof: { snow: true }, fill: 1 },
   };
-  const isColor = (v) => typeof v === 'string' && /^(#[0-9a-fA-F]{6}|[a-zA-Z]+)$/.test(v);
+  class BuildingColor {
+    static isColor(value) {
+      return typeof value === 'string' && /^(#[0-9a-fA-F]{6}|[a-zA-Z]+)$/.test(value);
+    }
+  }
   const FLOORS = { planks: 'Floorboards', flagstone: 'Flagstones', straw: 'Straw' };
   const ROOM_TYPES = {
     hall: { name: 'Hall', floor: 'flagstone' },
@@ -102,15 +106,17 @@
       o.roof = { style: ROOF_STYLES[r.style] ? r.style : 'gable', material: 'slate',   /* every roof in the castle is the same slate */ snow: snow === 'light' ? 'light' : snow !== false, pitch: Math.max(0.45, Math.min(0.9, +r.pitch || 0.72)) };
       /* roof colour is fixed: one slate for every building */
       // look (all optional): explicit fields win, then the prefab's look
-      for (const k of ['wallColor', 'trim', 'doorColor', 'shutterColor']) { const v = o[k] !== undefined ? o[k] : look[k]; if (isColor(v)) o[k] = v; else delete o[k]; }
+      for (const k of ['wallColor', 'trim', 'doorColor', 'shutterColor']) { const v = o[k] !== undefined ? o[k] : look[k]; if (BuildingColor.isColor(v)) o[k] = v; else delete o[k]; }
       const sg = o.sign !== undefined ? o.sign : look.sign;
-      if (sg && typeof sg === 'object' && SIGN_ICONS.includes(sg.icon)) o.sign = { icon: sg.icon, board: isColor(sg.board) ? sg.board : 'signBoard', emblemIcon: SIGN_ICONS.includes(sg.emblemIcon) ? sg.emblemIcon : undefined, text: typeof sg.text === 'string' ? sg.text.slice(0, 14) : undefined, textColor: isColor(sg.textColor) ? sg.textColor : undefined, emblem: sg.emblem !== false };
+      if (sg && typeof sg === 'object' && SIGN_ICONS.includes(sg.icon)) o.sign = { icon: sg.icon, board: BuildingColor.isColor(sg.board) ? sg.board : 'signBoard', emblemIcon: SIGN_ICONS.includes(sg.emblemIcon) ? sg.emblemIcon : undefined, text: typeof sg.text === 'string' ? sg.text.slice(0, 14) : undefined, textColor: BuildingColor.isColor(sg.textColor) ? sg.textColor : undefined, emblem: sg.emblem !== false };
       else if (sg === false) o.sign = false; else delete o.sign;
       const pr = o.props !== undefined ? o.props : look.props;
       if (Array.isArray(pr) && pr.length) o.props = pr.filter((p) => p && typeof p.type === 'string').slice(0, 8).map((p) => ({ type: p.type, side: p.side === 'l' ? 'l' : 'r', at: Math.max(0, Math.min(12, p.at | 0)), out: Math.max(0, Math.min(3, p.out | 0)), rot: ((p.rot | 0) % 4 + 4) % 4 }));
       else if (Array.isArray(pr)) o.props = []; else delete o.props;
-      const bt = o.bunting !== undefined ? o.bunting : look.bunting; if (Array.isArray(bt) && bt.filter(isColor).length) o.bunting = bt.filter(isColor).slice(0, 8); else delete o.bunting;
-      const aw = o.awning !== undefined ? o.awning : look.awning; if (Array.isArray(aw) && aw.length === 2 && aw.every(isColor)) o.awning = aw.slice(); else delete o.awning;
+      const bt = o.bunting !== undefined ? o.bunting : look.bunting;
+      if (Array.isArray(bt) && bt.filter(BuildingColor.isColor).length) o.bunting = bt.filter(BuildingColor.isColor).slice(0, 8); else delete o.bunting;
+      const aw = o.awning !== undefined ? o.awning : look.awning;
+      if (Array.isArray(aw) && aw.length === 2 && aw.every(BuildingColor.isColor)) o.awning = aw.slice(); else delete o.awning;
       const fb = o.flowerBoxes !== undefined ? o.flowerBoxes : look.flowerBoxes; if (fb) o.flowerBoxes = true; else delete o.flowerBoxes;
       const fl = o.fill !== undefined ? o.fill : look.fill; o.fill = Math.max(0, Math.min(3, fl === undefined ? 1 : +fl || 0));
       o.wallH = Math.max(1.8, Math.min(3.2, +o.wallH || 2.1));
@@ -417,10 +423,15 @@
       }),
     },
   };
-  /* a fresh building from a prefab at world tile (x,z) */
-  function makeBuilding(key, x, z, id, seed) {
-    const p = PREFABS[key]; if (!p) throw new Error('Unknown building prefab ' + key);
-    return BuildingSpec.normalize(Object.assign(p.make(), { id: id || 'b_' + key, prefab: key, x, z, seed: seed || 11 }));
+  /* creates a fresh building from a prefab at world tile (x,z) */
+  class BuildingFactory {
+    static make(key, x, z, id, seed) {
+      const prefab = PREFABS[key];
+      if (!prefab) throw new Error('Unknown building prefab ' + key);
+      return BuildingSpec.normalize(Object.assign(prefab.make(), {
+        id: id || 'b_' + key, prefab: key, x, z, seed: seed || 11,
+      }));
+    }
   }
 
   /* ---------- world format v2 (backward compatible with v1) ----------
@@ -435,14 +446,6 @@
     },
     /* save: version 1 unless a building is present (older builders keep opening building-free worlds) */
     versionFor(objects) { return (objects || []).some((o) => o && o.kind === 'building') ? 2 : 1; },
-    /* runtime install for the standalone demo; the builder should merge this into 20-world.js instead (see INTEGRATION.md) */
-    install() {
-      const WD = K.WorldDoc; if (!WD || WD.__v2) return; WD.__v2 = true;
-      const fromJSON = WD.fromJSON, toJSON = WD.prototype.toJSON;
-      WD.fromJSON = (o) => { const up = WorldV2.upgrade(o); return fromJSON(Object.assign({}, up, { version: 1 })); };
-      WD.prototype.toJSON = function () { const j = toJSON.call(this); j.version = WorldV2.versionFor(j.objects); return j; };
-      WD.prototype.buildings = function () { return this.objects.filter((o) => o.kind === 'building'); };
-    },
   };
 
   /* world-space helpers for a building object */
@@ -454,5 +457,7 @@
     contains(b, i, j) { return Footprint.inside(b.footprint, i - b.x, j - b.z); },
   };
 
-  Object.assign(K, { BUILDING_LOOKS: LOOKS, SIGN_ICONS, WALLS, ROOF_STYLES, ROOF_MATERIALS, FLOORS, ROOM_TYPES, Footprint, BuildingSpec, FurnitureFootprint, BuildingLayout, BUILDING_PREFABS: PREFABS, makeBuilding, WorldV2, BuildingGeo });
+  Object.assign(K, { BUILDING_LOOKS: LOOKS, SIGN_ICONS, WALLS, ROOF_STYLES, ROOF_MATERIALS, FLOORS, ROOM_TYPES,
+    Footprint, BuildingSpec, FurnitureFootprint, BuildingLayout, BUILDING_PREFABS: PREFABS,
+    makeBuilding: BuildingFactory.make, BuildingFactory, WorldV2, BuildingGeo });
 })(typeof window !== 'undefined' ? window : globalThis);

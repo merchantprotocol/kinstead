@@ -127,6 +127,7 @@
         }
       });
     }
+    rasterizeAnd(detail) { this.rasterize(); this.finish(detail); return this; }
     finish(detail) {
       const { w, h } = this, P = this.parts;
       const col = new Array(w * h).fill(null);
@@ -403,8 +404,6 @@
       d.px(30, 34 + b, sk[1]); d.px(31, 34 + b, sk[2]); d.px(38, 40 + b, sk[1]); d.line(26, 38 + b, 29, 41 + b, sk[2]);
     });
   }
-
-  SpriteCanvas.prototype.rasterizeAnd = function (detail) { this.rasterize(); this.finish(detail); return this; };
 
   class CharacterLibrary {
     constructor() {
