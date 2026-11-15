@@ -402,3 +402,4 @@ body.castle #voxOrbit{display:none!important}
   #cPlates .plate.talking span{display:block}
   #cChat{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:14;pointer-events:auto}#cChat[hidden]{display:none}
   #cChat input{width:min(440px,80vw);padding:10px 14px;border-radius:12px;border:2px solid #c9953c;background:rgba(14,19,30,.94);color:#fff;font:15px system-ui;outline:none}
+  #cPlates .plate.ally b{color:#8fe9a0}

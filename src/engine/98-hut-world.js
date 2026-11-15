@@ -45,7 +45,7 @@
     }
     /** a cottage for another settler's plot (drawn only: their door, stores and furniture are theirs to run) */
     cottageAt(slot, id) {
-      const p = this.plan.plots[slot], mine = this.homeSpec(), o = JSON.parse(JSON.stringify(mine)); o.id = id; o.x = Math.round(p.x / TILE) - 5; o.z = Math.round(p.z / TILE) - 3; o.noDoorLeaves = false; return K.BuildingSpec.normalize(o);
+      const p = this.plan.plots[slot], mine = this.homeSpec(), o = JSON.parse(JSON.stringify(mine)); o.id = id; o.x = Math.round(p.x / TILE) - 5; o.z = Math.round(p.z / TILE) - 3; o.noDoorLeaves = true; return K.BuildingSpec.normalize(o);   // their Door class draws the leaf
     }
     /** the cottage: the same kind of house the World Builder makes (timber, thatch, kitchen and bedroom) */
     homeSpec() {

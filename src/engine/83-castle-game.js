@@ -170,11 +170,14 @@
       this.slot = new K.CastleSave(opts.storage || K.CastleSave.defaultStorage()); this.resume = !!opts.resume; this.sound = new CastleSound();
       this.castle = new K.Castle(this.data); this.day = new K.DayCycle(this.data); this.calendar = new K.Calendar(this); this.playTime = 0;
       this.saved = this.resume ? this.slot.read() : null;
+      if ((this.net && this.net.welcome.evicted) || (G.localStorage && G.localStorage.getItem('kinstead.evict'))) { try { G.localStorage.removeItem('kinstead.evict'); } catch (e) { /* ignore */ } this.saved = this.evictedSave(this.saved); }   // your castle was taken: you keep what you carry, not the land
       if (this.saved) { this.castle = K.Castle.fromJSON(this.data, this.saved.castle); const d = Object.assign({}, this.saved.day); if (this.day.phases[d.idx] && this.day.phases[d.idx].kind === 'night') d.t = 0; this.day = new K.DayCycle(this.data, d); this.playTime = this.saved.playTime || 0; }
       if (!this.saved) { this.castle.add('wood', 6); this.castle.add('stone', 4); this.castle.add('dirt', 4); this.castle.add('arrow', 12); this.castle.weapons.add('stoneblade'); }   // you start with a little of everything and a blade
       this.day.phases = K.Calendar.PHASES;   // looping day and night
       this.noXp = true; this.swingSec = this.data.swingSec;
     }
+    /** a saved game after your castle was taken: resources, strength and weapons stay; pieces, buildings, stores and ground do not */
+    evictedSave(sv) { if (!sv) return null; const keep = sv.extras || {}; sv.castle.pieces = []; sv.hero = null; sv.nodes = {}; sv.extras = { weapons: keep.weapons, held: keep.held, xp: keep.xp }; return sv; }
     get app() { return this.play.app; }
     get R() { return this.play.R; }
     get ui() { return this.cui; }
@@ -273,6 +276,7 @@
     entities() {
       const out = this.home ? this.home.entities() : [];
       for (const p of this.castle.pieces) out.push(this.pieceEnt(p));
+      if (this.mp) for (const e of this.mp.world.entities()) out.push(e);   // other settlers' walls, gates and doors
       return out;
     }
     pieceEnt(p) {
@@ -316,7 +320,7 @@
     /* take a piece down: it comes apart, the ground clears, and half its cost drops as pickups to collect */
     demolishPiece(p, opts = {}) {
       const c = this.castle; if (!c.canDemolish(p)) { this.cui.toast('Restored ruins stay standing.'); return false; }
-      if (this.mp) this.mp.op({ k: 'piece-', id: this.mp.pieceId(p) });
+      if (this.mp && !this.mp.quiet) this.mp.op({ k: 'piece-', id: this.mp.pieceId(p) });
       const r = c.demolish(p), m = this.meshes.get('p' + p.uid), [w, d] = CastleArt.size(p.type), fx = this.tools.effects, y = this.play.nav.y(p.x, p.z);
       if (m) { this.group.remove(m); this.meshes.delete('p' + p.uid); }
       if (p.bridge) { p.bridge.dispose(); p.bridge = null; }
@@ -356,6 +360,14 @@
         if (up) { const pb = c.upgradePayback(p), why = c.upgradeBlocker(p); act('upgrade', `Upgrade to Level 2: ${fmtCost(c.upgradeCost(p))}${pb != null ? ` · pays back in ${pb.toFixed(1)} min` : ''}${why ? ' (' + why + ')' : ''}`, 'hammer', () => this.upgrade(p), { range: e.r + 0.8 }); }
         const st = { smithy: 'craft_iron_sword', ember_forge: 'craft_ember_brand' }[p.type];
         if (st && !c.weapons.has(this.data.recipe(st).id.replace('craft_', ''))) act('craft', `Forge ${this.data.item(st.replace('craft_', '')).name} · ${fmtCost(this.data.recipe(st).inputs)}`, st === 'craft_iron_sword' ? 'sword' : 'brand', () => this.craft(st), { range: e.r + 0.8 });
+      } else if (e.type === 'c_rpiece') {
+        const rec = e.rec, mp = this.mp, gate = K.Breacher.GATES.has(rec.p.type), mine = mp.mayUse(rec.p.owner);
+        if (gate) act('open', rec.gate.open ? 'Shut the gate' : (mine ? 'Open the gate' : 'Try the gate (locked)'), 'hand', () => mp.requestGate(rec), { range: 2.8 });
+        if (!mine) act('break', 'Break it down', 'sword', () => mp.hit(rec), { range: 2.1 });
+      } else if (e.type === 'c_rdoor') {
+        const rec = e.rec, mp = this.mp, mine = mp.mayUse(rec.owner), d = rec.door;
+        if (d.broken) { if (!mine) act('install', 'Hang your own door (3 wood): take the castle', 'hammer', () => mp.installDoor(rec), { range: 2.4 }); }
+        else { act('open', d.open ? 'Shut the door' : (mine ? 'Open the door' : 'Try the door (locked)'), 'hand', () => mp.requestDoor(rec), { range: 2.4 }); if (!mine) act('break', 'Break the door down', 'sword', () => mp.hit(rec, true), { range: 2.1 }); }
       } else if (e.type === 'c_rack') {
         const rk = e.rack; act('bow', rk.owned ? 'Put the bow back' : 'Take the bow', 'sword', () => (rk.owned ? rk.putBack() : rk.take()), { range: 1.2 });
         act('fletch', 'Fletch 4 arrows (1 wood)', 'hand', () => rk.fletch(), { range: 1.2 });
@@ -447,7 +459,6 @@
       if (type === 'blacksmith') return null;
       this.rectTiles(x, z, w + 0.2, d + 0.2, rot, (i, j) => { const k = j * nav.w + i; if (this.occ[k] || this.R.buildings.at(i, j)) bad = 'something is in the way'; else if (!nav.walk[k] || nav.deck[k]) bad = bad || 'the ground is not clear'; });
       const me = this.play.me; if (!bad && Math.hypot(me.x - x, me.z - z) < Math.min(w, d) / 2 + 0.2) bad = 'you are standing there';
-      if (!bad && !K.Breacher.GATES.has(type) && this.wouldWallOffKeep(type, x, z, rot)) bad = 'that would wall off the Keep';
       return bad;
     }
     /* a piece may never seal the Keep in: its approach must still reach the wilds (walls need the Gatehouse as the way in) */
@@ -910,6 +921,7 @@
   reg.register('c_ruin', spec(0xffd27a, 'hammer'));
   reg.register('c_site', spec(0xffd27a, 'pickaxe'));
   reg.register('c_piece', spec(0x9fd8ff, 'hand'));
+  reg.register('c_rpiece', spec(0xffb4a0, 'hand')); reg.register('c_rdoor', spec(0xffb4a0, 'hand'));
   reg.register('c_barrel', spec(0xffd27a, 'hand'));
   reg.register('c_door', spec(0xffd27a, 'hand'));
   reg.register('c_rack', spec(0xffd27a, 'hand'));

@@ -77,19 +77,21 @@
 
   /** other people's edits, applied to your map */
   class RemoteWorld {
-    constructor(game, net) { this.g = game; this.net = net; this.pieces = new Map(); this.byId = null; this.cottages = new Set(); }
+    constructor(game, net) { this.g = game; this.net = net; this.pieces = new Map(); this.byId = null; this.cottages = new Set(); this.doors = new Map(); this.owners = {}; }   // doors: slot -> { door, owner, hp, max }
     get play() { return this.g.play; }
     node(id) { if (!this.byId) { this.byId = new Map(); for (const e of this.play.baseProps) this.byId.set(e.id, e); } return this.byId.get(id) || null; }
     /** everything the server holds, applied in one go (join, or coming back after a dropped connection) */
     snapshot(m) {
       const w = m.world || {}, me = this.net.id;
-      for (const c of m.claimed || []) if (c.id !== me) this.cottage(c.slot);
+      for (const c of m.claimed || []) { this.owners[c.id] = c.name; this.owners[c.slot] = c.name; if (c.slot !== this.g.L.slot) this.cottage(c.slot); }
       for (const b of Object.values(w.buildings || {})) if (b.owner !== me) this.building(b.id, b.spec);
       for (const p of Object.values(w.pieces || {})) if (p.owner !== me) this.addPiece(p);
       let box = null; for (const t of Object.values(w.tiles || {})) { this.setTile(t[0], t[1], t[2], t[3], false); box = this.grow(box, t[0], t[1]); }
       if (box) this.play.R.tilesChanged(box[0], box[1], box[2] + 1, box[3] + 1);
+      for (const [slot, d] of Object.entries(w.doors || {})) { const rec = this.doors.get(+slot); if (rec) { rec.owner = d.owner; rec.hp = d.hp; rec.max = d.hpMax; rec.door.broken = !!d.broken; rec.door.open = !!d.broken; rec.door.apply(); } }
+      for (const [id, open] of Object.entries(m.gates || {})) this.gateState(id, !!open);
       for (const n of Object.values(w.nodes || {})) this.nodeOp(n, true);
-      this.play.R.objectsChanged(false);
+      this.play.R.objectsChanged(false); this.play.refreshProps();
     }
     grow(b, i, j) { return b ? [Math.min(b[0], i), Math.min(b[1], j), Math.max(b[2], i), Math.max(b[3], j)] : [i, j, i, j]; }
     apply(op, from) {
@@ -97,11 +99,13 @@
       else if (op.k === 'tile') this.setTile(op.i, op.j, op.h, op.te, true);
       else if (op.k === 'tiles') { let box = null; for (const t of op.list) { this.setTile(t[0], t[1], t[2], t[3], false); box = this.grow(box, t[0], t[1]); } if (box) this.play.R.tilesChanged(box[0], box[1], box[2] + 1, box[3] + 1); } else if (op.k === 'node') { this.nodeOp(op, false); this.play.R.objectsChanged(false); }
       else if (op.k === 'bld+') this.building(op.id, op.spec); else if (op.k === 'bld-') this.removeBuilding(op.id);
+      if (op.k === 'piece+' || op.k === 'piece-') this.play.refreshProps();
     }
     /** a settler's cottage on their plot */
     cottage(slot) {
       const id = 'home:' + slot; if (this.cottages.has(id) || slot === this.g.L.slot) return; this.cottages.add(id);
-      this.building(id, this.g.L.cottageAt(slot, id));
+      const spec = this.g.L.cottageAt(slot, id); this.building(id, spec);
+      const obj = this.play.doc.obj(id); if (obj) { this.remoteDoor(slot, obj, null); this.g.play.refreshProps(); }
     }
     building(id, spec) {
       const g = this.g, doc = this.play.doc; if (doc.obj(id)) return; const s = K.BuildingSpec.normalize(Object.assign({}, spec, { id })); doc.objects.push(s);
@@ -110,15 +114,43 @@
     removeBuilding(id) { const doc = this.play.doc, i = doc.objects.findIndex((o) => o.id === id); if (i < 0) return; doc.objects.splice(i, 1); this.g.R.syncBuildings(true); this.play.nav.applyBuildings(this.g.R.buildings); this.play.refreshProps(); }
     addPiece(p) {
       const g = this.g; if (this.pieces.has(p.id) || !g.data.piece(p.type)) return;
-      const m = g.art.piece(p.type, { level: 1 }); g.place(m, p.x, p.z, p.rot); const [w, d] = K.CastleArt.size(p.type);
-      g.blockRect(p.x, p.z, g.walls.handles(p.type) ? w + 0.04 : w, d, p.rot, false);   // solid to you, whatever it is (their gate is theirs to open)
-      this.pieces.set(p.id, { p, mesh: m, w, d });
+      const m = g.art.piece(p.type, { level: 1 }); g.place(m, p.x, p.z, p.rot); const [w, d] = K.CastleArt.size(p.type), rec = { p, mesh: m, w, d, hp: p.hp, hpMax: p.hpMax, gate: null };
+      if (K.Breacher.GATES.has(p.type)) { const o = { x: p.x, z: p.z, rot: p.rot || 0, type: p.type, uid: 'r' + p.id }; rec.gate = p.type === 'gate' ? new K.WoodGate(g, o) : new K.Drawbridge(g, o); rec.gate.remote = true; rec.gate.apply(); }   // their gate: shut to you unless you hold the key
+      else g.blockRect(p.x, p.z, g.walls.handles(p.type) ? w + 0.04 : w, d, p.rot, false);
+      this.pieces.set(p.id, rec);
     }
     removePiece(id) {
-      const r = this.pieces.get(id); if (!r) return; this.g.group.remove(r.mesh); this.pieces.delete(id);
-      const g = this.g, p = r.p; g.unblockRect(p.x, p.z, g.walls.handles(p.type) ? r.w + 0.04 : r.w, r.d, p.rot);
+      const r = this.pieces.get(id); if (!r) return; this.g.group.remove(r.mesh); this.pieces.delete(id); if (r.gate) r.gate.dispose();
+      const g = this.g, p = r.p; g.unblockRect(p.x, p.z, K.Breacher.GATES.has(p.type) ? r.w : g.walls.handles(p.type) ? r.w + 0.04 : r.w, r.d, p.rot);
       for (const q of g.castle.pieces) if (Math.hypot(q.x - p.x, q.z - p.z) < 6) g.blockPiece(q);
-      for (const o of this.pieces.values()) if (Math.hypot(o.p.x - p.x, o.p.z - p.z) < 6) g.blockRect(o.p.x, o.p.z, g.walls.handles(o.p.type) ? o.w + 0.04 : o.w, o.d, o.p.rot, false);
+      for (const o of this.pieces.values()) if (!o.gate && Math.hypot(o.p.x - p.x, o.p.z - p.z) < 6) g.blockRect(o.p.x, o.p.z, g.walls.handles(o.p.type) ? o.w + 0.04 : o.w, o.d, o.p.rot, false);
+    }
+    /** a settler's gate opened or shut (the server only says so if the key was right) */
+    gateState(id, open) { const r = this.pieces.get(id); if (r && r.gate && r.gate.open !== open) { r.gate.open = open; r.gate.apply(); } }
+    /** a house door: drawn and blocked like your own, but opened only by the server's word */
+    remoteDoor(slot, spec, owner) {
+      if (this.doors.has(slot)) return this.doors.get(slot); const g = this.g;
+      const door = new K.Door({ g, spec }); door.locked = true; door.remote = true; door.apply();
+      const rec = { slot, door, owner, hp: 3000, max: 3000, name: (this.owners[slot] || 'Settler') + "'s door" }; door.ent = Object.assign({}, door.ent, { id: 'rd:' + slot, type: 'c_rdoor', rec, name: rec.name }); this.doors.set(slot, rec); return rec;
+    }
+    doorMsg(m) {
+      const rec = this.doors.get(m.slot), g = this.g; if (!rec) return; const d = rec.door;
+      if (m.hp != null) { rec.hp = m.hp; rec.max = m.max || rec.max; }
+      if (m.owner !== undefined && m.owner) rec.owner = m.owner;
+      if (m.broken === true) { d.broken = true; d.open = true; g.sound.play('crack'); }
+      if (m.broken === false) { d.broken = false; if (m.open === undefined) d.open = false; }
+      if (m.open !== undefined) d.open = !!m.open;
+      d.apply();
+    }
+    /** things on other people's plots you can click: their walls and gates, and their doors */
+    entities() {
+      const out = [], y = (x, z) => this.play.nav.y(x, z);
+      for (const [id, r] of this.pieces) {
+        if (!r.ent) { const p = r.p, own = this.owners[p.owner] || 'a settler'; r.ent = { id: 'rp:' + id, type: 'c_rpiece', rec: r, x: p.x, z: p.z, y: y(p.x, p.z), r: K.Breacher.GATES.has(p.type) ? Math.max(r.w, r.d) / 2 : Math.max(0.5, Math.min(r.w, r.d) / 2 + 0.2), h: 1.8, name: `${own}'s ${this.g.data.piece(p.type).name.toLowerCase()}` }; }
+        out.push(r.ent);
+      }
+      for (const r of this.doors.values()) out.push(r.door.ent);
+      return out;
     }
     setTile(i, j, h, te, redraw) {
       const d = this.play.doc, nav = this.play.nav; if (!d.inside(i, j)) return; const k = j * d.w + i; if (d.height[k] === h && d.terrain[k] === te) return;
@@ -139,7 +171,7 @@
     get play() { return this.g.play; }
     add(p) {
       if (this.by.has(p.id)) return this.by.get(p.id); const g = this.g;
-      const a = g.addActor({ id: 'pl:' + p.id, role: 'npc', spriteId: 'warden', name: p.name, x: p.x || 0, z: p.z || 0, hpMax: 100, atk: 0, def: 0, speed: 3, cd: 1, reach: 1, r: 0.4, scale: 1, level: 1, info: { xp: 0, loot: [] } });
+      const a = g.addActor({ id: 'pl:' + p.id, role: 'remote', spriteId: 'warden', name: p.name, x: p.x || 0, z: p.z || 0, hpMax: 100, atk: 0, def: 0, speed: 3, cd: 1, reach: 1, r: 0.4, scale: 1, level: 1, info: { xp: 0, loot: [] } });
       a.remote = true; a.hostile = false; a.view.setTint(TINTS[hash(p.id) % TINTS.length]);
       const rec = { a, tx: p.x || 0, tz: p.z || 0, ty: p.y || 0, f: p.f || 0, s: p.s || 'idle', name: p.name, el: document.createElement('div'), say: null, sayT: 0 };
       rec.el.className = 'plate'; rec.el.innerHTML = `<b>${esc(p.name)}</b><span></span>`; this.root.appendChild(rec.el);
@@ -175,10 +207,17 @@
       net.on('join', (m) => { this.avatars.add(m.p); this.world.cottage(m.p.slot); game.cui.toast(`${m.p.name} joined.`); });
       net.on('leave', (m) => { const r = this.avatars.by.get(m.id); if (r) game.cui.toast(`${r.name} left.`); this.avatars.remove(m.id); });
       net.on('tick', (m) => this.avatars.ticks(m.p));
-      net.on('op', (m) => this.world.apply(m.op, m.from));
+      net.on('op', (m) => this.onOp(m));
+      net.on('gate', (m) => { this.world.gateState(m.id, m.open); this.mineGate(m.id, m.open); });
+      net.on('door', (m) => this.onDoor(m)); net.on('hp', (m) => this.onHp(m));
+      net.on('locked', (m) => game.cui.toast(m.what === 'door' ? 'The door is locked. Only its owner and their team have the key.' : 'The gate is locked. Only its owner and their team have the key.'));
+      net.on('teams', (m) => this.setTeams(m.list)); net.on('invite', (m) => this.onInvite(m));
+      net.on('demand', (m) => this.onDemand(m)); net.on('paid', (m) => this.onPaid(m)); net.on('refused', (m) => game.cui.toast(`${m.name} refused to pay.`));
+      net.on('evicted', () => this.onEvicted());
       net.on('chat', (m) => { if (m.from === net.id) return; game.cui.toast(`${m.name}: ${m.text}`); this.avatars.say(m.from, m.text); });
       net.on('welcome', (m) => this.start(m));
       net.on('offline', () => game.cui.toast('Lost the connection. Reconnecting…'));
+      this.teams = (net.welcome.teams || []); this.lastOpen = null; this.lastBroken = null; this.lastHit = 0;
       this.start(net.welcome); this.makeChatBox();
     }
     start(w) { this.avatars.clear(); for (const p of w.players || []) this.avatars.add(p); this.world.snapshot(w); }
@@ -191,11 +230,81 @@
       if (tiles.length) this.op({ k: 'tiles', list: tiles });
       for (const e of g.forest.nodes) if (!g.forest.live(e)) this.op({ k: 'node', id: e.id, st: 'felled' });
     }
+    get me() { return this.net.id; }
+    teamId(id) { for (const t of this.teams) if (t.members.includes(id)) return t.id; return null; }
+    /** do you hold the key for something this settler owns? (yours, or your team's) */
+    mayUse(owner) { return !owner || owner === this.me || (!!this.teamId(this.me) && this.teamId(this.me) === this.teamId(owner)); }
+    setTeams(list) { this.teams = list; for (const [id, r] of this.avatars.by) r.el.classList.toggle('ally', this.mayUse(id)); }
+    onOp(m) {
+      const op = m.op;
+      if (op.k === 'piece-' && op.broken && m.from === this.me) {   // one of mine was broken down by someone else
+        const p = this.g.castle.pieces.find((q) => this.pieceId(q) === op.id); if (p) { this.quiet = true; this.g.demolishPiece(p, { refund: false }); this.quiet = false; this.g.cui.toast('One of your walls was broken down!'); } return;
+      }
+      this.world.apply(op, m.from);
+    }
+    mineGate(id, open) { const p = this.g.castle.pieces.find((q) => q.bridge && this.pieceId(q) === id); if (p && p.bridge.open !== open) { p.bridge.open = open; p.bridge.apply(); } }
+    gate(p, open) { this.net.send({ t: 'open', id: this.pieceId(p), open }); }
+    requestGate(rec) { this.net.send({ t: 'open', id: rec.p.id, open: !rec.gate.open }); }
+    requestDoor(rec) { this.net.send({ t: 'open', slot: rec.slot, open: !rec.door.open }); }
+    /** a swing at someone else's wall, gate or door: the server decides if it lands */
+    hit(rec, door) {
+      const g = this.g, now = g.play.t; if (now - this.lastHit < 0.35) return; this.lastHit = now; const me = g.play.me;
+      g.play.face(me, door ? rec.door.ent : rec.p); me.view.setState('attack'); g.sound.play('thunk');
+      this.net.send(door ? { t: 'hit', slot: rec.slot, tool: g.tools.tool.id } : { t: 'hit', id: rec.p.id, tool: g.tools.tool.id });
+    }
+    installDoor(rec) {
+      const g = this.g, c = g.castle; if (!c.spend({ wood: 3 })) { g.cui.toast('You need 3 wood to hang a door.'); return; }
+      this.net.send({ t: 'install', slot: rec.slot }); g.changed();
+    }
+    onHp(m) {
+      const g = this.g;
+      if (m.id) {
+        const r = this.world.pieces.get(m.id), mine = g.castle.pieces.find((q) => this.pieceId(q) === m.id), old = r ? r.hp : mine ? mine.hp : m.hp;
+        if (r) r.hp = m.hp; if (mine) mine.hp = m.hp; const at = r ? r.p : mine; if (at && old > m.hp) g.play.float({ x: at.x, z: at.z, y: g.play.nav.y(at.x, at.z), h: 1 }, '-' + (old - m.hp), 'hurt');
+      } else if (m.slot != null) {
+        const d = m.slot === g.L.slot ? g.home.door : (this.world.doors.get(m.slot) || {}).door; if (!d) return; const old = d.hp || m.hp; d.hp = m.hp; const rec = this.world.doors.get(m.slot); if (rec) rec.hp = m.hp;
+        if (old > m.hp) g.play.float(d.ent, '-' + (old - m.hp), 'hurt');
+      }
+    }
+    onDoor(m) {
+      const g = this.g;
+      if (m.slot === g.L.slot) {   // my own door
+        const d = g.home.door; if (m.broken === true) { d.broken = true; d.open = true; d.apply(); g.cui.toast('Your door was broken down!'); g.sound.play('crack'); }
+        else if (m.open !== undefined && !m.broken) { d.open = !!m.open; d.apply(); }
+        return;
+      }
+      this.world.doorMsg(m); if (m.captured) { const rec = this.world.doors.get(m.slot); g.cui.toast(`${(this.avatars.by.get(m.owner) || {}).name || 'A settler'} captured ${this.world.owners[m.slot] || 'a'}'s castle!`); }
+    }
+    onEvicted() {
+      const g = this.g; try { G.localStorage.setItem('kinstead.evict', '1'); } catch (e) { /* private mode */ }
+      g.cui.modal('<h2>Your castle was taken</h2><p>Someone broke your door and hung their own. You keep what you carry, and you will wake on a fresh plot.</p>', [{ label: 'Start again', pri: true, run: () => G.location.reload() }]);
+    }
+    /* ---------- other people: teams and tribute ---------- */
+    playerMenu(a) {
+      const g = this.g, id = a.id.replace(/^pl:/, ''), mine = this.teamId(this.me), buttons = [];
+      if (this.mayUse(id)) buttons.push({ label: 'Leave my team', run: () => this.net.send({ t: 'team', a: 'leave' }) }); else buttons.push({ label: 'Invite to my team', run: () => { this.net.send({ t: 'team', a: 'invite', to: id }); g.cui.toast(`Invited ${a.name}.`); } });
+      buttons.push({ label: 'Demand tribute…', run: () => this.demandStep1(id, a.name) }); buttons.push({ label: 'Close', pri: true });
+      g.cui.modal(`<h2>${esc(a.name)}</h2><p>${this.mayUse(id) ? 'On your team: you share every key.' : 'A stranger. Invite them to share keys, or demand tribute if they are close.'}</p>`, buttons);
+    }
+    demandStep1(id, name) { const g = this.g, res = ['wood', 'stone', 'iron', 'food', 'gold']; g.cui.modal(`<h2>Demand tribute from ${esc(name)}</h2><p>What do you want?</p>`, res.map((r) => ({ label: K.CastleData.resName(r), run: () => this.demandStep2(id, name, r) })).concat([{ label: 'Never mind', pri: true }])); }
+    demandStep2(id, name, res) { const g = this.g; g.cui.modal(`<h2>How much ${esc(K.CastleData.resName(res).toLowerCase())}?</h2>`, [10, 25, 50, 100].map((n) => ({ label: String(n), run: () => { this.net.send({ t: 'demand', to: id, res, n }); g.cui.toast(`You demand ${n} ${K.CastleData.resName(res).toLowerCase()} from ${name}.`); } })).concat([{ label: 'Never mind', pri: true }])); }
+    onDemand(m) {
+      const g = this.g, c = g.castle, nm = K.CastleData.resName(m.res).toLowerCase(), have = c.amount(m.res) >= m.n;
+      g.cui.modal(`<h2>${esc(m.name)} demands tribute</h2><p>They want <b>${m.n} ${nm}</b>. You have ${c.amount(m.res)}. Pay and they leave you be, or refuse.</p>`, [
+        { label: have ? `Pay ${m.n} ${nm}` : 'Cannot afford', run: () => { if (c.spend({ [m.res]: m.n })) { this.net.send({ t: 'pay', to: m.from, res: m.res, n: m.n }); g.changed(); g.cui.toast(`You paid ${m.name}.`); } else { this.net.send({ t: 'refuse', to: m.from }); } } },
+        { label: 'Refuse', pri: true, run: () => this.net.send({ t: 'refuse', to: m.from }) }]);
+    }
+    onPaid(m) { const g = this.g, got = g.castle.add(m.res, m.n); g.changed(); g.cui.toast(`${m.name} paid you ${m.n} ${K.CastleData.resName(m.res).toLowerCase()}${got < m.n ? ' (your store was full for the rest)' : ''}.`); }
+    onInvite(m) { const g = this.g; g.cui.modal(`<h2>${esc(m.name)} invites you</h2><p>Join <b>${esc(m.teamName)}</b>? Teammates share every key: gates, doors and all.</p>`, [{ label: 'Join', run: () => this.net.send({ t: 'team', a: 'accept', team: m.team }) }, { label: 'Decline', pri: true }]); }
     /** the game reports its own changes here */
     op(o) { this.net.op(o); }
     pieceId(p) { return this.net.id + ':' + p.uid; }
     update(dt) {
       this.t += dt; this.avatars.update(dt);
+      for (const r of this.world.doors.values()) r.door.update(dt);
+      for (const r of this.world.pieces.values()) if (r.gate) r.gate.update(dt);
+      const d = this.g.home.door; if (this.lastOpen !== d.open) { if (this.lastOpen !== null) this.net.send({ t: 'open', slot: this.g.L.slot, open: d.open }); this.lastOpen = d.open; }
+      if (this.lastBroken !== d.broken) { if (this.lastBroken !== null) this.net.send({ t: 'doorstate', broken: d.broken }); this.lastBroken = d.broken; }
       if (this.t >= 0.1) {
         this.t = 0; const me = this.g.play.me, d = me.view.dir;
         this.net.send({ t: 'pos', x: +me.x.toFixed(2), z: +me.z.toFixed(2), y: +(me.y || 0).toFixed(2), f: +Math.atan2(d.z, d.x).toFixed(2), s: me.view.state, tool: this.g.tools.tool.id, hp: Math.round(this.g.play.player.hp) });

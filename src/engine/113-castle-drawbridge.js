@@ -44,14 +44,14 @@
       const g = this.g;
       if (this.open) { if (this.occupied()) { g.cui.toast('Something is on the bridge.'); return; } this.open = false; g.sound.play('thunk'); g.cui.toast('Drawbridge raised.'); }
       else { this.open = true; this.away = 0; g.sound.play('whump'); g.cui.toast('Drawbridge lowered.'); }
-      this.apply();
+      this.apply(); if (g.mp && !this.remote) g.mp.gate(this.p, this.open);
     }
     update(dt) {
       const target = this.open ? DOWN : UP; this.angle += (target - this.angle) * Math.min(1, dt * 3.2); this.mesh.rotation.x = this.angle;
-      if (this.open) {
+      if (this.open && !this.remote) {
         const me = this.g.play.me, d = Math.hypot(me.x - this.p.x, me.z - this.p.z);
         this.away = d > AUTO_CLOSE_DIST ? this.away + dt : 0;
-        if (this.away > 2 && !this.occupied()) { this.open = false; this.apply(); this.g.cui.toast('The drawbridge raises itself.'); }   // never left open when you walk away
+        if (this.away > 2 && !this.occupied()) { this.open = false; this.apply(); this.g.cui.toast('The drawbridge raises itself.'); if (this.g.mp && !this.remote) this.g.mp.gate(this.p, false); }   // never left open when you walk away
       }
     }
     dispose() { this.g.group.remove(this.mesh); this.restore(); this.archTiles((i, j) => this.g.gateTiles.delete(i + ',' + j)); }
@@ -80,12 +80,12 @@
       const g = this.g;
       if (this.open) { if (this.occupied()) { g.cui.toast('Something is in the gateway.'); return; } this.open = false; g.sound.play('thunk'); g.cui.toast('Gate shut.'); }
       else { this.open = true; this.away = 0; g.sound.play('clank'); g.cui.toast('Gate open.'); }
-      this.apply();
+      this.apply(); if (g.mp && !this.remote) g.mp.gate(this.p, this.open);
     }
     update(dt) {
       const target = this.open ? 1.5 : 0; this.angle += (target - this.angle) * Math.min(1, dt * 7);
       for (const [s, leaf] of this.leaves) leaf.rotation.y = s * this.angle;
-      if (this.open) { const me = this.g.play.me, d = Math.hypot(me.x - this.p.x, me.z - this.p.z); this.away = d > AUTO_CLOSE_DIST ? this.away + dt : 0; if (this.away > 2 && !this.occupied()) { this.open = false; this.apply(); this.g.cui.toast('The gate swings shut.'); } }
+      if (this.open && !this.remote) { const me = this.g.play.me, d = Math.hypot(me.x - this.p.x, me.z - this.p.z); this.away = d > AUTO_CLOSE_DIST ? this.away + dt : 0; if (this.away > 2 && !this.occupied()) { this.open = false; this.apply(); this.g.cui.toast('The gate swings shut.'); if (this.g.mp && !this.remote) this.g.mp.gate(this.p, false); } }
     }
     dispose() { this.g.group.remove(this.mesh); this.tiles((i, j) => this.g.gateTiles.delete(i + ',' + j)); }
   }
