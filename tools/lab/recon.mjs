@@ -147,7 +147,13 @@ export class Reconstruction {
     for (let i = 0; i < R.id.length; i++) {
       const id = R.id[i]; if (id < 0 || !ok[i]) continue;
       const lab = fix.get(i) || Lab.fromRgb([A[i * 4], A[i * 4 + 1], A[i * 4 + 2]]), k = R.keys[id];
-      if (!acc.has(k)) acc.set(k, []); acc.get(k).push(lab);
+      if (!acc.has(k)) acc.set(k, []); const e = acc.get(k); lab.px = i % W; lab.py = (i / W) | 0; e.push(lab);
+    }
+    /* face-centre sampling: keep only the samples near the centroid of each voxel's visible pixels, so a voxel takes the
+       colour at its own centre (a clean nearest-neighbour downsample of the ref: crisp sigils, no seam mixing) */
+    if (this.cfg.centreRadius) for (const [k, list] of acc) {
+      let cx = 0, cy = 0; for (const v of list) { cx += v.px; cy += v.py; } cx /= list.length; cy /= list.length;
+      const near = list.filter((v) => Math.hypot(v.px - cx, v.py - cy) <= this.cfg.centreRadius); if (near.length >= 3) acc.set(k, near);
     }
     /* each voxel's colour: the median of the brighter half of its samples (the face, not Grok's dark bevel seams/shadows) */
     const med = (a) => { a.sort((p, q) => p - q); return a[a.length >> 1]; }, seen = new Map();

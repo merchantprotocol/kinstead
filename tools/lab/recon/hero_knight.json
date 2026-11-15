@@ -124,7 +124,7 @@
     1,
     1
   ],
-  "brightFrac": 0.7,
+  "brightFrac": 0.6,
   "materials": {
     "steel": {
       "rule": "grey",
@@ -174,5 +174,6 @@
         "#1d1e21"
       ]
     }
-  }
+  },
+  "centreRadius": 3.5
 }
