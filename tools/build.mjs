@@ -73,6 +73,8 @@ class EngineManifest {
     '115-castle-identity.js',
     '115-castle-namegate.js',
     '115-castle-net-client.js',
+    '115-castle-remote-terrain.js',
+    '115-castle-remote-doors.js',
     '115-castle-remoteworld.js',
     '115-castle-avatars.js',
     '115-castle-remotestores.js',

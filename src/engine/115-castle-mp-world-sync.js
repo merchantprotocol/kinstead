@@ -127,8 +127,8 @@
       if (m.world && m.world.farms) this.mp.farms.apply(m.world.farms);
       if (serverPieces) this.republishMissing(m, new Set(serverPieces));
       if (m.stores) this.mp.storeSync.reconcileResync(m.stores);
-      if (m.tiles) this.applyTiles(Object.values(m.tiles));
-      if (m.nodes) this.applyNodes(Object.values(m.nodes));
+      if (m.tiles) this.world.applyTiles(Object.values(m.tiles));
+      if (m.nodes) this.world.applyNodes(Object.values(m.nodes));
       this.ver = m.ver || this.ver;
     }
 
@@ -144,20 +144,6 @@
       for (const [id, spec] of this.ownBuildings()) {
         if (!known.includes(id)) this.mp.op({ k: 'bld+', id, spec });
       }
-    }
-
-    applyTiles(tiles) {
-      let box = null;
-      for (const tile of tiles) {
-        this.world.setTile(tile[0], tile[1], tile[2], tile[3], false);
-        box = this.world.grow(box, tile[0], tile[1]);
-      }
-      if (box) this.g.R.tilesChanged(box[0], box[1], box[2] + 1, box[3] + 1);
-    }
-
-    applyNodes(nodes) {
-      for (const node of nodes) this.world.nodeOp(node, true);
-      this.world.objDirty = true;
     }
 
     /** pickups everyone sees */

@@ -130,7 +130,7 @@
         this.ownDoor(m);
         return;
       }
-      this.world.doorMsg(m);
+      this.world.remoteDoors.doorMsg(m);
       if (!m.captured) return;
       const taker = (this.mp.avatars.by.get(m.owner) || {}).name || 'A settler';
       this.g.cui.toast(`${taker} captured ${this.world.owners[m.slot] || 'a'}'s castle!`);
