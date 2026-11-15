@@ -9,6 +9,12 @@ import { OwnerWipe } from './OwnerWipe.js';
  */
 export class PlotRecycler {
   static TOMBSTONES = 300;   // remembered recycled identities; beyond this the oldest are forgotten
+  static HOUSE_GRACE_MS = 7 * 24 * 3600 * 1000;   // a town is only recycled once its owner has been away this long
+
+  /** a plot with a house is someone's town: only take it back if we KNOW they've been gone a week (unknown = keep) */
+  static townIsAbandoned(house, seen, now) {
+    return !house || (seen > 0 && now - seen > PlotRecycler.HOUSE_GRACE_MS);
+  }
 
   constructor(room) {
     this.room = room;
@@ -45,6 +51,7 @@ export class PlotRecycler {
       if (house && online.has(house.owner)) continue;
       if (!cid && !house) continue;
       const seen = cid ? this.room.plots[cid].seen || 0 : this.seenOf(house.owner);
+      if (!PlotRecycler.townIsAbandoned(house, seen, Date.now())) continue;
       list.push({ slot, cid, house: !!house, seen });
     }
     return list.sort((a, b) => (a.house - b.house) || (a.seen - b.seen) || (a.slot - b.slot));
