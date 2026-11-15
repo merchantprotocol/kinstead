@@ -11,7 +11,8 @@
     /** take the footprint for building, block only the solid parts for walking */
     block(p) {
       const g = this.g, nav = g.play.nav, [w, d] = K.CastleArt.size(p.type);
-      g.rectTiles(p.x, p.z, w, d, p.rot, (i, j, lx, lz) => { const k = j * nav.w + i; g.occ[k] = 1; if (K.WorkshopLayout.solidAt(p.type, lx, lz)) nav.walk[k] = 0; });
+      g.rectTiles(p.x, p.z, w, d, p.rot, (i, j, lx, lz) => { const k = j * nav.w + i; g.occ[k] = 1; if (K.WorkshopLayout.solidAt(p.type, lx,
+          lz)) nav.walk[k] = 0; });
       const me = g.play.me; if (!me || nav.standable(me.x, me.z)) return;
       const q = nav.nearestOk(...nav.tile(me.x, me.z), 8); if (q) { [me.x, me.z] = nav.centre(...q); me.path = null; }
     }

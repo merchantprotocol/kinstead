@@ -32,7 +32,9 @@
           k.geo('eggWhite', CYL, 0, 0.005, 0, 0, 0, 0, 0.085, 0.01, 0.085);
           k.box('ironDark', 0, 0.02, 0, 0.2, 0.02, 0.02);
         },
-        bread: (k) => { k.box('woodMid', 0, -0.1, 0, 0.36, 0.08, 0.24); for (let i = 0; i < 3; i++) k.box('bread', -0.1 + i * 0.1, -0.03, 0, 0.09, 0.07, 0.18); },
+        bread: (k) => { k.box('woodMid', 0, -0.1, 0, 0.36, 0.08, 0.24);
+          for (let i = 0; i < 3; i++) k.box('bread', -0.1 + i * 0.1, -0.03, 0, 0.09, 0.07, 0.18);
+          },
         hay: (k) => { k.box('hay', 0, -0.14, 0, 0.42, 0.26, 0.28); k.box('rope', 0, -0.145, 0, 0.03, 0.27, 0.29); },
         meat: (k) => { k.box('meatRed', 0, -0.12, 0, 0.26, 0.18, 0.16); k.box('eggWhite', 0.1, -0.04, 0, 0.05, 0.05, 0.05); },
         eggs: (k) => {
@@ -43,7 +45,9 @@
           k.box('potionPink', -0.05, -0.08, 0, 0.07, 0.12, 0.07); k.box('potionTeal', 0.06, -0.08, 0, 0.07, 0.12, 0.07);
           k.box('woodMid', 0, -0.12, 0, 0.22, 0.04, 0.12);
         },
-        arrows: (k) => { for (let i = 0; i < 5; i++) k.box('woodLight', -0.06 + i * 0.03, -0.05, 0, 0.015, 0.015, 0.6); k.box('rope', 0, -0.05, 0, 0.18, 0.03, 0.04); },
+        arrows: (k) => { for (let i = 0; i < 5; i++) k.box('woodLight', -0.06 + i * 0.03, -0.05, 0, 0.015, 0.015, 0.6);
+          k.box('rope', 0, -0.05, 0, 0.18, 0.03, 0.04);
+          },
         tray: (k) => {
           k.box('woodMid', 0, -0.06, 0, 0.36, 0.03, 0.26);
           k.box('food', -0.06, -0.03, 0, 0.12, 0.05, 0.1); k.box('bread', 0.08, -0.03, 0.02, 0.1, 0.06, 0.08);
@@ -77,7 +81,12 @@
     pose(v, t) {
       if (!v.rig) return; this.hold(v);
       const bones = new BoneSetter(v.rig);
-      if (v.haul) { bones.set('armR', 0.45, 0, -0.18); bones.set('armL', 0.45, 0, 0.18); bones.add('torso', 0.22); return; }   // pulling a cart's handles behind them
+      // pulling a cart's handles behind them
+      if (v.haul) { bones.set('armR', 0.45, 0, -0.18);
+        bones.set('armL', 0.45, 0, 0.18);
+        bones.add('torso', 0.22);
+        return;
+        }
       if (v.carry) { bones.set('armR', -1.2, 0, 0.12); bones.set('armL', -1.2, 0, -0.12); if (v.state !== 'action') return; }
       if (v.state !== 'action' || !v.work) return;
       const move = WorkPoser.MOVES[v.work]; if (move) move(bones, t + (v.phase || 0));
@@ -88,17 +97,38 @@
       const swing = (T, len, up) => { const c = (T % len) / len; return c < up ? WorkPoser.ease(c / up) : 1 - WorkPoser.ease((c - up) / 0.15); };
       const wave = (T, len) => Math.sin(((T % len) / len) * Math.PI);
       WorkPoser._moves = {
-        chop: (b, T) => { const a = swing(T, 1.05, 0.62); b.set('armR', -0.4 - 2.3 * a, 0, -0.1); b.set('armL', -0.4 - 2.3 * a, 0, 0.1); b.add('torso', 0.28 * (1 - a) - 0.08); },
-        hammer: (b, T) => { const a = swing(T, 0.62, 0.6); b.set('armR', -0.6 - 1.9 * a, 0, -0.12); b.set('armL', -0.95, 0, 0.2); b.add('torso', 0.14 * (1 - a)); },
+        chop: (b, T) => { const a = swing(T, 1.05, 0.62);
+          b.set('armR', -0.4 - 2.3 * a, 0, -0.1);
+          b.set('armL', -0.4 - 2.3 * a, 0, 0.1);
+          b.add('torso', 0.28 * (1 - a) - 0.08);
+          },
+        hammer: (b, T) => { const a = swing(T, 0.62, 0.6);
+          b.set('armR', -0.6 - 1.9 * a, 0, -0.12);
+          b.set('armL', -0.95, 0, 0.2);
+          b.add('torso', 0.14 * (1 - a));
+          },
         saw: (b, T) => { const s = Math.sin(T * 8); b.set('armR', -1.1 + 0.38 * s, 0, -0.1); b.set('armL', -0.9, 0, 0.18); b.add('torso', 0.18, 0.1 * s); },
         stir: (b, T) => {
           const s = Math.sin(T * 3), c = Math.cos(T * 3);
           b.set('armR', -1.0 + 0.18 * s, 0, -0.1 + 0.15 * c); b.set('armL', -1.0 + 0.18 * s, 0, 0.1 + 0.15 * c); b.add('torso', 0.14, 0.25 * c);
         },
         sweep: (b, T) => { b.set('armR', -0.55, 0, -0.12); b.set('armL', -0.8, 0, 0.12); b.add('torso', 0.22, 0.45 * Math.sin(T * 3.2)); },
-        pitch: (b, T) => { const a = wave(T, 1.4); b.set('armR', -0.7 - 0.9 * a, 0, -0.1); b.set('armL', -0.95 - 0.7 * a, 0, 0.1); b.add('torso', 0.45 * (1 - a), 0.3 * a); },
-        lift: (b, T) => { const a = wave(T, 1.6); b.add('torso', 0.75 * a); b.set('armR', -0.5 - 0.9 * a); b.set('armL', -0.5 - 0.9 * a); b.add('head', -0.2 * a); },
-        knead: (b, T) => { const s = Math.abs(Math.sin(T * 4)); b.set('armR', -1.0 - 0.32 * s, 0, -0.05); b.set('armL', -1.0 - 0.32 * s, 0, 0.05); b.add('torso', 0.25 + 0.12 * s); },
+        pitch: (b, T) => { const a = wave(T, 1.4);
+          b.set('armR', -0.7 - 0.9 * a, 0, -0.1);
+          b.set('armL', -0.95 - 0.7 * a, 0, 0.1);
+          b.add('torso', 0.45 * (1 - a), 0.3 * a);
+          },
+        lift: (b, T) => { const a = wave(T, 1.6);
+          b.add('torso', 0.75 * a);
+          b.set('armR', -0.5 - 0.9 * a);
+          b.set('armL', -0.5 - 0.9 * a);
+          b.add('head', -0.2 * a);
+          },
+        knead: (b, T) => { const s = Math.abs(Math.sin(T * 4));
+          b.set('armR', -1.0 - 0.32 * s, 0, -0.05);
+          b.set('armL', -1.0 - 0.32 * s, 0, 0.05);
+          b.add('torso', 0.25 + 0.12 * s);
+          },
         milk: (b, T) => { const s = Math.sin(T * 7); b.add('torso', 0.55); b.set('armR', -0.9 + 0.28 * s); b.set('armL', -0.9 - 0.28 * s); },
         feed: (b, T) => {
           const c = (T % 1.2) / 1.2, a = c < 0.3 ? c / 0.3 : 1 - (c - 0.3) / 0.7;

@@ -22,7 +22,8 @@
       k.box('stoneMid', mx, 0, mz, X1 - X0 + 0.06, 0.06, Z1 - Z0 + 0.06); k.box('planks', mx, 0.06, mz, X1 - X0 - 0.06, 0.02, Z1 - Z0 - 0.06);
       k.box('stoneLight', mx, 0.06, Z0 + 0.08, X1 - X0, H - 0.06, 0.16);                 // the stone back wall
       k.box('whitewash', X1 - 0.06, 0.06, (Z0 + 0.1) / 2 - 0.05, 0.12, H - 0.06, 1.25);    // half a side wall: the rest is open
-      for (const [x, z] of [[X0 + 0.06, Z1 - 0.06], [X1 - 0.06, Z1 - 0.06], [mx, Z1 - 0.06], [X1 - 0.06, 0.12]]) k.box('woodDark', x, 0.06, z, 0.12, H - 0.06, 0.12);
+      for (const [x, z] of [[X0 + 0.06, Z1 - 0.06], [X1 - 0.06, Z1 - 0.06], [mx, Z1 - 0.06], [X1 - 0.06, 0.12]]) k.box('woodDark', x, 0.06, z, 0.12,
+          H - 0.06, 0.12);
       k.box('woodDark', mx, H - 0.1, Z1 - 0.06, X1 - X0, 0.12, 0.14); k.box('woodDark', X1 - 0.06, H - 0.1, mz, 0.14, 0.12, Z1 - Z0);
       for (const x of [X0 + 0.5, mx, X1 - 0.5]) k.box('woodMid', x, H - 0.12, mz, 0.08, 0.08, Z1 - Z0 - 0.2);   // joists, seen when the roof lifts
     }
@@ -48,24 +49,35 @@
       k.spin = { kit: sp, at: [sx, 0.49, sz] };
       for (const s of [-1, 1]) k.box('woodDark', sx + s * 0.32, 0.06, sz - 0.42, 0.06, 1.25, 0.06);
       k.box('woodDark', sx, 1.25, sz - 0.42, 0.7, 0.06, 0.08);
-      k.box('woodLight', sx, 0.95, sz - 0.18, 0.34, 0.26, 0.34); k.box('wheatGold', sx, 1.2, sz - 0.18, 0.28, 0.03, 0.28); k.box('woodLight', sx, 0.78, sz - 0.18, 0.08, 0.18, 0.08);
+      k.box('woodLight', sx, 0.95, sz - 0.18, 0.34, 0.26, 0.34);
+      k.box('wheatGold', sx, 1.2, sz - 0.18, 0.28, 0.03, 0.28);
+      k.box('woodLight', sx, 0.78, sz - 0.18, 0.08, 0.18, 0.08);
       k.box('woodLight', sx + 0.48, 0.3, sz + 0.05, 0.2, 0.06, 0.08, 0, 0, -0.4); k.box('paintWhite', sx + 0.6, 0.06, sz + 0.06, 0.22, 0.1, 0.22);
     }
     sack(x, y, z, ry, mat) {
-      const k = this.k; k.box(mat, x, y, z, 0.23, 0.22, 0.18, ry); k.box(mat, x, y + 0.22, z, 0.16, 0.06, 0.12, ry); k.box('rope', x, y + 0.26, z, 0.11, 0.04, 0.09, ry);
+      const k = this.k;
+      k.box(mat, x, y, z, 0.23, 0.22, 0.18, ry);
+      k.box(mat, x, y + 0.22, z, 0.16, 0.06, 0.12, ry);
+      k.box('rope', x, y + 0.26, z, 0.11, 0.04, 0.09, ry);
     }
     /** wheat waiting (gold) by the back wall, flour done (white) by the front, and a weighing beam */
     sacks() {
       const k = this.k;
-      for (let i = 0; i < (this.big ? 6 : 4); i++) this.sack(0.48 + (i % 3) * 0.26, 0.08 + Math.floor(i / 3) * 0.3, -0.85 + (i % 2) * 0.04, i * 0.4, 'wheatGold');
-      for (let i = 0; i < (this.big ? 5 : 3); i++) this.sack(0.5 + (i % 3) * 0.27, 0.08 + Math.floor(i / 3) * 0.3, 0.45 + (i % 2) * 0.05, -i * 0.5, 'paintWhite');
+      for (let i = 0; i < (this.big ? 6 : 4); i++) this.sack(0.48 + (i % 3) * 0.26, 0.08 + Math.floor(i / 3) * 0.3, -0.85 + (i % 2) * 0.04, i * 0.4,
+          'wheatGold');
+      for (let i = 0; i < (this.big ? 5 : 3); i++) this.sack(0.5 + (i % 3) * 0.27, 0.08 + Math.floor(i / 3) * 0.3, 0.45 + (i % 2) * 0.05, -i * 0.5,
+          'paintWhite');
       k.box('woodDark', 0.62, 0.06, 0.05, 0.06, 1.2, 0.06); k.box('woodDark', 0.62, 1.22, 0.05, 0.6, 0.05, 0.05);
       k.box('rope', 0.4, 0.9, 0.05, 0.02, 0.32, 0.02); k.box('ironDark', 0.4, 0.84, 0.05, 0.16, 0.04, 0.16);
     }
     bale(x, y, z, ry) { const k = this.k; k.box('hay', x, y, z, 0.48, 0.28, 0.32, ry); k.box('rope', x, y - 0.005, z, 0.33, 0.29, 0.03, ry); }
     /** hay bales two high along the side wall, and a pitchfork against them */
     hay() {
-      const R = Math.PI / 2; this.bale(2.0, 0.08, -0.15, R); this.bale(2.0, 0.08, 0.35, R); this.bale(2.0, 0.36, 0.1, R + 0.1); if (this.big) this.bale(2.0, 0.36, 0.55, R);
+      const R = Math.PI / 2;
+      this.bale(2.0, 0.08, -0.15, R);
+      this.bale(2.0, 0.08, 0.35, R);
+      this.bale(2.0, 0.36, 0.1, R + 0.1);
+      if (this.big) this.bale(2.0, 0.36, 0.55, R);
       this.k.box('woodLight', 1.68, 0.06, 0.62, 0.035, 1.15, 0.035, 0, 0, 0.18); this.k.box('steel', 1.58, 1.16, 0.62, 0.16, 0.03, 0.03);
     }
     /** a board over the opening with wheat sheaves and a loaf on it */

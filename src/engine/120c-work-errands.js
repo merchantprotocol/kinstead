@@ -37,7 +37,13 @@
       if (!a.path || !a.path.length) {
         if ((this.repath -= dt) > 0) return; this.repath = 1;
         a.path = P.nav.find(a.x, a.z, s.go.x, s.go.z, { range: 0.3, maxNodes: 40000 }) || null;
-        if (!a.path) { s.fail = (s.fail || 0) + 1; if (s.fail > 3) { a.x = s.go.x; a.z = s.go.z; this.steps.shift(); } return; }   // no way round: they get there anyway
+        // no way round: they get there anyway
+        if (!a.path) { s.fail = (s.fail || 0) + 1;
+          if (s.fail > 3) { a.x = s.go.x;
+            a.z = s.go.z;
+            this.steps.shift();
+            } return;
+          }
       }
       a.view.work = null; P.move(a, dt, a.speed); this.state('walk');
     }

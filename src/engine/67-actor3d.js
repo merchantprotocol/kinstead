@@ -195,7 +195,7 @@
     Archer: { sprite: 'archer', tint: null }, Stablehand: { sprite: 'stablehand', tint: null }, Storekeeper: { sprite: 'storekeeper', tint: null },
     Henwife: { sprite: 'henwife', tint: null }, Cowherd: { sprite: 'cowherd', tint: null }, Baker: { sprite: 'baker', tint: null },
     Butcher: { sprite: 'butcher', tint: null }, Alchemist: { sprite: 'alchemist', tint: null },
-    Miller: { sprite: 'storekeeper', tint: null }, 'Granary keeper': { sprite: 'farmer', tint: 0xe8dcc0 },
+    Miller: { sprite: 'storekeeper', tint: null },
   };
   Object.assign(K, { VoxelActorViews, VoxelRoles, VoxelModelCache, OrbitDemo, OrbitButton, ContactShadow });
 })(typeof window !== 'undefined' ? window : globalThis);

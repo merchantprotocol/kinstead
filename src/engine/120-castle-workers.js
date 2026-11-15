@@ -25,7 +25,8 @@
       this.night = new K.TownNight(this); this.chatter = new K.SmallTalk(this);
       this.bubbles = typeof document !== 'undefined' ? new K.TalkBubbles(game) : null;
       this.cook = new K.Cook(this); this.smith = new K.Smith(this); this.clerk = new K.Clerk(this);
-      this.pubT = 2; this.pubSig = ''; this.markets = new Map(); this.hooked = false; this.keepers = new Map(); this.keepT = 0; this.halls = new Map(); this.buffs = {};
+      this.pubT = 2; this.pubSig = ''; this.markets = new Map(); this.hooked = false;
+      this.keepers = new Map(); this.keepT = 0; this.halls = new Map(); this.buffs = {};
     }
     /** run fn after s seconds of game time */
     later(s, fn) { this.timers.push({ at: this.clock + s, fn }); }
@@ -46,7 +47,10 @@
     /** one keeper per workshop and farm building; they go when the building goes */
     syncKeepers() {
       const live = new Set();
-      for (const p of this.g.castle.pieces) if (K.Keeper.runs(p.type)) { live.add(p.uid); if (!this.keepers.has(p.uid)) this.keepers.set(p.uid, new K.Keeper(this, p)); }
+      for (const p of this.g.castle.pieces) {
+        if (!K.Keeper.runs(p.type)) continue;
+        live.add(p.uid); if (!this.keepers.has(p.uid)) this.keepers.set(p.uid, new K.Keeper(this, p));
+      }
       for (const [uid, k] of this.keepers) if (!live.has(uid)) { k.despawn(); this.keepers.delete(uid); }
     }
     /** talk to someone: they tell you how it is going */

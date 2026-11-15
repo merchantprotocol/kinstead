@@ -4,8 +4,7 @@
      WoodsRoutine     the woodcutter and the quarryman: out to real trees and rocks, back with the load, yard work between trips
      FieldRoutine     the farmer: hoes the wheat squares, brings a sheaf home, forks hay in the shed
      HerdRoutine      the cowherd: milks a cow into a pail, carries it to the trough side, forks hay
-     HenRoutine       the henwife: scatters grain among the hens and gathers eggs
-     GranaryRoutine   the granary keeper: sacks wheat at the silo and carries it over to the miller
+     MillRoutine      the miller: grinds at the stones, shifts sacks and hay, and now and then fetches a sack from the silo
      LookoutRoutine   the archer: walks round the tower, shading their eyes */
 (function (G) {
   const K = G.K, TILE = K.TILE;
@@ -40,9 +39,14 @@
     trip(k, e) {
       const g = k.g, p = k.p, wood = p.type === 'woodcutter', kinds = wood ? ['c_tree'] : ['c_boulder', 'c_rubble'];
       let best = null, bd = 32;
-      for (const n of g.forest.nodes) { if (!kinds.includes(n.type) || !g.forest.live(n)) continue; const d = Math.hypot(n.x - p.x, n.z - p.z); if (d < bd) { bd = d; best = n; } }
+      for (const n of g.forest.nodes) { if (!kinds.includes(n.type) || !g.forest.live(n)) continue;
+        const d = Math.hypot(n.x - p.x, n.z - p.z);
+        if (d < bd) { bd = d;
+          best = n;
+          } }
       if (!best) return false;
-      const dx = p.x - best.x, dz = p.z - best.z, L = Math.hypot(dx, dz) || 1, r = (best.r || 0.5) + 0.55, stand = { x: best.x + dx / L * r, z: best.z + dz / L * r };
+      const dx = p.x - best.x, dz = p.z - best.z, L = Math.hypot(dx, dz) || 1, r = (best.r || 0.5) + 0.55, stand = { x: best.x + dx / L * r,
+          z: best.z + dz / L * r };
       if (!g.play.nav.standable(stand.x, stand.z)) return false;
       const sp = K.WorkshopLayout.workSpots(p.type), drop = at(p, sp[2].x, sp[2].z);
       e.go(stand.x, stand.z).work(4.5, 'chop', best).carry(wood ? 'log' : 'stone').go(drop.x, drop.z).work(1, 'lift', at(p, ...sp[2].face)).carry(null);
@@ -63,7 +67,8 @@
       const eco = k.eco, p = k.p, mine = [...eco.fields.tiles.values()].filter((t) => eco.nearestFarm((t.i + 0.5) * TILE, (t.j + 0.5) * TILE) === p);
       if (!mine.length || k.loop++ % 2) { this.yard(k, e, 2); return; }
       const t = mine[Math.floor(Math.random() * mine.length)], x = (t.i + 0.5) * TILE, z = (t.j + 0.5) * TILE, home = at(p, -1.0, 0.75);
-      e.go(x, z + 0.3).work(4, eco.fields.stage(t) === 2 ? 'chop' : 'pitch', { x, z }).carry('wheat').go(home.x, home.z).work(1, 'lift', at(p, -1.0, 1.0)).carry(null);
+      e.go(x, z + 0.3).work(4, eco.fields.stage(t) === 2 ? 'chop' : 'pitch', { x, z }).carry('wheat').go(home.x, home.z).work(1, 'lift', at(p, -1.0,
+          1.0)).carry(null);
     }
   }
 
@@ -76,21 +81,14 @@
     }
   }
 
-  class HenRoutine extends YardRoutine {
-    run(k, e) {
-      const p = k.p, h = k.eco.stock.herd(p), b = h.length ? h[Math.floor(Math.random() * h.length)] : null, front = at(p, 0, 1.3);
-      if (b) e.go(b.x + 0.5, b.z).work(3, 'feed', b.a); else e.go(front.x, front.z).work(3, 'feed', at(p, 0, 2.5));
-      e.go(front.x, front.z).work(2, 'lift', p).carry('eggs').go(front.x + 0.6, front.z).carry(null).work(1.5, 'lift', p);
-    }
-  }
-
-  class GranaryRoutine extends YardRoutine {
-    run(k, e) {
-      const p = k.p, mill = k.eco.of('storehouse')[0], post = k.post; e.go(post.x, post.z).work(3, 'lift', p).carry('sack');
-      if (!mill || Math.hypot(mill.x - p.x, mill.z - p.z) > 40) { e.work(2, 'sweep', p).carry(null); return; }
-      const drop = at(mill, 0.75, -0.3); e.go(drop.x, drop.z);
-      k.meet(e, k.w.keepers.get(mill.uid), 'More wheat for the stones.', 'Set it by the wall, thanks.');
-      e.work(1, 'lift', at(mill, 0.7, -0.85)).carry(null).go(post.x, post.z);
+  class MillRoutine extends YardRoutine {
+    run(k, e) { if (k.loop % 4 === 3 && this.fromSilo(k, e)) { k.loop++; return; } this.yard(k, e, 2); }
+    /** a sack from the silo for the stones (for show: the wheat itself stays in the silo's count) */
+    fromSilo(k, e) {
+      const silo = k.eco.of('silo').find((s) => k.eco.ledger(s).amount('wheat') >= 1); if (!silo || K.WorkSpots.dist(silo, k.p) > 30) return false;
+      const out = at(silo, 0, 1.4), back = at(k.p, 0.75, -0.55);
+      e.go(out.x, out.z).work(1.6, 'lift', silo).carry('sack').go(back.x, back.z).work(1, 'lift', at(k.p, 0.7, -0.85)).carry(null);
+      return true;
     }
   }
 
@@ -100,13 +98,13 @@
     constructor(workers) {
       this.w = workers;
       const yard = new YardRoutine(), woods = new WoodsRoutine();
-      this.byType = { storehouse: yard, woodcutter: woods, quarry: woods, farm: new FieldRoutine(), barn: new HerdRoutine(), coop: new HenRoutine(),
-        silo: new GranaryRoutine(), watchtower: new LookoutRoutine() };
+      this.byType = { storehouse: new MillRoutine(), woodcutter: woods, quarry: woods, farm: new FieldRoutine(), barn: new HerdRoutine(),
+          watchtower: new LookoutRoutine() };
       this.fallback = yard;
     }
     /** a loaded cart waiting at the door comes first; otherwise the trade's own routine */
     run(keeper, e) { if (this.w.haulage.take(keeper, e)) return; (this.byType[keeper.p.type] || this.fallback).run(keeper, e); }
   }
 
-  Object.assign(K, { KeeperRoutines, YardRoutine, WoodsRoutine, FieldRoutine, HerdRoutine, HenRoutine, GranaryRoutine, LookoutRoutine });
+  Object.assign(K, { KeeperRoutines, YardRoutine, WoodsRoutine, FieldRoutine, HerdRoutine, MillRoutine, LookoutRoutine });
 })(typeof window !== 'undefined' ? window : globalThis);

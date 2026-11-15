@@ -27,11 +27,13 @@
       e.then(() => { this.g.purse.hearth.addMeal(meal.id); this.g.cui.toast(`Your cook made ${meal.name}. It is on the kitchen hearth.`); this.g.changed(); });
     }
     report() {
-      const n = this.meals(), m = this.market, out = [n ? `I have ${n} meal${n > 1 ? 's' : ''} ready on the kitchen hearth. Help yourself.` : 'The kitchen hearth is empty right now.'];
+      const n = this.meals(), m = this.market,
+          out = [n ? `I have ${n} meal${n > 1 ? 's' : ''} ready on the kitchen hearth. Help yourself.` : 'The kitchen hearth is empty right now.'];
       if (!m) { out.push('We have no marketplace, so I have nothing to cook with. Build one and keep it stocked.'); return out; }
       const l = this.eco.ledger(m), can = K.MEALS.filter((r) => Object.entries(r.need).every(([g, k]) => l.amount(g) >= k)).map((r) => r.name);
       out.push(`In the market: ${['wheat', 'egg', 'milk', 'beef'].map((g) => `${l.amount(g)} ${K.CastleData.resName(g)}`).join(', ')}.`);
-      out.push(can.length ? `I can make ${can.join(', ')}.` : 'I cannot cook anything: I need 3 wheat for bread, 2 eggs and a milk for an omelette, or beef, milk and wheat for a stew.');
+      out.push(can.length ? `I can make ${can.join(', ')}.` :
+          'I cannot cook anything: I need 3 wheat for bread, 2 eggs and a milk for an omelette, or beef, milk and wheat for a stew.');
       if (n >= Cook.PANTRY_MAX) out.push('The hearth is full, so I am resting until you eat something.'); return out;
     }
     backHome(e) { const d = this.home && this.home.doorPoint; if (d) { e.steps = []; e.go(d.x, d.z); } }

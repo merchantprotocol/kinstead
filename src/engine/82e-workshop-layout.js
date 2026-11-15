@@ -27,8 +27,10 @@
         { x: -0.5, z: 0.12, pose: 'chop', face: [-0.5, -0.24] }, { x: 0.1, z: 0.1, pose: 'chop', face: [0.1, -0.3] },
         { x: -0.3, z: 0.75, pose: 'lift', face: [-0.82, 0.62], carry: 'stone' }, { x: 0.52, z: 0.15, pose: 'lift', face: [0.52, 0.62], carry: 'stone' },
       ],
-      farm: [{ x: -1.0, z: 0.75, pose: 'pitch', face: [-1.0, 1.0] }, { x: 0.6, z: 0.85, pose: 'lift', face: [0.6, 0.5], carry: 'sack' }, { x: -0.3, z: 0.95, pose: 'sweep', face: [-0.3, 0.7] }],
-      barn: [{ x: 0.85, z: -0.85, pose: 'pitch', face: [1.2, -0.85] }, { x: 0.85, z: 0.1, pose: 'lift', face: [1.15, 0.08], carry: 'bucket' }, { x: 0.6, z: 0.75, pose: 'sweep', face: [0.95, 0.75] }],
+      farm: [{ x: -1.0, z: 0.75, pose: 'pitch', face: [-1.0, 1.0] }, { x: 0.6, z: 0.85, pose: 'lift', face: [0.6, 0.5], carry: 'sack' }, { x: -0.3,
+          z: 0.95, pose: 'sweep', face: [-0.3, 0.7] }],
+      barn: [{ x: 0.85, z: -0.85, pose: 'pitch', face: [1.2, -0.85] }, { x: 0.85, z: 0.1, pose: 'lift', face: [1.15, 0.08], carry: 'bucket' }, { x: 0.6,
+          z: 0.75, pose: 'sweep', face: [0.95, 0.75] }],
     };
     /** the solid rects of a type, or null if the whole footprint is solid */
     static solids(type) { return WorkshopLayout.SOLID[type] || null; }

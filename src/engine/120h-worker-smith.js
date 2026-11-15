@@ -13,8 +13,10 @@
     order(r) { this.orders.push(r); this.g.cui.toast(`The smith will make the ${r.name.toLowerCase()}. He fetches what he needs from the market first.`); }
     report() {
       const out = [], m = this.market, l = m ? this.eco.ledger(m) : null, c = this.g.castle;
-      out.push(this.orders.length ? `I have ${this.orders.length} order${this.orders.length > 1 ? 's' : ''} to make: ${this.orders.map((r) => r.name.toLowerCase()).join(', ')}.` : 'No orders right now. Order weapons at the forge and I will fetch what I need.');
-      out.push(`Wood: ${l ? l.amount('wood') : 0} in the market, ${c.amount('wood')} in your purse. Iron: ${l ? l.amount('iron') : 0} in the market, ${c.amount('iron')} in your purse.`);
+      const n = this.orders.length, list = this.orders.map((r) => r.name.toLowerCase()).join(', ');
+      out.push(n ? `I have ${n} order${n > 1 ? 's' : ''} to make: ${list}.` : 'No orders right now. Order weapons at the forge and I will fetch what I need.');
+      const wood = l ? l.amount('wood') : 0, iron = l ? l.amount('iron') : 0;
+      out.push(`Wood: ${wood} in the market, ${c.amount('wood')} in your purse. Iron: ${iron} in the market, ${c.amount('iron')} in your purse.`);
       if (!m) out.push('With a marketplace I would make arrows for it whenever I am idle.');
       else if (l.amount('wood') < 2) out.push('The market has no wood for arrows. Send some over and I will keep the racks full.');
       else out.push(`The market has ${l.amount('arrow')} arrows. I make more whenever it is low.`);
