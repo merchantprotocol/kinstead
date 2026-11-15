@@ -183,13 +183,13 @@
     add(p) {
       if (this.by.has(p.id)) return this.by.get(p.id); const g = this.g;
       const a = g.addActor({ id: 'pl:' + p.id, role: 'remote', spriteId: 'warden', name: p.name, x: p.x || 0, z: p.z || 0, hpMax: 100, atk: 0, def: 0, speed: 3, cd: 1, reach: 1, r: 0.4, scale: 1, level: 1, info: { xp: 0, loot: [] } });
-      a.remote = true; a.pid = p.id; a.hostile = false; a.view.setTint(this.g.banners.hexOf(p.id));
+      a.remote = true; a.pid = p.id; a.hostile = false;
       const rec = { a, tx: p.x || 0, tz: p.z || 0, ty: p.y || 0, f: p.f || 0, s: p.s || 'idle', name: p.name, el: document.createElement('div'), say: null, sayT: 0 };
       rec.el.className = 'plate'; rec.el.innerHTML = `<i class="tm"></i><b>${esc(p.name)}</b><span></span>`; this.root.appendChild(rec.el); rec.id = p.id; this.look(rec);
       a.brain = { update: (dt) => this.step(rec, dt) }; this.by.set(p.id, rec); return rec;
     }
     /** their colour, logo and team name, on their clothes and over their head */
-    look(r) { const b = this.g.banners.get(r.id), tm = r.el.querySelector('.tm'); r.a.view.setTint(K.BANNER_COLORS[b.color % 12]); if (tm) tm.innerHTML = `<img src="${K.Emblems.url(b.logo)}" alt="">${esc(b.name)}`; tm.style.background = '#' + K.BANNER_COLORS[b.color % 12].toString(16).padStart(6, '0'); }
+    look(r) { const b = this.g.banners.get(r.id), tm = r.el.querySelector('.tm'); { const c = K.BANNER_COLORS[b.color % 12]; if (r.a.view.setTeam) r.a.view.setTeam(c); else r.a.view.setTint(c); } if (tm) tm.innerHTML = `<img src="${K.Emblems.url(b.logo)}" alt="">${esc(b.name)}`; tm.style.background = '#' + K.BANNER_COLORS[b.color % 12].toString(16).padStart(6, '0'); }
     relook() { for (const r of this.by.values()) this.look(r); }
     remove(id) { const r = this.by.get(id); if (!r) return; this.g.removeActor(r.a); r.el.remove(); this.by.delete(id); }
     clear() { for (const id of [...this.by.keys()]) this.remove(id); }

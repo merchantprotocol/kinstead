@@ -184,7 +184,7 @@
     pvpHit(a, b) { if (this.mp) { this.mp.pvp(b.pid); this.xp.dealt(); this.sound.play('hit'); } }
     playerMenu(e) { if (this.mp) this.mp.playerMenu(e); }
     /** your character wears your banner's colour */
-    applyLook() { const me = this.play.me; if (me && me.view && me.view.setTint) me.view.setTint(K.BANNER_COLORS[this.banners.mine().color % 12]); }
+    applyLook() { const me = this.play.me; if (me && me.view) { const c = K.BANNER_COLORS[this.banners.mine().color % 12]; if (me.view.setTeam) me.view.setTeam(c); else if (me.view.setTint) me.view.setTint(c); } }
     /** do you hold the key to this building? (your own house and workshop always; others' only through a key, yours or your team's) */
     keyFor(id) { if (id === 'home' || id === 'smithy') return true; return this.mp ? this.mp.keyFor(id) : false; }
     /** where you slept last is where you wake (and where you come back after a fall) */

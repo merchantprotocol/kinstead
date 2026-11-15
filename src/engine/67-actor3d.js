@@ -122,6 +122,22 @@
         }
         /* outfit colour: a half-strength multiply, so a tint shifts the voxel palette without flattening it */
         applyTint() { if (this.rig) this.rig.mat.color.setRGB(1, 1, 1).lerp(this.tint, 0.5); }
+        /** wear a team colour: the red of the tunic, cloak and shield is re-dyed to this colour (not a muddy tint over everything) */
+        setTeam(hex) {
+          if (!this.rig) return super.setTint(hex); const THREE = G.THREE, target = {}; new THREE.Color(hex).getHSL(target); this.teamHex = hex;
+          this.rig.group.traverse((o) => {
+            if (!o.isMesh || !o.geometry || !o.geometry.attributes || !o.geometry.attributes.color) return;
+            if (!o.userData.ownColours) { o.geometry = o.geometry.clone(); o.userData.ownColours = Float32Array.from(o.geometry.attributes.color.array); }   // its own copy: other actors of this kind keep theirs
+            const col = o.geometry.attributes.color, orig = o.userData.ownColours, c = new THREE.Color(), hsl = {};
+            for (let i = 0; i < col.count; i++) {
+              c.setRGB(orig[i * 3], orig[i * 3 + 1], orig[i * 3 + 2]); c.getHSL(hsl);
+              if ((hsl.h < 0.055 || hsl.h > 0.94) && hsl.s > 0.3 && hsl.l > 0.1 && hsl.l < 0.8) c.setHSL(target.h, target.s, Math.max(0.06, Math.min(0.95, hsl.l * (0.5 + target.l))));
+              col.setXYZ(i, c.r, c.g, c.b);
+            }
+            col.needsUpdate = true;
+          });
+          this.tint.set(0xffffff); this.applyTint();
+        }
         setTint(hex) { if (!this.rig) return super.setTint(hex); this.tint.set(hex == null ? 0xffffff : hex); this.applyTint(); }
         setVisible(v) { if (!this.rig) return super.setVisible(v); this.visible = v; this.rig.group.visible = v; this.blob.visible = v; }
         update(t, dt, camYaw, tilt) {
