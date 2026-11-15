@@ -111,10 +111,10 @@
       g.sound.play('whump');
       g.redrawKeep();
       g.pop(g.keepMesh, 0.6);
-      g.flareT = 2.5;
+      g.hearth.flare(2.5);
       g.shake(0.25);
       g.meltTo(g.castle.glowRadius(), 1.4);
-      g.glowR = 0.5;
+      g.hearth.glowR = 0.5;
       g.cui.banner('The hearth roars', 'CL 1 · the glow pushes the frost back 6 m', 'fire');
       g.changed();
     }
@@ -122,7 +122,7 @@
       const g = this.g, r = g.castle.build(g.data.keepUpgrade.id);
       if (!r.ok) { g.cui.toast(`Heartfire hearth: ${r.why}.`); return; }
       g.sound.play('whump');
-      g.flareT = 4;
+      g.hearth.flare(4);
       g.shake(0.6);
       g.changed();
       g.ending();

@@ -125,6 +125,14 @@
       if (g.castle.isFrosted(p)) this.setFrost(p, true);
       return m;
     }
+    /** the old castle game's Keep mesh (survival has no Keep to draw) */
+    redrawKeep() {
+      const g = this.g;
+      if (g.survival) return;
+      if (g.keepMesh) g.group.remove(g.keepMesh);
+      g.keepMesh = g.art.piece('keep', { ruin: !g.castle.lit });
+      g.place(g.keepMesh, g.L.keep.x, g.L.keep.z, 0);
+    }
     setFrost(p, on) {
       const m = this.meshOf(p);
       if (!m) return;
