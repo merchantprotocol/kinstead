@@ -6,7 +6,10 @@
      RampartLayer   which tiles are walk, and how high */
 (function (G) {
   const K = G.K;
-  const UP_STEP = 0.7;   // the steepest step along the walk (onto the gate's flanking towers is 0.64)
+  /* the steepest step between two walk tiles. Level ground gives 0.64 (wall top onto the gate's flanking towers), but a
+     wall standing 0.25 m lower than the gate gives 0.89, so allow a little more. Player-only: raiders never search this
+     layer, and the ground still only joins it through a tower stair, so no one climbs a wall face. */
+  const UP_STEP = 1.1;
 
   class RampartLayer extends K.NavGrid {
     constructor(w, h) { super({ w, h }, {}); }
