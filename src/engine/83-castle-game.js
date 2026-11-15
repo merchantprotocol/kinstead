@@ -190,7 +190,7 @@
     /** your character wears your banner's colour */
     applyLook() { const me = this.play.me; if (me && me.view) { const c = K.BANNER_COLORS[this.banners.mine().color % 12]; if (me.view.setTeam) me.view.setTeam(c); else if (me.view.setTint) me.view.setTint(c); } }
     /** do you hold the key to this building? (your own house and workshop always; others' only through a key, yours or your team's) */
-    keyFor(id) { if (id === 'home' || id === 'smithy' || id === 'market') return true; return this.mp ? this.mp.keyFor(id) : false; }
+    keyFor(id) { if (id === 'home' || id === 'smithy' || id === 'market' || this.halls[id]) return true; return this.mp ? this.mp.keyFor(id) : false; }
     /** where you slept last is where you wake (and where you come back after a fall) */
     setRespawn(buildingId, x, z) {
       const slot = this.mp ? this.mp.slotOf(buildingId) : buildingId === 'home' ? 0 : null; if (slot == null) return;   // only a house: not the workshop
@@ -216,7 +216,7 @@
         play.me.x = play.spawn.x; play.me.z = play.spawn.z; play.me.y = play.nav.y(play.spawn.x, play.spawn.z); }
       // your hut: the fire, the furniture, the barrels. No keep, ruins, outcrop or zone barriers.
       this.walls = new K.WallDrawer(this);   // before any saved pieces come back: placing and blocking a piece asks it what it is
-      this.gateTiles = new Set(); this.smithy = null; this.marketHall = null; this.forge = null; this.home = new K.Home(this); this.castle.extraHas = (t) => (t === 'blacksmith' && !!this.smithy) || (t === 'cottage' && this.home.built) || (t === 'market' && !!this.marketHall); this.keepMesh = null; this.ruinEnts = {}; this.outcropEnt = null;
+      this.gateTiles = new Set(); this.smithy = null; this.marketHall = null; this.halls = {}; this.forge = null; this.home = new K.Home(this); this.castle.extraHas = (t) => (t === 'blacksmith' && !!this.smithy) || (t === 'cottage' && this.home.built) || (t === 'market' && !!this.marketHall) || !!this.halls[t]; this.keepMesh = null; this.ruinEnts = {}; this.outcropEnt = null;
       this.keepEnt = { id: 'c-home', type: 'c_keep', name: 'Your home', x: this.L.keep.x, z: this.L.keep.z, y: 0, r: 0.1, h: 2, goal: [this.home.doorPoint.x, this.home.doorPoint.z] };
       if (!this.castle.lit) this.castle.light();
       for (const p of this.castle.pieces) this.addPieceMesh(p);
@@ -625,7 +625,7 @@
     }
 
     /* ---------- combat glue ---------- */
-    damage(a, b) { return Math.max(1, Math.round((a.atk - (b.def || 0)) * (a.dmgScale || 1))); }   // a.dmgScale: the hero is weaker with a work tool than with a sword
+    damage(a, b) { return Math.max(1, Math.round((a.atk - (b.def || 0)) * (a.dmgScale || 1) * (a === this.play.me && this.workers ? this.workers.strengthMul : 1))); }   // a.dmgScale: the hero is weaker with a work tool than with a sword
     onHit(a, b) { if (a === this.play.me) { this.sound.play('hit'); this.xp.dealt(); } if (b.raider && b.brain && this.castle.weapons.has('ember_brand') && a === this.play.me) b.brain.burnT = 3; }
     wakeSec() { return this.castle.has('chapel') ? 2 : 5; }
     nearestEnemy(a, range) { let best = null, bd = range; for (const e of this.play.actors) if (e.alive && (e.raider || (e.boss && this.castle.zoneOpen('troll_bridge')))) { const d = Math.hypot(e.x - a.x, e.z - a.z); if (d < bd) { bd = d; best = e; } } return best; }

@@ -44,6 +44,7 @@
     eat(id) {
       const g = this.g, p = this.player, FOOD = K.BUILDING_DATA.FOOD, missing = this.hpMax - p.hp;
       if (!id) { let best = null; for (const s of p.bag) { if (!s || !FOOD[s.id] || FOOD[s.id].hp <= 0) continue; const h = FOOD[s.id].hp, score = h >= missing ? 1000 - h : h; if (!best || score > best.score) best = { id: s.id, score }; } id = best && best.id; }
+      if ((!id || !FOOD[id] || !p.count(id)) && g.workers && g.castle.amount('bread') > 0) return g.workers.use('bread');   // a loaf from your purse
       if (!id || !FOOD[id] || !p.count(id)) { g.cui.toast('You have nothing to eat in your bag.'); return false; }
       if (missing <= 0.5) { g.cui.toast('You are not hungry.'); return false; }
       p.removeItem(id, 1); const hp = FOOD[id].hp; p.heal(hp); g.play.float(g.play.me, `+${hp}`, 'heal'); g.sound.play('gather'); g.changed(); return true;
@@ -56,7 +57,7 @@
       if (this.sleeping) this.hpAtSleep = p.hp;
       if (this.home) {
         if (p.hp < max) { this.acc += dt * HOME_PER_SEC * (this.sleeping ? SLEEP_FACTOR : 1); if (this.acc >= 1) { this.acc -= 1; p.heal(1); } } else this.acc = 0;
-      } else if (this.nearFire()) { this.acc = 0;   // a fire pot keeps the cold off
+      } else if (this.nearFire() || (this.g.workers && this.g.workers.buff('warmth'))) { this.acc = 0;   // a fire pot keeps the cold off
       } else {
         this.acc += dt * DRAIN_PER_SEC * (this.g.weather ? this.g.weather.chill : 1);
         if (this.acc >= 1) { this.acc -= 1; if (p.hp > this.floor) p.hurt(1); }   // hunger and cold wear you down to a bare minimum, never to death

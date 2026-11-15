@@ -67,7 +67,17 @@
     blacksmith: { id: 'smithy', size: [12, 9], have: (g) => !!g.smithy, haveMsg: 'you already have a blacksmith' },
     cottage: { id: 'home', size: [10, 7], have: (g) => g.home.built, haveMsg: 'you already have a cottage' },
     market: { id: 'market', prefab: 'market_hall', size: [20, 14], have: (g) => !!g.marketHall, haveMsg: 'you already have a marketplace' },
+    stable: { id: 'stable', prefab: 'stable', hall: true, have: (g) => !!g.halls.stable, haveMsg: 'you already have a stable' },
+    bakery: { id: 'bakery', prefab: 'bakery', hall: true, have: (g) => !!g.halls.bakery, haveMsg: 'you already have a bakery' },
+    butcher: { id: 'butcher', prefab: 'butcher', hall: true, have: (g) => !!g.halls.butcher, haveMsg: 'you already have a butcher shop' },
+    library: { id: 'library', prefab: 'library', hall: true, have: (g) => !!g.halls.library, haveMsg: 'you already have a library' },
   };
+  const Hall = { BUILT: {
+    stable: 'Stable built. Two horses came with it. Talk to the stablehand, or ride a horse from the stable.',
+    bakery: 'Bakery built. The baker takes wheat from your market and bakes bread you can eat.',
+    butcher: 'Butcher shop built. The butcher turns your spare cows and chickens into meat for the market.',
+    library: 'Library built. The alchemist takes odds and ends from the market and brews potions. Find them in the market.',
+  } };
   class BuildingSite {
     static get KINDS() { return KINDS; }
     constructor(game) { this.g = game; this.turns = 0; this.anchor = null; this.steering = false; this.ghost = null; this.key = ''; this.pad = null; this._type = null; }
@@ -81,10 +91,10 @@
       const kind = KINDS[this.type]; let s;
       if (this.type === 'cottage') { s = this.g.L.homeSpec(); s.x = 0; s.z = 0; }
       else if (kind.prefab) s = K.makeBuilding(kind.prefab, 0, 0, id || kind.id, 31);
-      else { s = K.makeBuilding('smithy', 0, 0, id || 'smithy', 23); s.furniture = s.furniture.filter((f) => ['forge', 'anvil', 'grindstone', 'workbench', 'barrel', 'sack', 'crate'].includes(f.type)); }   // a workshop, not a shop
+      else { s = K.makeBuilding('smithy', 0, 0, id || 'smithy', 23); s.furniture = s.furniture.filter((f) => ['forge', 'anvil', 'grindstone', 'workbench', 'barrel', 'sack', 'crate', 'shield_rack', 'quench_tub', 'weapon_rack', 'material_pile', 'hanging_sign', 'counter'].includes(f.type)); }   // a workshop, not a shop
       if (turns) s = new K.BuildingEdit().rotate(s, turns); s.x = ti; s.z = tj; s.id = id || kind.id; if (this.type === 'cottage') s.noDoorLeaves = true; return s;
     }
-    sizeFor(turns) { const [w, h] = KINDS[this.type].size; return turns % 2 ? [h, w] : [w, h]; }
+    sizeFor(turns) { const kind = KINDS[this.type], [w, h] = kind.size || (() => { const f = K.BUILDING_PREFABS[kind.prefab].make().footprint; return [f.w, f.h]; })(); return turns % 2 ? [h, w] : [w, h]; }
     /** the top-left tile that centres the building on world point p */
     cornerFor(p, turns) { const [w, h] = this.sizeFor(turns); return [Math.round(p.x / TILE - w / 2), Math.round(p.z / TILE - h / 2)]; }
     /** why a building cannot go here, or null. Trees, rocks, fences and bumpy ground never count. */
@@ -155,6 +165,7 @@
       this.adopt(type, spec, turns); g.xp.built(type); this.clearGhost(); g.cui.stopPlacing();
       const cx = (ti + w / 2) * TILE, cz = (tj + h / 2) * TILE; g.sound.play('whump'); g.shake(0.2); g.puff(cx, cz);
       if (type === 'cottage') { g.setRespawn('home', g.home.center.x - 0.25, g.home.center.z + 0.75); g.cui.toast('Your cottage is built. Sleep in the bed to wake here, keep out of the cold, and shut the door on the dark.'); }
+      else if (KINDS[type].hall) g.cui.toast(Hall.BUILT[type] || 'Built.');
       else if (type === 'market') g.cui.toast('Marketplace built. Walk inside: wheat and bread, meat and eggs, weapons, raw materials. Your carts bring everything here, and the stalls out front fill up.');
       else g.cui.toast('Blacksmith built. Click the anvil to forge new weapons.');
       g.changed(); return true;
@@ -163,6 +174,7 @@
     adopt(type, spec, turns) {
       const g = this.g;
       if (type === 'cottage') { g.home.raise(spec); g.homeTurns = turns; g.home.door.apply(); if (g.mp) g.mp.announceHome(); }
+      else if (KINDS[type].hall) { g.halls[type] = { spec, turns }; if (g.mp) g.mp.op({ k: 'bld+', id: type + ':' + g.mp.net.id, spec }); if (g.workers) g.workers.hallBuilt(type, spec, turns); }
       else if (type === 'market') { g.marketHall = spec; g.marketTurns = turns; if (g.mp) g.mp.op({ k: 'bld+', id: 'market:' + g.mp.net.id, spec }); const f = this.frontOf(spec, turns); g.addFreePiece('market', f.x, f.z, f.rot); }
       else { g.smithy = spec; g.smithyTurns = turns; if (g.mp) g.mp.op({ k: 'bld+', id: 'smithy:' + g.mp.net.id, spec }); g.forge = g.forge || new K.Forge(g); }
     }
@@ -170,7 +182,7 @@
     restore(type, ti, tj, turns) {
       const g = this.g, play = this.play, R = g.R; this._type = type; const spec = this.specAt(ti, tj, turns, KINDS[type].id); play.doc.objects.push(spec);
       R.syncBuildings(true); play.nav.applyBuildings(R.buildings); play.bplay.dirty(); play.refreshProps();
-      if (type === 'cottage') { g.home.raise(spec); g.homeTurns = turns; g.home.door.apply(); } else if (type === 'market') { g.marketHall = spec; g.marketTurns = turns; } else { g.smithy = spec; g.smithyTurns = turns; g.forge = g.forge || new K.Forge(g); }
+      if (type === 'cottage') { g.home.raise(spec); g.homeTurns = turns; g.home.door.apply(); } else if (KINDS[type].hall) { g.halls[type] = { spec, turns }; } else if (type === 'market') { g.marketHall = spec; g.marketTurns = turns; } else { g.smithy = spec; g.smithyTurns = turns; g.forge = g.forge || new K.Forge(g); }
       this._type = null;
     }
     /** just outside a building's front wall, facing out: where its street stalls go (the door faces south at 0, west at 1, north at 2, east at 3) */

@@ -8,7 +8,7 @@
   const K = G.K;
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const GROUPS = [['terrain', 'Land'], ['defense', 'Walls'], ['farming', 'Farming'], ['trade', 'Trade'], ['producer', 'Workshops'], ['storage', 'Storage'], ['building', 'Buildings']];
-const BUILDABLE = new Set(['dirt', 'palisade', 'gate', 'stone_wall', 'stone_gate', 'watchtower', 'fire_pot', 'farm', 'field', 'silo', 'coop', 'barn', 'market', 'woodcutter', 'quarry', 'storehouse', 'cottage', 'blacksmith']);   // what you can place by the square
+const BUILDABLE = new Set(['dirt', 'palisade', 'gate', 'stone_wall', 'stone_gate', 'watchtower', 'fire_pot', 'farm', 'field', 'silo', 'coop', 'barn', 'market', 'stable', 'bakery', 'butcher', 'library', 'woodcutter', 'quarry', 'storehouse', 'cottage', 'blacksmith']);   // what you can place by the square
 
   /** Replace an element's HTML only if it changed; keep its scroll. */
   const patch = (el, html) => { if (el._h === html) return; const top = el.scrollTop; el._h = html; el.innerHTML = html; el.scrollTop = top; };
@@ -47,7 +47,7 @@ const BUILDABLE = new Set(['dirt', 'palisade', 'gate', 'stone_wall', 'stone_gate
       for (const id of d.pieceIds()) {
         if (!BUILDABLE.has(id)) continue;
         const ruin = c.ruinOpen(id), p = d.piece(id), why = c.blocker(id, { ruin, ignoreCost: true }); if (why && /already/.test(why)) continue;
-        const mine = (id === 'blacksmith' && this.g.smithy) || (id === 'cottage' && this.g.home.built) || (id === 'market' && this.g.marketHall) ? 'already built' : why, cost = c.buildCost(id, { ruin }), state = mine ? 'locked' : c.canAfford(cost) ? 'ok' : 'poor';
+        const mine = (id === 'blacksmith' && this.g.smithy) || (id === 'cottage' && this.g.home.built) || (id === 'market' && this.g.marketHall) || this.g.halls[id] ? 'already built' : why, cost = c.buildCost(id, { ruin }), state = mine ? 'locked' : c.canAfford(cost) ? 'ok' : 'poor';
         rows.push({ id, kind: ruin ? 'ruin' : id === 'mine' ? 'site' : 'place', group: p.category, name: ruin ? `Restore the ${p.name}` : p.name, cost, state, why: mine, icon: S.PIECE_ICON[id], art: id, line: p.effect || '' });
       }
       const sel = this.g.demolisher && this.g.demolisher.selling, html = [`<button class="dw-row dw-sell ${sel ? 'on' : 'ok'}" data-sell="1">${this.cui.art.html('sell', 'coin', 40)}<div class="dw-t"><b>${sel ? 'Selling… (click to stop)' : 'Sell'}</b><small>Click or drag along walls to sell them at once. A building asks before it goes. Half the cost comes back to your purse.</small></div></button>`];

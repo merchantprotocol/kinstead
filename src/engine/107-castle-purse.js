@@ -10,8 +10,8 @@
 (function (G) {
   const K = G.K;
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const ORDER = ['wood', 'stone', 'dirt', 'iron', 'food', 'arrow', 'gold', 'ember_shard', 'wheat', 'egg', 'milk', 'beef'];
-  const NAME = { wood: 'Wood', stone: 'Stone', dirt: 'Dirt', iron: 'Iron', food: 'Food', arrow: 'Arrows', gold: 'Gold', ember_shard: 'Ember shard', wheat: 'Wheat', egg: 'Eggs', milk: 'Milk', beef: 'Beef' };
+  const ORDER = ['wood', 'stone', 'dirt', 'iron', 'food', 'arrow', 'gold', 'ember_shard', 'wheat', 'egg', 'milk', 'beef', 'bread', 'potion_heal', 'potion_speed', 'potion_strength', 'potion_warmth'];
+  const NAME = { wood: 'Wood', stone: 'Stone', dirt: 'Dirt', iron: 'Iron', food: 'Food', arrow: 'Arrows', gold: 'Gold', ember_shard: 'Ember shard', wheat: 'Wheat', egg: 'Eggs', milk: 'Milk', beef: 'Meat', bread: 'Bread', potion_heal: 'Healing potion', potion_speed: 'Speed potion', potion_strength: 'Strength potion', potion_warmth: 'Warmth potion' };
 
   /** painted pictures, 64x64 */
   class GoodsArt {
@@ -23,6 +23,8 @@
         dirt: '<path d="M8 50c-2-14 8-28 24-28s28 12 24 28z" fill="#7b5636" stroke="#3d2a18" stroke-width="2.5"/><circle cx="24" cy="40" r="3" fill="#5a3d24"/><circle cx="38" cy="34" r="3.5" fill="#9a7048"/><circle cx="44" cy="44" r="2.5" fill="#5a3d24"/>',
         iron: '<path d="M10 44l8-18h30l6 18z" fill="#7d8798" stroke="#2c3442" stroke-width="2.5"/><path d="M18 26h30l-4 8H14z" fill="#b6bfce" opacity=".8"/>',
         wheat: '<path d="M32 58V20" stroke="#8a6a2a" stroke-width="3"/><g fill="#e8c25a" stroke="#8a6a2a" stroke-width="1.6"><ellipse cx="32" cy="14" rx="4" ry="7"/><ellipse cx="25" cy="24" rx="4" ry="7" transform="rotate(-30 25 24)"/><ellipse cx="39" cy="24" rx="4" ry="7" transform="rotate(30 39 24)"/><ellipse cx="25" cy="36" rx="4" ry="7" transform="rotate(-30 25 36)"/><ellipse cx="39" cy="36" rx="4" ry="7" transform="rotate(30 39 36)"/></g>',
+        bread: '<path d="M10 40c0-14 10-22 22-22s22 8 22 22v6H10z" fill="#d89a4a" stroke="#6a3a1a" stroke-width="2.5"/><path d="M20 30l4 6M30 27l3 7M40 29l3 6" stroke="#8a5222" stroke-width="2.5" stroke-linecap="round"/>',
+        potion_heal: '<path d="M26 8h12v8l10 14v20a6 6 0 0 1-6 6H22a6 6 0 0 1-6-6V30l10-14z" fill="#f7d8e0" stroke="#3a2a4a" stroke-width="2.5"/><path d="M18 38h28v12a4 4 0 0 1-4 4H22a4 4 0 0 1-4-4z" fill="#e0405a"/><rect x="24" y="4" width="16" height="6" rx="2" fill="#8a5a32"/>', potion_speed: '<path d="M26 8h12v8l10 14v20a6 6 0 0 1-6 6H22a6 6 0 0 1-6-6V30l10-14z" fill="#e8f4ff" stroke="#3a2a4a" stroke-width="2.5"/><path d="M18 38h28v12a4 4 0 0 1-4 4H22a4 4 0 0 1-4-4z" fill="#3aa0e8"/><rect x="24" y="4" width="16" height="6" rx="2" fill="#8a5a32"/>', potion_strength: '<path d="M26 8h12v8l10 14v20a6 6 0 0 1-6 6H22a6 6 0 0 1-6-6V30l10-14z" fill="#fff0d8" stroke="#3a2a4a" stroke-width="2.5"/><path d="M18 38h28v12a4 4 0 0 1-4 4H22a4 4 0 0 1-4-4z" fill="#e8822a"/><rect x="24" y="4" width="16" height="6" rx="2" fill="#8a5a32"/>', potion_warmth: '<path d="M26 8h12v8l10 14v20a6 6 0 0 1-6 6H22a6 6 0 0 1-6-6V30l10-14z" fill="#ffe8d8" stroke="#3a2a4a" stroke-width="2.5"/><path d="M18 38h28v12a4 4 0 0 1-4 4H22a4 4 0 0 1-4-4z" fill="#f0c040"/><rect x="24" y="4" width="16" height="6" rx="2" fill="#8a5a32"/>',
         egg: '<ellipse cx="32" cy="36" rx="15" ry="19" fill="#f6ead2" stroke="#8a6a4a" stroke-width="2.5"/><ellipse cx="26" cy="28" rx="4" ry="6" fill="#fff" opacity=".7"/>',
         milk: '<path d="M22 14h20v8l6 10v22a4 4 0 0 1-4 4H20a4 4 0 0 1-4-4V32l6-10z" fill="#fafafa" stroke="#5a6a7a" stroke-width="2.5"/><path d="M16 40h32" stroke="#7aa0c8" stroke-width="5"/>',
         beef: '<path d="M14 34c0-12 14-20 28-16 10 3 12 14 6 22-6 9-22 12-30 6-3-3-4-7-4-12z" fill="#c8464a" stroke="#6a1e22" stroke-width="2.5"/><circle cx="40" cy="30" r="5" fill="#f2e6d6" stroke="#6a1e22" stroke-width="2"/>',
@@ -179,7 +181,7 @@
     /** move a whole stack from one purse to the other (a lone purse: a weapon click equips it) */
     move(side, key, amount = 0) {
       const g = this.g, from = this.holdings(side), s0 = from.find(key); if (!s0) return; const s = Object.assign({}, s0, { n: amount > 0 ? Math.min(amount, s0.n) : s0.n });   // amount 0: the whole stack
-      if (!this.there && !this.forge) { if (s.kind === 'weapon') { g.tools.belt.equip(s.weapon); this.render(); } else if (s.kind === 'item' && K.BUILDING_DATA.FOOD[s.id]) { g.vitals.eat(s.id); this.render(); } return; }   // click food to eat it
+      if (!this.there && !this.forge) { if (s.kind === 'weapon') { g.tools.belt.equip(s.weapon); this.render(); } else if (s.kind === 'item' && K.BUILDING_DATA.FOOD[s.id]) { g.vitals.eat(s.id); this.render(); } else if (s.kind === 'res' && g.workers && g.workers.use(s.id)) this.render(); return; }   // click food to eat it, a potion to drink it   // click food to eat it
       if (this.forge && side === 'me') { g.cui.toast(`Click something under ${this.forge.verb} to have it made.`); return; }
       const to = this.holdings(side === 'me' ? 'there' : 'me'), why = side === 'me' && from.keep ? from.keep(s) : null; if (why) { g.cui.toast(why); return; }
       if (this.forge && side === 'there' && s.kind === 'weapon' && g.tools.belt.weapons.some((w) => w.id === s.id)) { g.cui.toast('You already have one.'); return; }

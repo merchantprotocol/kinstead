@@ -32,12 +32,14 @@
   /* [id, name, kind, worker sprite, worker tint, worker name] ; kind: piece | run (a row of wall) | building (a walk-in prefab) */
   const GROUPS = [
     ['Walls and gates', [['palisade', 'Palisade', 'run'], ['stone_wall', 'Stone wall', 'run'], ['gate', 'Wooden gate', 'piece'], ['stone_gate', 'Stone gate with drawbridge', 'piece'], ['watchtower', 'Watchtower', 'piece', 'ranger', 0xc8e0ff, 'Archer'], ['fire_pot', 'Fire pot', 'piece']]],
-    ['Homes and trade', [['cottage', 'Cottage', 'building', 'witch', 0xffd8b0, 'Cook'], ['market_hall', 'Marketplace', 'building', 'ranger', 0xc8e0ff, 'Clerk'], ['smithy', 'Blacksmith', 'building', 'warden', 0x9a8a7a, 'Smith'], ['stable', 'Stable', 'building', 'ranger', 0xd8c090, 'Stablehand'], ['storehouse', 'Storehouse', 'piece', 'warden', 0xb0c8a0, 'Storekeeper']]],
+    ['Homes and trade', [['cottage', 'Cottage', 'building', 'witch', 0xffd8b0, 'Cook'], ['market_hall', 'Marketplace', 'building', 'ranger', 0xc8e0ff, 'Clerk'], ['smithy', 'Blacksmith', 'building', 'warden', 0x9a8a7a, 'Smith'], ['stable', 'Stable', 'building', 'ranger', 0xd8c090, 'Stablehand'], ['bakery', 'Bakery', 'building', 'witch', 0xfff0d8, 'Baker'], ['butcher', 'Butcher', 'building', 'warden', 0xf0c0b0, 'Butcher'], ['library', 'Alchemist library', 'building', 'witch', 0xd8c0ff, 'Alchemist'], ['storehouse', 'Storehouse', 'piece', 'warden', 0xb0c8a0, 'Storekeeper']]],
     ['Producers', [['woodcutter', 'Woodcutter', 'piece', 'ranger', 0x9ac080, 'Woodcutter'], ['quarry', 'Quarry', 'piece', 'warden', 0xc0b8a8, 'Quarryman']]],
     ['Farming', [['farm', 'Farm', 'piece', 'ranger', 0xe8d090, 'Farmer'], ['field', 'Wheat field (one square)', 'piece'], ['silo', 'Grain silo', 'piece'], ['coop', 'Chicken coop', 'piece', 'witch', 0xf0e0c0, 'Henwife'], ['barn', 'Cattle barn', 'piece', 'warden', 0xd0b080, 'Cowherd']]],
   ];
   const extra = (K.ASSET_EXTRA || []); if (extra.length) GROUPS.push(['New', extra]);
   const prefabOk = (id) => !!(K.BUILDING_PREFABS && K.BUILDING_PREFABS[id]);
+  /* every walk-in building also gets an "inside" card: the roof and upper walls cut away, as in the game */
+  for (const g of GROUPS) { const out = []; for (const it of g[1]) { out.push(it); if (it[2] === 'building') out.push([it[0], it[1] + ' · inside', 'inside', it[3], it[4], it[5]]); } g[1] = out; }
 
   const R = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); R.shadowMap.enabled = true; R.outputColorSpace = THREE.SRGBColorSpace;
   const mats = new K.BuildingMaterials(new K.TextureBank(R)), art = new K.CastleArt(mats);
@@ -52,10 +54,11 @@
   }
   function model(it) {
     const [id, , kind] = it, grp = new THREE.Group();
-    if (kind === 'building') {
+    if (kind === 'building' || kind === 'inside') {
       if (!prefabOk(id)) return null;
       const spec = K.BuildingSpec.normalize(K.makeBuilding(id, 0, 0, id, 31)), bm = new K.BuildingMesh(spec, { mats, catalog: K.FURNITURE }); grp.add(bm.group);
-      if (id === 'market_hall') { const st = art.piece('market', { level: 1 }); st.position.set(spec.footprint.w * T / 2, 0, spec.footprint.h * T + 1.0); grp.add(st); }
+      if (kind === 'inside') { for (const [n, l] of Object.entries(bm.layers)) if (n !== 'base') l.snap(0); grp.userData.inside = true; grp.userData.bm = bm; }
+      else if (id === 'market_hall') { const st = art.piece('market', { level: 1 }); st.position.set(spec.footprint.w * T / 2, 0, spec.footprint.h * T + 1.0); grp.add(st); }
       grp.userData.front = { x: spec.footprint.w * T / 2, z: spec.footprint.h * T + 2.2 };
     } else if (kind === 'run') {
       for (let i = 0; i < 6; i++) { const m = art.piece(id, { level: 1 }); m.position.set(i * 0.5, 0, 0); grp.add(m); }
@@ -79,7 +82,7 @@
   }
   function shoot(it, w, h) {
     const { S, sun } = scene(), grp = model(it); if (!grp) return null; S.add(grp); worker(it, S, sun, grp);
-    const cam = new THREE.PerspectiveCamera(32, w / h, 0.1, 200); frame(grp, cam); R.setSize(w, h, false); R.render(S, cam); return R.domElement.toDataURL('image/png');
+    const cam = new THREE.PerspectiveCamera(32, w / h, 0.1, 200); if (grp.userData.inside) frame(grp, cam, 0.35, 1.0, 1.25); else frame(grp, cam); R.setSize(w, h, false); R.render(S, cam); return R.domElement.toDataURL('image/png');
   }
   const sheet = document.getElementById('sheet');
   for (const [title, items] of GROUPS) {
@@ -90,14 +93,15 @@
   /* the big viewer: drag to turn */
   const cv = document.getElementById('view'), VR = new THREE.WebGLRenderer({ canvas: cv, antialias: true }); VR.shadowMap.enabled = true; VR.outputColorSpace = THREE.SRGBColorSpace; VR.setPixelRatio(Math.min(2, devicePixelRatio));
   let cur = null, yaw = 0.75, pitch = 0.55, drag = null;
-  function open(it) { const { S, sun } = scene(), grp = model(it); if (!grp) return; S.add(grp); worker(it, S, sun, grp); cur = { S, grp, cam: new THREE.PerspectiveCamera(32, cv.width / cv.height, 0.1, 200) }; document.getElementById('desc').textContent = it[1] + (it[5] ? ' · ' + it[5] : ''); document.getElementById('viewer').classList.add('on'); }
+  function open(it) { const { S, sun } = scene(), grp = model(it); if (!grp) return; S.add(grp); worker(it, S, sun, grp); if (grp.userData.inside) { yaw = 0.35; pitch = 1.0; zoom = 1.25; } cur = { S, grp, cam: new THREE.PerspectiveCamera(32, cv.width / cv.height, 0.1, 200) }; document.getElementById('desc').textContent = it[1] + (it[5] ? ' · ' + it[5] : ''); document.getElementById('viewer').classList.add('on'); }
   document.getElementById('close').onclick = () => { document.getElementById('viewer').classList.remove('on'); cur = null; };
   cv.onpointerdown = (e) => { drag = [e.clientX, e.clientY, yaw, pitch]; cv.setPointerCapture(e.pointerId); };
   cv.onpointermove = (e) => { if (drag) { yaw = drag[2] - (e.clientX - drag[0]) * 0.01; pitch = Math.max(0.08, Math.min(1.4, drag[3] + (e.clientY - drag[1]) * 0.01)); } };
   cv.onpointerup = () => (drag = null);
   cv.onwheel = (e) => { e.preventDefault(); zoom = Math.max(0.4, Math.min(2.5, zoom * (e.deltaY > 0 ? 1.1 : 0.9))); }; let zoom = 1.75;
   (function loop() { if (cur) { frame(cur.grp, cur.cam, yaw, pitch, zoom); VR.render(cur.S, cur.cam); } requestAnimationFrame(loop); })();
-  const q = new URLSearchParams(location.search).get('piece'); if (q) { for (const [, items] of GROUPS) { const it = items.find((x) => x[0] === q); if (it) open(it); } }
+  const qs = new URLSearchParams(location.search), q = qs.get('piece'), qIn = qs.has('inside'); if (q) { for (const [, items] of GROUPS) { const it = items.find((x) => x[0] === q && (x[2] === 'inside') === qIn); if (it) { open(it); break; } } }
+  window.__setView = (y, p, z) => { yaw = y; pitch = p; zoom = z; };   // for screenshots
   window.__ready = true;
 })();
 </script>

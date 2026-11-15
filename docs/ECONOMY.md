@@ -59,3 +59,21 @@ from it. Everything you own flies your banner.
 3. **People:** the cook (meals), the smith (weapon orders, spares to market), the clerk (trading with other
    players).
 4. **Shared:** other players see your animals, carts and workers; the clerk trades even while you are offline.
+
+## What is built (November 2026)
+
+- **Purse and storehouses.** Your purse holds 160 wood and stone to start. Each storehouse adds 400 (900 at level 2).
+  When you are full, a workshop stacks what it makes (up to 400) and hands it over as soon as there is room.
+- **Costs climb.** Walls, gates, fire pots and fields stay cheap. Every other building costs 1.6x the last one of
+  its kind. The marketplace (600 wood, 600 stone, 30 iron) needs about two storehouses' worth of goods.
+- **Woodcutter and quarry** make 15 a minute (30 upgraded). Their worker walks to real trees and rocks, and every
+  third load a cart rolls to your storehouse.
+- **Marketplace:** a walk-in hall in four sections, with a street stall per section out front. You take anything
+  free; your team takes anything free; other settlers pay your clerk's prices (even while you are offline).
+  Passing traders buy too. The gold collects in the market.
+- **People:** cook (cottage), smith (blacksmith), clerk (market), baker (bakery: 3 wheat to 2 loaves), butcher
+  (keeps 2 cows and 4 hens per building, butchers the rest), alchemist (library: random potions of healing,
+  speed, strength and warmth), stablehand (stable: saddle a horse and ride), and a keeper at every farm, coop,
+  barn, woodcutter, quarry, storehouse, silo and watchtower. Talk to any of them for a report.
+- **Food:** wheat is not food. Bread, meals from the cook and roast meat are. Click bread or a potion in your purse.
+- **Wild game:** deer, elk, bison and wild horses graze in herds by day and leave at dusk. Hunt them for raw meat.

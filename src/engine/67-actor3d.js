@@ -15,7 +15,10 @@
 
   /* which voxel model a sprite id is drawn with */
   class VoxelRoles {
-    static ROLE_OF = { warden: 'knight', hero: 'knight', knight: 'knight', ranger: 'ranger', witch: 'mage', mage: 'mage', troll: 'troll' };
+    static ROLE_OF = { warden: 'knight', hero: 'knight', knight: 'knight', ranger: 'ranger', witch: 'mage', mage: 'mage', troll: 'troll',
+      // town workers (66-characters3d.js WorkerSculptor): each sprite id is its own outfitted human
+      cook: 'cook', smith: 'smith', clerk: 'clerk', farmer: 'farmer', woodcutter: 'woodcutter', quarryman: 'quarryman', archer: 'archer',
+      stablehand: 'stablehand', storekeeper: 'storekeeper', henwife: 'henwife', cowherd: 'cowherd', baker: 'baker', butcher: 'butcher', alchemist: 'alchemist' };
     static of(spriteId) { return VoxelRoles.ROLE_OF[spriteId] || null; }
     static WIDTH = { troll: 2.1, wolf: 1.35, bear: 1.9 };       // footprint used for picking
     static SHADOW = { troll: 0.62, wolf: 0.9, bear: 1.0 };      // contact-shadow size (x model height)
@@ -183,5 +186,14 @@
   }
 
   K.ActorViews = new VoxelActorViews(G);
+
+  /* who works where, by worker name: the sprite id each one is drawn with (tint null = the outfit's own colours) */
+  K.WORKER_LOOKS = {
+    Cook: { sprite: 'cook', tint: null }, Smith: { sprite: 'smith', tint: null }, Clerk: { sprite: 'clerk', tint: null },
+    Farmer: { sprite: 'farmer', tint: null }, Woodcutter: { sprite: 'woodcutter', tint: null }, Quarryman: { sprite: 'quarryman', tint: null },
+    Archer: { sprite: 'archer', tint: null }, Stablehand: { sprite: 'stablehand', tint: null }, Storekeeper: { sprite: 'storekeeper', tint: null },
+    Henwife: { sprite: 'henwife', tint: null }, Cowherd: { sprite: 'cowherd', tint: null }, Baker: { sprite: 'baker', tint: null },
+    Butcher: { sprite: 'butcher', tint: null }, Alchemist: { sprite: 'alchemist', tint: null },
+  };
   Object.assign(K, { VoxelActorViews, VoxelRoles, VoxelModelCache, OrbitDemo, OrbitButton, ContactShadow });
 })(typeof window !== 'undefined' ? window : globalThis);

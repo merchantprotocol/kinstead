@@ -414,7 +414,7 @@
           } else { me.path = null; this.face(me, t); if (me.cdT <= 0) this.swing(me, t); }
         }
       }
-      const moving = this.move(me, dt, me.speed * (me.run ? 1.9 : 1));
+      const moving = this.move(me, dt, me.speed * (me.run ? 1.9 : 1) * (this.ext && this.ext.workers ? this.ext.workers.speedMul : 1));
       if (moving) { if (me.view.state !== 'attack' && me.view.state !== 'hurt') me.view.setState(me.run ? 'run' : 'walk'); if (!this.pathT || (this.pathT -= dt) <= 0) { this.pathT = 0.1; this.ov.path([me.x, me.z], me.path); } }
       else { if (me.view.state === 'walk' || me.view.state === 'run') me.view.setState('idle'); me.run = me.run && !!this.intent; this.ov.path([0, 0], []); }
       const it = this.intent;

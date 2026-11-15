@@ -65,28 +65,26 @@
        red-shingled roof and two lanterns. The swinging leaves are separate parts (113-castle-drawbridge.js: WoodGate),
        hinged at x = ±0.9 and about 1 m tall; nothing here crosses their swing. */
     gate(k) {
+      const LT = 1.72;   // lintel underside: clears the 1.6 m leaves
       for (const s of [-1, 1]) {
         const x = s * 0.93;
         k.box('stoneMid', x, 0, 0, 0.18, 0.22, 0.3);
-        k.box('woodMid', x, 0.22, 0, 0.14, 1.66, 0.2);
-        k.geo('paintWhite', CONE6, x, 2.0, 0, 0, 0, 0, 0.1, 0.24, 0.1);                     // spiked post tops
-        k.box('ironDark', x - s * 0.075, 0.25, 0.06, 0.012, 0.08, 0.06); k.box('ironDark', x - s * 0.075, 0.72, 0.06, 0.012, 0.08, 0.06);   // hinge straps
-        braceXY(k, 'woodLight', x - s * 0.05, 1.02, x - s * 0.4, 1.32, 0.0, 0.07, 0.1);    // knee braces under the lintel
+        k.box('woodMid', x, 0.22, 0, 0.14, 1.9, 0.2);
+        k.geo('paintWhite', CONE6, x, 2.24, 0, 0, 0, 0, 0.1, 0.24, 0.1);                    // spiked post tops
+        k.box('ironDark', x, 0.6, 0.101, 0.15, 0.04, 0.01); k.box('ironDark', x, 1.3, 0.101, 0.15, 0.04, 0.01);   // iron bands on the posts
+        braceXY(k, 'woodLight', x - s * 0.05, 1.56, x - s * 0.3, LT + 0.04, 0.0, 0.06, 0.1);   // knee braces above the leaves
       }
-      k.box('woodDark', 0, 1.3, 0, 2.0, 0.16, 0.24);                                         // lintel
-      k.box('paintRed', 0, 1.32, 0.125, 1.5, 0.12, 0.02);                                    // painted header board
-      for (const x of [-0.6, -0.2, 0.2, 0.6]) k.box('gold', x, 1.36, 0.137, 0.04, 0.04, 0.01);
+      k.box('woodDark', 0, LT, 0, 2.0, 0.16, 0.24);                                          // lintel
+      k.box('paintRed', 0, LT + 0.02, 0.125, 1.5, 0.12, 0.02);                               // painted header board
+      for (const x of [-0.6, -0.2, 0.2, 0.6]) k.box('gold', x, LT + 0.06, 0.137, 0.04, 0.04, 0.01);
       // the little gable roof, ridge along x
-      k.box('woodDark', 0, 1.46, 0, 0.08, 0.3, 0.08); for (const s of [-1, 1]) k.box('woodDark', s * 0.93, 1.46, 0, 0.08, 0.3, 0.08);
-      k.box('woodDark', 0, 1.74, 0, 2.0, 0.07, 0.07);
-      for (const s of [-1, 1]) k.box('roofRed', 0, 1.6, s * 0.13, 2.08, 0.05, 0.32, 0, s * 0.62);
-      k.box('roofBrown', 0, 1.77, 0, 2.1, 0.05, 0.08);
-      // lanterns hanging from the lintel, outside
-      for (const s of [-1, 1]) {
-        const x = s * 0.68, z = 0.17;
-        k.box('ironDark', x, 1.16, z, 0.015, 0.14, 0.015);
-        k.box('ironDark', x, 1.02, z, 0.11, 0.02, 0.11); k.box('glowbar', x, 1.04, z, 0.07, 0.09, 0.07); k.box('ironDark', x, 1.13, z, 0.12, 0.03, 0.12);
-      }
+      for (const x of [-0.93, 0, 0.93]) k.box('woodDark', x, LT + 0.16, 0, 0.08, 0.3, 0.08);
+      k.box('woodDark', 0, LT + 0.44, 0, 2.0, 0.07, 0.07);
+      for (const s of [-1, 1]) k.box('roofRed', 0, LT + 0.3, s * 0.13, 2.08, 0.05, 0.32, 0, s * 0.62);
+      k.box('roofBrown', 0, LT + 0.47, 0, 2.1, 0.05, 0.08);
+      // one lantern hanging from the lintel over the middle, outside, above the leaves' swing
+      k.box('ironDark', 0, LT - 0.02, 0.2, 0.015, 0.04, 0.12); k.box('ironDark', 0, 1.64, 0.24, 0.13, 0.025, 0.13);
+      k.box('glowbar', 0, 1.665, 0.24, 0.08, 0.06, 0.08); k.box('ironDark', 0, 1.725, 0.24, 0.14, 0.025, 0.14);
       k.box('stoneMid', 0, 0, 0, 1.7, 0.02, 0.36);                                           // threshold stones
     },
 
@@ -176,7 +174,11 @@
 
     /* the fire pot: a black iron bowl with a gold rim on three splayed legs over a ring of pale stones, heaped with
        glowing coals and split logs, burning high */
-    fire_pot(k) {
+    fire_pot(k) { return firePot(k); },
+    /* the ember brazier: the same iron fire bowl as the fire pot */
+    ember_brazier(k) { return firePot(k); },
+  };
+  function firePot(k) {
       k.geo('stoneMid', CYL8, 0, 0.06, 0, 0, 0, 0, 0.38, 0.12, 0.38);
       for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2 + Math.PI / 8; k.box(i % 2 ? 'stoneLight' : 'whitewash', Math.cos(a) * 0.31, 0.12, Math.sin(a) * 0.31, 0.11, 0.08, 0.22, -a); }
       k.geo('soot', CYL8, 0, 0.125, 0, 0, 0, 0, 0.26, 0.01, 0.26);
@@ -194,8 +196,7 @@
       k.geo('coals', CONE8, 0, 1.02, 0, 0, 0, 0, 0.22, 0.08, 0.22);
       for (const a of [0.4, 2.5, 4.6]) k.geo('woodDark', CYL8, Math.cos(a) * 0.12, 1.02, Math.sin(a) * 0.12, 0, -a, Math.PI / 2 - 0.35, 0.03, 0.26, 0.03);   // split logs leaning into the fire
       return { flames: [[0, 1.02, 0, 1.05], [0.12, 0.98, 0.07, 0.7], [-0.11, 0.98, -0.06, 0.75], [0.02, 0.98, -0.14, 0.6]] };
-    },
-  };
+  }
   const proto = K.CastleArt.prototype, base = proto.draw;
   proto.draw = function (k, type, opts = {}) { const f = ART[type]; if (f && !opts.ruin) return f.call(this, k, opts) || k; return base.call(this, k, type, opts); };
 })(typeof window !== 'undefined' ? window : globalThis);

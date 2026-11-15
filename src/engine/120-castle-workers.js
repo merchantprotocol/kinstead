@@ -8,13 +8,16 @@
 (function (G) {
   const K = G.K, TILE = K.TILE;
   const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
-  const PRICE = { wheat: 1, bread: 3, egg: 2, milk: 2, beef: 5, food: 2, arrow: 1, wood: 1, stone: 1, iron: 4, dirt: 1 };
+  const PRICE = { potion_heal: 12, potion_speed: 10, potion_strength: 10, potion_warmth: 8, wheat: 1, bread: 3, egg: 2, milk: 2, beef: 5, food: 2, arrow: 1, wood: 1, stone: 1, iron: 4, dirt: 1 };
   const MEALS = [
     { id: 'stew', name: 'beef stew', need: { beef: 1, milk: 1, wheat: 1 } },
     { id: 'omelette', name: 'omelette', need: { egg: 2, milk: 1 } },
+    { id: 'cooked_meat', name: 'roast meat', need: { beef: 1 } },
     { id: 'bread', name: 'bread', need: { wheat: 3 } },
   ];
   const PANTRY_MAX = 8, COOK_TIME = 8, FORGE_TIME = 10;
+  const POTIONS = { potion_heal: 'healing potion', potion_speed: 'potion of speed', potion_strength: 'potion of strength', potion_warmth: 'potion of warmth' };
+  const ODDS = ['wood', 'stone', 'iron', 'wheat', 'egg', 'milk', 'beef', 'dirt'];
 
   /** a worker's to-do list, run one step at a time */
   class Errands {
@@ -64,7 +67,7 @@
   }
 
   class Cook extends Job {
-    constructor(w) { super(w, { role: 'cook', sprite: 'witch', name: 'Cook', tint: 0xffd8b0, speed: 1.5, scale: 0.9 }); }
+    constructor(w) { super(w, { role: 'cook', sprite: 'cook', name: 'Cook', tint: null, speed: 1.5, scale: 0.9 }); }
     get home() { return this.g.home.built ? this.g.home : null; }
     update() { if (this.home && !this.a) { this.spawn(this.home.doorPoint); this.show(false); } else if (!this.home && this.a) this.despawn(); }
     meals() { return this.g.purse.hearth.tray.reduce((s, t) => s + (t.n || 1), 0); }
@@ -88,7 +91,7 @@
   }
 
   class Smith extends Job {
-    constructor(w) { super(w, { role: 'smith', sprite: 'warden', name: 'Smith', tint: 0x9a8a7a, speed: 1.4, scale: 1.05 }); this.orders = []; }
+    constructor(w) { super(w, { role: 'smith', sprite: 'smith', name: 'Smith', tint: null, speed: 1.4, scale: 1.05 }); this.orders = []; }
     get shop() { return this.g.smithy || null; }
     update() { if (this.shop && !this.a) { this.spawn(doorOf(this.shop)); this.show(false); } else if (!this.shop && this.a) this.despawn(); }
     /** you order something at the forge: he gathers the materials (market first, then your purse) and makes it */
@@ -122,7 +125,7 @@
   }
 
   class Clerk extends Job {
-    constructor(w) { super(w, { role: 'clerk', sprite: 'ranger', name: 'Clerk', tint: 0xc8e0ff, speed: 1.2, scale: 0.95 }); this.t = 40; }
+    constructor(w) { super(w, { role: 'clerk', sprite: 'clerk', name: 'Clerk', tint: null, speed: 1.2, scale: 0.95 }); this.t = 40; }
     get post() { const m = this.market; if (!m) return null; const r = m.rot || 0; return { x: m.x - Math.sin(r) * 0.15, z: m.z - Math.cos(r) * 0.15 }; }
     update() { const p = this.post; if (p && !this.a) this.spawn(p); else if (!p && this.a) this.despawn(); }
     report() {
@@ -187,9 +190,58 @@
     }
   }
 
+  /** the people in your walk-in workshops: baker, butcher, alchemist, stablehand */
+  const HALL = {
+    bakery: { name: 'Baker', sprite: 'witch', tint: 0xfff4e0 }, butcher: { name: 'Butcher', sprite: 'warden', tint: 0xf0d0d0 },
+    library: { name: 'Alchemist', sprite: 'witch', tint: 0xc0a0f0 }, stable: { name: 'Stablehand', sprite: 'ranger', tint: 0xd8c090 },
+  };
+  class HallJob extends Job {
+    constructor(w, type) { const h = HALL[type], look = (K.WORKER_LOOKS || {})[h.name]; super(w, { role: type, sprite: look ? look.sprite : h.sprite, name: h.name, tint: look ? look.tint : h.tint, speed: 1.4 }); this.type = type; this.made = 0; this.cool = 4; }
+    get hall() { const h = this.g.halls[this.type]; return h ? h.spec : null; }
+    get door() { return this.hall && doorOf(this.hall); }
+    update() { const d = this.door; if (d && !this.a) { this.spawn(d); if (this.type !== 'stable') this.show(false); } else if (!d && this.a) this.despawn(); }
+    /** carry what was made to the market stalls */
+    deliver(e, good, n, done) { const c = this.counter, d = this.door; if (!c) return; e.then(() => this.show(true)).go(c.x, c.z).pause(1.2, 'action').then(() => { this.eco.ledger(this.market).add(good, n); this.made += n; if (done) done(); }).go(d.x, d.z).then(() => this.show(false)); }
+    idle(e, dt) {
+      if ((this.cool -= dt) > 0) return; const g = this.g, eco = this.eco, m = this.market, c = this.counter, d = this.door; if (!d) return;
+      if (this.type === 'stable') { this.cool = 10; const a = Math.random() * 6.283; e.go(d.x + Math.cos(a) * 1.2, d.z + Math.abs(Math.sin(a)) * 1.2).pause(3, 'action'); return; }
+      if (!m || !c) { this.cool = 15; return; }
+      const l = eco.ledger(m);
+      if (this.type === 'bakery') {
+        this.cool = 12; if (l.amount('bread') >= 60) return;
+        if (l.amount('wheat') < 3 && !eco.takeWheat(3, false)) return; else if (l.amount('wheat') >= 3) { e.then(() => this.show(true)).go(c.x, c.z).pause(1, 'action').then(() => this.fetch({ wheat: 3 })); } else e.then(() => this.show(true));
+        e.go(d.x, d.z).then(() => this.show(false)).pause(10); this.deliver(e, 'bread', 2, () => g.cui.toast('The baker brought 2 loaves of bread to the market.')); return;
+      }
+      if (this.type === 'butcher') {
+        this.cool = 40; const st = eco.stock, pick = eco.of('barn').map((p) => [p, st.herd(p), 2, 'cow', 6]).concat(eco.of('coop').map((p) => [p, st.herd(p), 4, 'chicken', 2])).find(([, h, keep]) => h.length > keep);
+        if (!pick) return; const [p, h, , kind, meat] = pick, at = { x: p.x + Math.sin(p.rot || 0) * 2, z: p.z + Math.cos(p.rot || 0) * 2 };
+        e.then(() => this.show(true)).go(at.x, at.z).pause(2, 'action').then(() => { const b = h[h.length - 1]; if (!b) return false; st.remove(b); })
+          .go(d.x, d.z).then(() => this.show(false)).pause(8); this.deliver(e, 'beef', meat, () => g.cui.toast(`The butcher brought ${meat} meat from a ${kind} to the market. He keeps your breeding stock.`)); return;
+      }
+      if (this.type === 'library') {
+        this.cool = 30; const have = ODDS.filter((r) => l.amount(r) >= 1); if (have.length < 2 || Object.keys(POTIONS).reduce((n, k) => n + l.amount(k), 0) >= 30) return;
+        const need = {}; for (let i = 0; i < 3; i++) { const r = have[Math.floor(Math.random() * have.length)]; need[r] = Math.min(l.amount(r), (need[r] || 0) + 1); }
+        const pot = Object.keys(POTIONS)[Math.floor(Math.random() * 4)];
+        e.then(() => this.show(true)).go(c.x, c.z).pause(1, 'action').then(() => this.fetch(need)).go(d.x, d.z).then(() => this.show(false)).pause(12);
+        this.deliver(e, pot, 1, () => g.cui.toast(`The alchemist brewed a ${POTIONS[pot]} from ${Object.entries(need).map(([r, n]) => `${n} ${K.CastleData.resName(r)}`).join(', ')}. It is in the market.`));
+      }
+    }
+    report() {
+      const m = this.market, l = m ? this.eco.ledger(m) : null, eco = this.eco;
+      switch (this.type) {
+        case 'bakery': return [m ? `The market has ${l.amount('wheat')} wheat and ${l.amount('bread')} loaves.` : 'Without a marketplace I have no wheat and nowhere to sell.', `I have baked ${this.made} loaves so far. Three wheat makes two loaves.`, 'Bread is food you can eat; wheat on its own is not.'];
+        case 'butcher': { const cows = eco.of('barn').reduce((n, p) => n + eco.stock.herd(p).length, 0), hens = eco.of('coop').reduce((n, p) => n + eco.stock.herd(p).length, 0);
+          return [`You have ${cows} cows and ${hens} chickens. I keep 2 cows a barn and 4 hens a coop to breed from, and butcher the rest.`, `I have brought ${this.made} meat to the market.`, 'Your cook turns the meat into meals.']; }
+        case 'library': return [m ? `The market holds ${Object.keys(POTIONS).map((k) => `${l.amount(k)} ${POTIONS[k]}s`).join(', ')}.` : 'I need a marketplace to work from.', 'I take three odds and ends from the market and brew whatever the books suggest. Drink a potion by clicking it in your purse.', 'Healing mends you, speed and strength last a minute, warmth keeps the cold off for two.'];
+        case 'stable': return ['The horses are fed and saddled when you want them.', 'Walk into the stable, saddle a horse and mount up. You ride far faster on open ground.'];
+      }
+      return ['All is well.'];
+    }
+  }
+
   class Workers {
-    constructor(game) { this.g = game; this.prices = Object.assign({}, PRICE); this.cook = new Cook(this); this.smith = new Smith(this); this.clerk = new Clerk(this); this.pubT = 2; this.pubSig = ''; this.markets = new Map(); this.hooked = false; this.keepers = new Map(); this.keepT = 0; }
-    get jobs() { return [this.cook, this.smith, this.clerk, ...this.keepers.values()]; }
+    constructor(game) { this.g = game; this.prices = Object.assign({}, PRICE); this.cook = new Cook(this); this.smith = new Smith(this); this.clerk = new Clerk(this); this.pubT = 2; this.pubSig = ''; this.markets = new Map(); this.hooked = false; this.keepers = new Map(); this.keepT = 0; this.halls = new Map(); this.buffs = {}; }
+    get jobs() { return [this.cook, this.smith, this.clerk, ...this.keepers.values(), ...this.halls.values()]; }
     /** one keeper per workshop and farm building; they go when the building goes */
     syncKeepers() {
       const live = new Set();
@@ -203,10 +255,24 @@
       if (j.a) { j.a.path = null; this.g.play.face(j.a, this.g.play.me); }
     }
     update(dt) {
-      if ((this.keepT -= dt) <= 0) { this.keepT = 2; this.syncKeepers(); }
+      if ((this.keepT -= dt) <= 0) { this.keepT = 2; this.syncKeepers(); for (const t of Object.keys(this.g.halls || {})) if (HALL[t] && !this.halls.has(t)) this.halls.set(t, new HallJob(this, t)); }
       for (const j of this.jobs) j.update(dt);
       const mp = this.g.mp; if (!mp) return; if (!this.hooked) this.hook(mp);
       if ((this.pubT -= dt) <= 0) { this.pubT = 5; this.publish(); }
+    }
+    hallBuilt() { this.keepT = 0; }
+    /* ---------- food and potions from your purse ---------- */
+    buff(k) { return (this.buffs[k] || 0) > this.g.play.t; }
+    get speedMul() { return this.buff('speed') ? 1.5 : 1; }
+    get strengthMul() { return this.buff('strength') ? 1.5 : 1; }
+    /** click bread or a potion in your purse: eat or drink it. false for anything else */
+    use(id) {
+      const g = this.g, c = g.castle, P = g.play, p = P.player, max = g.vitals.hpMax; if (c.amount(id) < 1) return false;
+      if (id === 'bread') { if (p.hp >= max - 0.5) { g.cui.toast('You are not hungry.'); return true; } c.spend({ bread: 1 }); p.heal(14); P.float(P.me, '+14', 'heal'); g.sound.play('gather'); g.changed(); return true; }
+      if (!POTIONS[id]) return false; c.spend({ [id]: 1 }); g.sound.play('fanfare');
+      if (id === 'potion_heal') { p.heal(40); P.float(P.me, '+40', 'heal'); }
+      else { const k = id.slice(7), sec = k === 'warmth' ? 120 : 60; this.buffs[k] = P.t + sec; P.float(P.me, { speed: 'Swift!', strength: 'Strong!', warmth: 'Warm!' }[k], 'heal'); g.cui.toast(`You drink the ${POTIONS[id]}: it lasts ${sec} seconds.`); }
+      g.changed(); return true;
     }
     /* ---------- trading with other players ---------- */
     hook(mp) {
@@ -264,5 +330,5 @@
     dispose() { for (const j of this.jobs) j.despawn(); }
   }
 
-  Object.assign(K, { Workers, Errands, MEALS, MARKET_PRICES: PRICE });
+  Object.assign(K, { Workers, Errands, MEALS, MARKET_PRICES: PRICE, POTIONS });
 })(typeof window !== 'undefined' ? window : globalThis);

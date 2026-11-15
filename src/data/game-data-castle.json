@@ -199,7 +199,12 @@
    "wheat": 120,
    "egg": 60,
    "milk": 60,
-   "beef": 40
+   "beef": 40,
+   "bread": 40,
+   "potion_heal": 10,
+   "potion_speed": 10,
+   "potion_strength": 10,
+   "potion_warmth": 10
   },
   "baseFrom": "the Keep",
   "rule": "production and gathering stop at the cap; a full producer shows a red 'FULL' flag (the hint to build a Storehouse or spend)",
@@ -786,6 +791,75 @@
    "artPrompt": "Cattle barn",
    "buildRequires": [
     "farm"
+   ]
+  },
+  "stable": {
+   "id": "stable",
+   "name": "Stable",
+   "category": "building",
+   "cost": {
+    "wood": 300,
+    "stone": 200
+   },
+   "requiresCastleLevel": 1,
+   "castlePoints": 0,
+   "hp": 400,
+   "effect": "Comes with two horses. Ride one and you cross the map at a gallop.",
+   "artPrompt": "Stable",
+   "buildRequires": [
+    "farm"
+   ]
+  },
+  "bakery": {
+   "id": "bakery",
+   "name": "Bakery",
+   "category": "farming",
+   "cost": {
+    "wood": 200,
+    "stone": 150
+   },
+   "requiresCastleLevel": 1,
+   "castlePoints": 0,
+   "hp": 400,
+   "effect": "The baker turns wheat from your market into bread you can eat. Wheat on its own is not food.",
+   "artPrompt": "Bakery",
+   "buildRequires": [
+    "farm"
+   ]
+  },
+  "butcher": {
+   "id": "butcher",
+   "name": "Butcher shop",
+   "category": "farming",
+   "cost": {
+    "wood": 200,
+    "stone": 150
+   },
+   "requiresCastleLevel": 1,
+   "castlePoints": 0,
+   "hp": 400,
+   "effect": "The butcher turns your spare cows and chickens into meat for the market. Your cook makes it into meals.",
+   "artPrompt": "Butcher shop",
+   "buildRequires": [
+    "barn"
+   ]
+  },
+  "library": {
+   "id": "library",
+   "name": "Library",
+   "category": "trade",
+   "cost": {
+    "wood": 400,
+    "stone": 400,
+    "iron": 20
+   },
+   "requiresCastleLevel": 1,
+   "castlePoints": 0,
+   "hp": 400,
+   "effect": "Full of books. The alchemist takes odds and ends from the market and brews random potions: healing, speed, strength, warmth.",
+   "artPrompt": "Library",
+   "buildRequires": [
+    "storehouse"
    ]
   }
  },

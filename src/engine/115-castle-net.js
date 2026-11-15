@@ -339,6 +339,7 @@
       for (const p of g.castle.pieces) this.op({ k: 'piece+', id: this.pieceId(p), type: p.type, x: p.x, z: p.z, rot: p.rot || 0 });
       if (g.smithy) this.op({ k: 'bld+', id: 'smithy:' + this.net.id, spec: g.smithy });
       if (g.marketHall) this.op({ k: 'bld+', id: 'market:' + this.net.id, spec: g.marketHall });
+      for (const [t, h] of Object.entries(g.halls || {})) this.op({ k: 'bld+', id: t + ':' + this.net.id, spec: h.spec });
       for (let k = 0; k < d.height.length; k++) if (d.height[k] !== h0[k] || d.terrain[k] !== t0[k]) { tiles.push([k % d.w, (k / d.w) | 0, d.height[k], d.terrain[k]]); if (tiles.length >= 400) { this.op({ k: 'tiles', list: tiles.splice(0) }); } }
       if (tiles.length) this.op({ k: 'tiles', list: tiles });
       for (const e of g.forest.nodes) if (!g.forest.live(e)) this.op({ k: 'node', id: e.id, st: 'felled' });
@@ -387,7 +388,7 @@
     /** do you hold the key to this building (so you may sleep there)? */
     keyFor(id) {
       const m = /^home:(\d+)$/.exec(id); if (m) { const r = this.world.doors.get(+m[1]); return !!r && !r.door.broken && !!r.owner && this.mayUse(r.owner); }
-      const s = /^(?:smithy|market):(.+)$/.exec(id); if (s) return this.mayUse(s[1]); return false;
+      const s = /^(?:smithy|market|stable|bakery|butcher|library):(.+)$/.exec(id); if (s) return this.mayUse(s[1]); return false;
     }
     slotOf(id) { if (id === 'home') return this.g.L.slot; const m = /^home:(\d+)$/.exec(id); return m ? +m[1] : null; }
     setRespawn(slot, x, z) { this.net.send({ t: 'respawn', slot, x: +x.toFixed(2), z: +z.toFixed(2) }); }
@@ -404,6 +405,7 @@
         if (g.home.built && !(m.claimed || []).some((c) => c.slot === g.L.slot)) this.announceHome();
         if (g.smithy && !Object.keys((m.world || {}).buildings || {}).includes('smithy:' + me)) this.op({ k: 'bld+', id: 'smithy:' + me, spec: g.smithy });
         if (g.marketHall && !Object.keys((m.world || {}).buildings || {}).includes('market:' + me)) this.op({ k: 'bld+', id: 'market:' + me, spec: g.marketHall });
+        for (const [t, h] of Object.entries(g.halls || {})) if (!Object.keys((m.world || {}).buildings || {}).includes(t + ':' + me)) this.op({ k: 'bld+', id: t + ':' + me, spec: h.spec });
       }
       if (m.stores) {
         const others = m.stores.filter((s) => s.owner !== me), ids = new Set(others.map((s) => s.id));
