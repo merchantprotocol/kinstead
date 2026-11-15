@@ -56,6 +56,8 @@ class RoomHarness {
   assert.equal(h.room.stores['owner02:barrel'].stock, 42);
   h.room.onStores(owner, { list: [{ id: 'barrel', stock: 50, res: 'wood', x: 1, z: 1 }] });
   assert.equal(h.room.stores['owner02:barrel'].stock, 42);
+  h.room.onStore(owner, { id: 'barrel', stock: 50, res: 'wood', x: 1, z: 1 });
+  assert.equal(h.room.stores['owner02:barrel'].stock, 42);
   h.room.onStock(owner, { id: 'barrel', d: 50000 });
   assert.equal(h.room.stores['owner02:barrel'].stock, 1041);
 }

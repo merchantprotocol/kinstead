@@ -203,7 +203,7 @@ export class GameRoom {
   onStore(p, m) {   // one store appears (a pile you dropped) or goes
     const id = p.id + ':' + m.id;
     if (m.gone) { delete this.stores[id]; this.broadcast({ t: 'store', id, gone: true }); }
-    else { this.stores[id] = { id, owner: p.id, kind: m.kind, name: String(m.name || '').slice(0, 40), res: m.res, x: m.x, z: m.z, stack: m.stack || 1, stock: Math.max(0, m.stock | 0) }; this.broadcast({ t: 'store', s: this.stores[id] }, this.wsOf(p)); }
+    else { const old = this.stores[id]; this.stores[id] = { id, owner: p.id, kind: m.kind, name: String(m.name || '').slice(0, 40), res: m.res, x: m.x, z: m.z, stack: m.stack || 1, stock: old ? Math.min(old.stock, Math.max(0, m.stock | 0)) : Math.max(0, m.stock | 0) }; this.broadcast({ t: 'store', s: this.stores[id] }, this.wsOf(p)); }
     this.storesDirty = true; this.ver.s++;
   }
   onStock(p, m) {   // the owner added or removed some of their own; cap each wire delta
