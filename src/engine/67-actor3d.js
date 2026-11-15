@@ -17,8 +17,8 @@
   class VoxelRoles {
     static ROLE_OF = { warden: 'knight', hero: 'knight', knight: 'knight', ranger: 'ranger', witch: 'mage', mage: 'mage', troll: 'troll' };
     static of(spriteId) { return VoxelRoles.ROLE_OF[spriteId] || null; }
-    static WIDTH = { troll: 2.1, wolf: 1.35 };       // footprint used for picking
-    static SHADOW = { troll: 0.62, wolf: 0.9 };      // contact-shadow size (x model height)
+    static WIDTH = { troll: 2.1, wolf: 1.35, bear: 1.9 };       // footprint used for picking
+    static SHADOW = { troll: 0.62, wolf: 0.9, bear: 1.0 };      // contact-shadow size (x model height)
   }
 
   /* one shared, lazily built model per role (geometry is shared by every actor wearing it) */

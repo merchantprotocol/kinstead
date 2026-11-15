@@ -28,7 +28,7 @@
 
   /* piece footprints (m): w along the piece's local x, d along local z; used for nav blocking, raider collision and placement */
   const SIZE = {
-    keep: [4.2, 4.2], palisade: [0.5, 0.5], stone_wall: [0.5, 0.5], dirt: [0.5, 0.5], gate: [2, 0.5], blacksmith: [6, 4.5], gatehouse: [3.6, 1.6], watchtower: [1.5, 1.5], ember_brazier: [0.8, 0.8],
+    keep: [4.2, 4.2], palisade: [0.5, 0.5], stone_wall: [0.5, 0.5], dirt: [0.5, 0.5], gate: [2, 0.5], stone_gate: [4, 1.5], blacksmith: [6, 4.5], gatehouse: [3.6, 1.6], watchtower: [1.5, 1.5], ember_brazier: [0.8, 0.8],
     woodcutter: [2.6, 2.2], quarry: [2.6, 2.2], mine: [2.6, 2.4], great_hall: [5.2, 3.2], chapel: [2.2, 2.6], storehouse: [2.8, 2.2],
     smithy: [3.2, 2.6], ember_forge: [1.8, 1.6], barracks: [4.2, 2.2],
   };
@@ -102,6 +102,13 @@
           k.box('iron', -0.06, 0.45, 0.08, 0.05, 0.12, 0.04); k.box('iron', 0.06, 0.45, 0.08, 0.05, 0.12, 0.04);
           for (let i = -4; i <= 4; i++) { const x = i * 0.215, y = 1.22 + 0.34 * (1 - (x / 0.95) * (x / 0.95)), slope = Math.atan(-0.34 * 2 * x / (0.95 * 0.95)); k.box('timber', x, y - 0.05, 0, 0.26, 0.11, 0.16, 0, 0, slope); }   // the arch
           k.box('wood', 0, 1.46, 0, 0.1, 0.16, 0.2);
+          break;
+        }
+        case 'stone_gate': {   // a stone archway 4 m wide and 1.5 m deep; the drawbridge is its own moving part (113-castle-drawbridge.js)
+          for (const sx of [-1, 1]) { k.box('ashlar', sx * 1.75, 0, 0, 0.5, 2.9, 1.5); k.box('ashlar', sx * 1.75, 2.9, 0, 0.62, 0.16, 1.62); snowCap(sx * 1.75, 3.06, 0, 0.62, 1.62); }
+          for (let i = -6; i <= 6; i++) { const x = i * 0.25, u = x / 1.5, y = 2.0 + 0.62 * (1 - u * u), slope = Math.atan(-0.62 * 2 * u / 1.5); k.box('ashlar', x, y, 0, 0.27, 0.52, 1.5, 0, 0, slope); }
+          k.box('ashlar', 0, 2.78, 0, 4, 0.3, 1.5); for (const mx of [-1.8, -0.9, 0, 0.9, 1.8]) k.box('ashlar', mx, 3.08, 0.55, 0.36, 0.34, 0.32); snowCap(0, 3.08, 0, 4, 1.5);
+          k.box('iron', 0, 2.45, 0.76, 0.14, 0.14, 0.06);
           break;
         }
         case 'stone_wall': {   // one tile, one cube high

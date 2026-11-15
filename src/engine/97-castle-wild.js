@@ -66,7 +66,7 @@
   }
 
   class WolfBrain extends Brain {
-    constructor(game, actor) { super(game, actor); this.mode = 'hunt'; this.spot = null; this.spotT = 0; this.leave = null; this.pace = 0; this.plunder = null; this.food = null; this.badStore = null; }
+    constructor(game, actor) { super(game, actor); this.mode = 'hunt'; this.spot = null; this.spotT = 0; this.leave = null; this.pace = 0; this.plunder = null; this.food = null; this.badStore = null; this.breach = new K.Breacher(game, actor, 'wolf'); }
     /** wolves also never plan a route through the house */
     blocker() { const g = this.g, T = K.TILE; return (i, j) => g.gateTiles.has(i + ',' + j) || g.insideBuilding((i + 0.5) * T, (j + 0.5) * T); }
     /** dawn: go back to the dark */
@@ -90,7 +90,9 @@
       let st = this.food; if (!st || !st.present || st.amount < 1) { st = this.food = this.pickFood(); if (!st) { if (pl.carrying) this.retreat(); return false; } }
       const tx = st.ent.x, tz = st.ent.z;
       if (dist(a, { x: tx, z: tz }) <= 1.5) { a.path = null; this.face({ x: tx, z: tz }); if (!pl.gnaw(dt, st) && pl.done) this.retreat(); this.anim(false); this.keepOut(); return true; }
-      this.goTo(tx, tz, a.speed, 1.2, dt); if (this.noWay) { this.badStore = st; this.food = null; } this.keepOut(); return true;
+      this.goTo(tx, tz, a.speed, 1.2, dt);
+      if (this.noWay) { const r = this.breach.advance(tx, tz, 1.2, dt); if (r === 'stuck') { this.badStore = st; this.food = null; } }   // a dirt wall in the way: dig through it; anything else: try another store
+      this.keepOut(); return true;
     }
     pickFood() { const a = this.a; return this.g.home.stores.filter((s) => s.res === 'food' && s.present && s.amount >= 1 && s !== this.badStore).sort((p, q) => dist(p.ent, a) - dist(q.ent, a))[0] || null; }
     /** killed: what it took falls out */
@@ -203,7 +205,7 @@
     constructor(game) {
       this.g = game; this.t = 0; this.difficulty = new Difficulty(game.calendar);
       this.nextDayWolf = 55; this.nextNightWolf = 0; this.nextThief = 300; this.nextMarauder = 480;
-      game.calendar.on((ev) => this.onCalendar(ev));
+      game.calendar.on((ev) => this.onCalendar(ev)); this.bearDirector = null;
     }
     get P() { return this.g.play; }
     get cal() { return this.g.calendar; }
@@ -212,10 +214,11 @@
 
     onCalendar(ev) {
       if (ev.type === 'dusk') { this.spawnPack(this.difficulty.packSize); this.nextNightWolf = this.t + this.difficulty.nightInterval(); }
-      else if (ev.type === 'dawn') { for (const w of this.wolves()) w.brain.retreat(); this.nextDayWolf = this.t + this.difficulty.dayInterval(); }
+      else if (ev.type === 'dawn') { for (const w of this.wolves()) w.brain.retreat(); for (const b of this.alive((x) => x.bear)) b.brain.retreat(); this.nextDayWolf = this.t + this.difficulty.dayInterval(); }
     }
     update(dt) {
       const me = this.P.me; if (!me.alive) return; this.t += dt; const df = this.difficulty;
+      (this.bearDirector || (this.bearDirector = new K.BearDirector(this.g))).update(dt);
       if (this.cal.isNight) {
         if (this.t >= this.nextNightWolf && this.wolves().length < df.nightCap) { this.spawnPack(1); this.nextNightWolf = this.t + df.nightInterval(); }
       } else if (this.t >= this.nextDayWolf) {
@@ -262,6 +265,7 @@
       const P = this.P, y = P.nav.y(a.x, a.z) + 0.5;
       if (a.wolf) { const n = 1 + Math.floor(Math.random() * 2); if (P.player.canAdd('raw_meat', n)) { P.player.addItem('raw_meat', n); P.float(P.me, `+${n} raw meat`, 'loot'); } this.g.sound.play('pop'); }   // cook it at the hearth
       if ((a.thief || a.wolf) && a.brain && a.brain.onDeath) a.brain.onDeath();
+      if (a.bear) { P.player.canAdd('raw_meat', 4) && P.player.addItem('raw_meat', 4); P.float(P.me, '+4 raw meat', 'loot'); this.g.sound.play('pop'); }
     }
   }
 

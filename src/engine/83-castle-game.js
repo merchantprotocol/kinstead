@@ -275,13 +275,14 @@
       return out;
     }
     pieceEnt(p) {
-      if (!p.ent) { const [w, d] = CastleArt.size(p.type); p.ent = { id: 'c-p' + p.uid, type: 'c_piece', piece: p, x: p.x, z: p.z, y: 0, r: Math.max(0.5, Math.min(w, d) / 2 + 0.2), h: { watchtower: 4.6, great_hall: 2.8, gatehouse: 3 }[p.type] || 1.8 }; }
+      if (!p.ent) { const [w, d] = CastleArt.size(p.type); p.ent = { id: 'c-p' + p.uid, type: 'c_piece', piece: p, x: p.x, z: p.z, y: 0, r: K.Breacher.GATES.has(p.type) ? Math.max(w, d) / 2 : Math.max(0.5, Math.min(w, d) / 2 + 0.2), h: { watchtower: 4.6, great_hall: 2.8, gatehouse: 3, stone_gate: 3.2 }[p.type] || 1.8 }; }
       p.ent.name = this.data.piece(p.type).name + (p.level >= 2 ? ' · Level 2' : ''); return p.ent;
     }
     pieceRadius(p) { const [w, d] = CastleArt.size(p.type); return Math.max(w, d) / 2; }
     addPieceMesh(p) {
       const m = this.art.piece(p.type, { level: p.level }); this.place(m, p.x, p.z, p.rot); this.meshes.set('p' + p.uid, m);
       if (p.frosted || this.castle.isFrosted(p)) this.setFrost(p, true);
+      if (p.type === 'stone_gate' && !p.bridge) p.bridge = new K.Drawbridge(this, p);
       this.blockPiece(p); return m;
     }
     /* a piece's footprint blocks the ground (walls a hair longer so a run of them has no gaps) */
@@ -290,16 +291,17 @@
     gateSpot(p) {
       const i = Math.floor(p.x / TILE), j = Math.floor(p.z / TILE), turned = Math.round((this.rotExtra || 0) / (Math.PI / 2)) % 2 === 1;
       const spotX = { x: (i + 1) * TILE, z: (j + 0.5) * TILE, rot: 0 }, spotZ = { x: (i + 0.5) * TILE, z: (j + 1) * TILE, rot: Math.PI / 2 };
-      const wallAt = (x, z) => { const q = this.pieceAt(x, z, 0.05); return q && q.type !== 'gate'; };
+      const wallAt = (x, z) => { const q = this.pieceAt(x, z, 0.05); return q && !K.Breacher.GATES.has(q.type); };
       if (!turned) { if (wallAt(spotX.x - 1.25, spotX.z) || wallAt(spotX.x + 1.25, spotX.z)) return spotX; if (wallAt(spotZ.x, spotZ.z - 1.25) || wallAt(spotZ.x, spotZ.z + 1.25)) return spotZ; return spotX; }
       return spotZ;
     }
     /* the blacksmith is placed by BuildingSite (104-castle-site.js) */
     /* any building of yours: wolves never go in */
     insideBuilding(x, z) { return !!this.R.buildings.at(Math.floor(x / TILE), Math.floor(z / TILE)); }
-    gateTilesOf(p) { const nav = this.play.nav, out = []; this.rectTiles(p.x, p.z, 2, 0.5, p.rot, (i, j) => out.push(i + ',' + j)); return out; }
+    gateTilesOf(p) { const out = [], [w, d] = CastleArt.size(p.type); this.rectTiles(p.x, p.z, w, d, p.rot, (i, j) => out.push(i + ',' + j)); return out; }
     isSanctuary(x, z) { return this.insideBuilding(x, z) || this.gateTiles.has(Math.floor(x / TILE) + ',' + Math.floor(z / TILE)); }
     blockPiece(p) {
+      if (p.type === 'stone_gate') { if (p.bridge) p.bridge.apply(); return; }   // its tiles follow the drawbridge: shut, nothing passes; lowered, you do
       if (p.type === 'gate') { const nav = this.play.nav; this.rectTiles(p.x, p.z, 2, 0.5, p.rot, (i, j) => { this.occ[j * nav.w + i] = 1; this.gateTiles.add(i + ',' + j); }); return; }   // occupied for building, but you can walk through
       const [w, d] = CastleArt.size(p.type); this.blockRect(p.x, p.z, this.walls.handles(p.type) ? w + 0.04 : w, d, p.rot, p.type === 'gatehouse'); }
     /* the piece standing on this ground point, or null */
@@ -315,9 +317,10 @@
       const c = this.castle; if (!c.canDemolish(p)) { this.cui.toast('Restored ruins stay standing.'); return false; }
       const r = c.demolish(p), m = this.meshes.get('p' + p.uid), [w, d] = CastleArt.size(p.type), fx = this.tools.effects, y = this.play.nav.y(p.x, p.z);
       if (m) { this.group.remove(m); this.meshes.delete('p' + p.uid); }
-      this.unblockRect(p.x, p.z, this.walls.handles(p.type) ? w + 0.04 : w, d, p.rot); if (p.type === 'gate') this.gateTilesOf(p).forEach((k) => this.gateTiles.delete(k));
+      if (p.bridge) { p.bridge.dispose(); p.bridge = null; }
+      this.unblockRect(p.x, p.z, this.walls.handles(p.type) ? w + 0.04 : w, d, p.rot); if (K.Breacher.GATES.has(p.type)) this.gateTilesOf(p).forEach((k) => this.gateTiles.delete(k));
       for (const q of c.pieces) if (Math.hypot(q.x - p.x, q.z - p.z) < Math.max(w, d) + 6) this.blockPiece(q);   // a neighbour sharing a corner tile keeps it blocked
-      this.sound.play('crack'); this.shake(0.12); this.puff(p.x, p.z); fx.burst(p.type === 'stone_wall' ? 'stone' : 'wood', p.x, y + 0.6, p.z, 12, 3.2);
+      this.sound.play('crack'); this.shake(0.12); this.puff(p.x, p.z); fx.burst(p.type === 'stone_wall' || p.type === 'stone_gate' ? 'stone' : 'wood', p.x, y + 0.6, p.z, 12, 3.2);
       if (opts.refund !== false) for (const [res, n] of Object.entries(r.refund)) { const k = Math.min(n, 6); for (let i = 0; i < k; i++) fx.spawnPickup(res, Math.floor(n / k) + (i < n % k ? 1 : 0), p.x + (Math.random() - 0.5) * w * 0.5, y + 0.6, p.z + (Math.random() - 0.5) * d, 2.6, true); }
       this.play.refreshProps(); this.changed(); return true;
     }
@@ -347,6 +350,7 @@
       } else if (e.type === 'c_piece') {
         const p = e.piece, up = c.upgradeInfo(p);
         if (this.tools.tool.id === 'hammer' && c.canDemolish(p)) act('demolish', 'Take down…', 'hammer', () => this.demolisher.ask(p), { range: e.r + 0.8 });   // hammer only, and it asks
+        if (p.type === 'stone_gate' && p.bridge) act('bridge', p.bridge.open ? 'Raise the drawbridge' : 'Lower the drawbridge', 'hand', () => p.bridge.toggle(), { range: 3.4 });
         if (up) { const pb = c.upgradePayback(p), why = c.upgradeBlocker(p); act('upgrade', `Upgrade to Level 2: ${fmtCost(c.upgradeCost(p))}${pb != null ? ` · pays back in ${pb.toFixed(1)} min` : ''}${why ? ' (' + why + ')' : ''}`, 'hammer', () => this.upgrade(p), { range: e.r + 0.8 }); }
         const st = { smithy: 'craft_iron_sword', ember_forge: 'craft_ember_brand' }[p.type];
         if (st && !c.weapons.has(this.data.recipe(st).id.replace('craft_', ''))) act('craft', `Forge ${this.data.item(st.replace('craft_', '')).name} · ${fmtCost(this.data.recipe(st).inputs)}`, st === 'craft_iron_sword' ? 'sword' : 'brand', () => this.craft(st), { range: e.r + 0.8 });
@@ -440,7 +444,7 @@
       if (type === 'blacksmith') return null;
       this.rectTiles(x, z, w + 0.2, d + 0.2, rot, (i, j) => { const k = j * nav.w + i; if (this.occ[k]) bad = 'something is in the way'; else if (!nav.walk[k] || nav.deck[k]) bad = bad || 'the ground is not clear'; });
       const me = this.play.me; if (!bad && Math.hypot(me.x - x, me.z - z) < Math.min(w, d) / 2 + 0.2) bad = 'you are standing there';
-      if (!bad && type !== 'gate' && this.wouldWallOffKeep(type, x, z, rot)) bad = 'that would wall off the Keep';
+      if (!bad && !K.Breacher.GATES.has(type) && this.wouldWallOffKeep(type, x, z, rot)) bad = 'that would wall off the Keep';
       return bad;
     }
     /* a piece may never seal the Keep in: its approach must still reach the wilds (walls need the Gatehouse as the way in) */
@@ -796,7 +800,7 @@
       for (const m of this.meshes.values()) if (m.userData.shake > 0) { m.userData.shake -= dt; m.position.x += (Math.random() - 0.5) * 0.04; }
       for (const m of this.meshes.values()) m.traverse((o) => { if (o.userData.flame) o.scale.y = 0.85 + 0.25 * Math.sin(play.t * 11 + o.id); });
       { const fog = this.R.scene.fog, dd = this.app.rig.cur.dist; if (fog) { fog.near = dd + 8; fog.far = dd + 32; } }   // the far edge of the world always fades out, at any zoom
-      this.updateArrow(dt); this.minimap.update(dt); this.forest.update(dt); this.tools.update(dt); this.sweep.update(dt); this.home.update(dt); this.vitals.update(dt); this.wild.update(dt);
+      this.updateArrow(dt); this.minimap.update(dt); this.forest.update(dt); for (const p of this.castle.pieces) if (p.bridge) p.bridge.update(dt); this.tools.update(dt); this.sweep.update(dt); this.home.update(dt); this.vitals.update(dt); this.wild.update(dt);
       this.updateOcclusion(dt);
       if (this.shakeT > 0) { this.shakeT -= dt; const g = play.app.rig.goal; g.tx += (Math.random() - 0.5) * this.shakeT * 0.6; g.tz += (Math.random() - 0.5) * this.shakeT * 0.6; }
       if (this.thawSnow) { const s = this.R.snow.points; s.material.opacity = (s.material.opacity == null ? 1 : s.material.opacity); s.visible = this.endT == null || this.endT < 3; }

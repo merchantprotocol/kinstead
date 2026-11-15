@@ -200,7 +200,7 @@
    },
    "requiresCastleLevel": 1,
    "castlePoints": 2,
-   "hp": 40,
+   "hp": 120,
    "effect": "One block of wall, two cubes high. Click, or drag to draw.",
    "artPrompt": "a single straight section of log palisade wall, sharpened pine tops, a light snow dusting",
    "buildRequires": []
@@ -565,7 +565,7 @@
    },
    "requiresCastleLevel": 1,
    "castlePoints": 0,
-   "hp": 40,
+   "hp": 70,
    "effect": "A solid gate, four squares wide, with an arch. You walk through; creatures do not. Press R to turn it.",
    "artPrompt": "a small wooden fort gate with sharpened posts",
    "buildRequires": []
@@ -583,6 +583,21 @@
    "hp": 0,
    "effect": "A forge, anvil and workbench in a stone workshop. Forge new weapons. Build it onto your house or on its own.",
    "artPrompt": "a stone blacksmith workshop with a chimney",
+   "buildRequires": []
+  },
+  "stone_gate": {
+   "id": "stone_gate",
+   "name": "Stone gate",
+   "category": "defense",
+   "cost": {
+    "stone": 20,
+    "wood": 8
+   },
+   "requiresCastleLevel": 1,
+   "castlePoints": 0,
+   "hp": 600,
+   "effect": "A stone arch with a great timber drawbridge. Click it to lower the bridge and come and go. A bear can batter the bridge down; a deep pit in front keeps it away. Press R to turn it.",
+   "artPrompt": "a stone castle gate arch with a raised timber drawbridge",
    "buildRequires": []
   }
  },
