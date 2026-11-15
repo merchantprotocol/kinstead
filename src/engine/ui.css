@@ -426,3 +426,5 @@ body #loading.js .ld-bar i{animation:none;transition:width .35s ease}
   .inv .ab{display:flex;gap:8px}.inv .ab button{flex:1;padding:6px 8px;border-radius:10px;border:2px solid #7c5d36;background:#2a1b11;color:#e9d9b6;font:700 13px Georgia,serif;cursor:pointer}.inv .ab button.ok{border-color:#e6c27a;background:linear-gradient(180deg,#2f8a42,#1d5a2b);color:#eaffea}
   #cInvites .more{padding:6px;border-radius:10px;border:1px solid #c9953c;background:#1a120a;color:#ffe2a0;font:12px Georgia,serif;cursor:pointer}
   #cPurse .invs{display:flex;flex-direction:column;gap:8px}
+
+#cModal .trade{max-height:46vh;overflow:auto;margin:8px 0}#cModal .trow{display:flex;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.08)}#cModal .trow b{min-width:70px;text-transform:capitalize}#cModal .trow span{flex:1;opacity:.85}#cModal .trow .cb{padding:2px 10px}

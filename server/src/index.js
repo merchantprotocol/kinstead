@@ -49,7 +49,7 @@ export class GameRoom {
       const w = await state.storage.get('world'); if (w) this.world = Object.assign(this.world, w);
       this.teams = (await state.storage.get('teams')) || {};
       const e = await state.storage.get('epoch'); if (e) { this.epoch = e.epoch; this.seed = e.seed; } else { this.seed = Math.floor(Math.random() * 1e9); await state.storage.put('epoch', { epoch: this.epoch, seed: this.seed }); }
-      this.banners = (await state.storage.get('banners')) || {}; this.invites = (await state.storage.get('invites')) || {}; this.respawns = (await state.storage.get('respawns')) || {}; this.stores = (await state.storage.get('stores')) || {};
+      this.banners = (await state.storage.get('banners')) || {}; this.invites = (await state.storage.get('invites')) || {}; this.respawns = (await state.storage.get('respawns')) || {}; this.stores = (await state.storage.get('stores')) || {}; this.markets = (await state.storage.get('markets')) || {}; this.sales = (await state.storage.get('sales')) || {};
       this.loaded = true;
     });
   }
@@ -105,7 +105,7 @@ export class GameRoom {
       Object.assign(p, { cid, id: cid.slice(0, 8), name, slot, joined: true });
       const save = await this.state.storage.get('save:' + cid);
       const ev = this.plots[cid].evicted; if (ev) { delete this.plots[cid].evicted; this.state.storage.put('plots', this.plots); }
-      this.send(ws, { t: 'welcome', id: p.id, slot, evicted: !!ev, max: MAX_PLAYERS, players: this.online().filter((q) => q !== p).map((q) => this.pub(q)), claimed: this.claimed(), world: this.world, teams: this.teamList(), gates: this.gates, ver: this.ver, save: save || null, invites: (this.invites[p.id] || []).filter((x) => this.teams[x.team]), banners: this.allBanners(), clock: this.clock(), weather: this.weather(), respawn: this.validRespawn(p), stores: Object.values(this.stores) });
+      this.send(ws, { t: 'welcome', id: p.id, slot, evicted: !!ev, max: MAX_PLAYERS, players: this.online().filter((q) => q !== p).map((q) => this.pub(q)), claimed: this.claimed(), world: this.world, teams: this.teamList(), gates: this.gates, ver: this.ver, save: save || null, invites: (this.invites[p.id] || []).filter((x) => this.teams[x.team]), banners: this.allBanners(), clock: this.clock(), weather: this.weather(), respawn: this.validRespawn(p), stores: Object.values(this.stores), markets: Object.values(this.markets), sales: this.takeSales(p.id) });
       this.broadcast({ t: 'join', p: this.pub(p) }, ws); this.pushBanners([p.id]); this.startTimer(); return;
     }
     if (!p.joined) return;
@@ -116,6 +116,8 @@ export class GameRoom {
     if (m.t === 'doorstate') { const d = this.world.doors[p.slot]; if (!d || d.owner !== p.id) return; d.broken = !!m.broken; if (!d.broken) d.hp = d.hpMax; this.broadcast({ t: 'door', slot: p.slot, broken: d.broken, open: d.broken ? true : undefined, hp: d.hp, max: d.hpMax }, null); this.dirty = true; this.ver.p++; return; }
     if (m.t === 'save') { if (m.data === null) { this.state.storage.delete('save:' + p.cid); return; } const str = typeof m.data === 'string' ? m.data : ''; if (str.length < 600000) this.state.storage.put('save:' + p.cid, str); return; }   // your progress, kept on the server
     if (m.t === 'respawn') { const slot = m.slot | 0; if (!this.mayRespawn(p, slot) || !this.near(p, this.cottage(slot), 14)) return; this.respawns[p.cid] = { slot, x: +m.x, z: +m.z }; this.state.storage.put('respawns', this.respawns); return; }
+    if (m.t === 'market') { this.onMarket(p, m); return; }
+    if (m.t === 'buy') { this.onBuy(p, m); return; }
     if (m.t === 'stores') { this.onStores(p, m); return; }
     if (m.t === 'store') { this.onStore(p, m); return; }
     if (m.t === 'stock') { this.onStock(p, m); return; }
@@ -170,6 +172,23 @@ export class GameRoom {
   validRespawn(p) { const r = this.respawns[p.cid]; return r && this.mayRespawn(p, r.slot) ? r : null; }
   /** whether this settler may sleep in, and wake in, the house on this plot */
   mayRespawn(p, slot) { const d = this.world.doors[slot]; return !!d && !d.broken && !!d.owner && this.mayUse(p, d.owner); }
+  /* ---------- markets: each settler's clerk sells at the owner's prices, even while the owner is away ---------- */
+  onMarket(p, m) {
+    const clean = (o) => { const out = {}; for (const [k, v] of Object.entries(o || {}).slice(0, 24)) if (/^[a-z_]{1,16}$/.test(k)) out[k] = Math.max(0, Math.min(9999, v | 0)); return out; };
+    const mk = this.markets[p.id] = { owner: p.id, name: p.name, x: +m.x || 0, z: +m.z || 0, stock: clean(m.stock), prices: clean(m.prices) };
+    this.state.storage.put('markets', this.markets); this.broadcast({ t: 'market', m: mk }, null);
+  }
+  onBuy(p, m) {
+    const [ws] = this.byId(p.id), mk = this.markets[String(m.owner || '')], good = String(m.good || ''), n = Math.max(1, Math.min(20, m.n | 0)), fail = (why) => this.send(ws, { t: 'buyfail', why });
+    if (!mk || mk.owner === p.id) return fail('There is no clerk here to buy from.');
+    if (!this.near(p, mk, 12)) return fail('Walk up to the market stalls to trade.');
+    const price = mk.prices[good] | 0; if (!price) return fail('That is not for sale.');
+    if ((mk.stock[good] | 0) < n) return fail('The clerk does not have that many.');
+    mk.stock[good] -= n; const sale = { good, n, gold: price * n, by: p.name };
+    const [ows] = this.byId(mk.owner); if (ows) this.send(ows, { t: 'sold', ...sale }); else { (this.sales[mk.owner] = this.sales[mk.owner] || []).push(sale); this.state.storage.put('sales', this.sales); }
+    this.state.storage.put('markets', this.markets); this.send(ws, { t: 'bought', owner: mk.owner, good, n, cost: price * n }); this.broadcast({ t: 'market', m: mk }, null);
+  }
+  takeSales(id) { const s = this.sales[id] || []; if (s.length) { delete this.sales[id]; this.state.storage.put('sales', this.sales); } return s; }
   /* ---------- supplies: everyone sees them, anyone may take ---------- */
   onStores(p, m) {
     for (const id of Object.keys(this.stores)) if (this.stores[id].owner === p.id) delete this.stores[id];

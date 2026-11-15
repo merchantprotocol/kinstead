@@ -1,0 +1,13 @@
+const url = 'ws://127.0.0.1:8799/ws/mkt-' + Math.random().toString(36).slice(2, 8);
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const mk = (cid, name) => new Promise((res) => { const ws = new WebSocket(url), log = []; ws.onopen = () => ws.send(JSON.stringify({ t: 'hello', cid, name })); ws.onmessage = (e) => log.push(JSON.parse(e.data)); res({ ws, log, send: (m) => ws.send(JSON.stringify(m)), last: (t) => log.filter((m) => m.t === t).pop() }); });
+const A = await mk('aaaaaaaa-1', 'Ann'), B = await mk('bbbbbbbb-2', 'Bo'); await wait(600);
+A.send({ t: 'market', x: 10, z: 10, stock: { wheat: 30, beef: 4 }, prices: { wheat: 2, beef: 5 } }); await wait(300);
+console.log('B sees listing:', JSON.stringify(B.last('market').m.stock));
+B.send({ t: 'pos', x: 50, z: 50 }); B.send({ t: 'buy', owner: 'aaaaaaaa', good: 'wheat', n: 5 }); await wait(300); console.log('too far refused:', B.last('buyfail').why);
+B.send({ t: 'pos', x: 11, z: 11 }); B.send({ t: 'buy', owner: 'aaaaaaaa', good: 'wheat', n: 5 }); await wait(300);
+console.log('B bought:', JSON.stringify(B.last('bought')), '| A told:', JSON.stringify(A.last('sold')));
+A.ws.close(); await wait(300); B.send({ t: 'buy', owner: 'aaaaaaaa', good: 'beef', n: 2 }); await wait(300); console.log('bought while A away:', !!B.log.filter((m) => m.t === 'bought').find((m) => m.good === 'beef'));
+B.send({ t: 'buy', owner: 'aaaaaaaa', good: 'beef', n: 5 }); await wait(300); console.log('over stock refused:', B.last('buyfail').why);
+const A2 = await mk('aaaaaaaa-1', 'Ann'); await wait(600); console.log('A gets sales on return:', JSON.stringify(A2.last('welcome').sales), '| listing kept:', JSON.stringify(A2.last('welcome').markets[0].stock));
+process.exit(0);

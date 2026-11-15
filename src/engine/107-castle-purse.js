@@ -41,7 +41,7 @@
     static url(id) { const body = GoodsArt.SVG[id] || GoodsArt.SVG.bag; return 'data:image/svg+xml,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">${body}</svg>`); }
   }
 
-  const ITEM_ART = { turnip: 'food', raw_meat: 'meat', cooked_meat: 'roast', stew: 'stew', bread: 'bread', cooked_fish: 'fish', raw_fish: 'fish' };
+  const ITEM_ART = { turnip: 'food', raw_meat: 'meat', cooked_meat: 'roast', stew: 'stew', omelette: 'roast', bread: 'bread', cooked_fish: 'fish', raw_fish: 'fish' };
   const itemArt = (id) => GoodsArt.url(ITEM_ART[id] || 'bag');
 
   /** a stack: { key, kind: 'res'|'item'|'weapon', id, n, name, art, weapon? } */
@@ -200,6 +200,8 @@
     glyph(id) { return itemArt(id); }
     name(id) { return (this.g.play.player.items.get(id) || { name: id }).name; }
     recipes() { return K.BUILDING_DATA.RECIPES.filter((r) => r.station === 'hearth').map((r) => ({ id: r.id, name: r.name, cost: r.in, art: itemArt(Object.keys(r.out)[0]), have: false })); }
+    /** a meal your cook made: it waits on the hearth with the rest */
+    addMeal(id) { const t = this.tray.find((q) => q.id === id); if (t) t.n += 1; else this.tray.push({ kind: 'item', id, n: 1, name: this.name(id), art: itemArt(id) }); this.g.purse.update(); }
     make(id) {
       const g = this.g, p = g.play.player, r = K.BUILDING_DATA.RECIPES.find((x) => x.id === id && x.station === 'hearth'); if (!r || this.pending) return;
       if (!Object.entries(r.in).every(([it, n]) => p.count(it) >= n)) { g.cui.toast('You are missing something for that.'); g.sound.play('clank'); return; }

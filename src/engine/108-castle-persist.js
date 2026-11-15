@@ -30,7 +30,7 @@
         market: g.marketHall ? { x: g.marketHall.x, z: g.marketHall.z, turns: g.marketTurns || 0 } : null,
         home: g.home.built ? { x: g.home.spec.x, z: g.home.spec.z, turns: g.homeTurns || 0 } : null,
         bag: g.play.player.bag.filter((q) => q).map((q) => [q.id, q.n]),
-        xp: g.xp.toJSON(), economy: g.economy ? g.economy.toJSON() : null, moved: mp ? {} : g.forest.moved, wolves: g.wild.difficulty.wolvesSpawned,
+        xp: g.xp.toJSON(), economy: g.economy ? g.economy.toJSON() : null, workers: g.workers ? g.workers.toJSON() : null, moved: mp ? {} : g.forest.moved, wolves: g.wild.difficulty.wolvesSpawned,
       };
     }
     restore(x) {
@@ -59,6 +59,7 @@
       if (x.wolves) g.wild.difficulty.wolvesSpawned = x.wolves;
       if (x.xp) g.xp.restore(x.xp);
       if (x.economy && g.economy) g.economy.restore(x.economy);
+      if (x.workers && g.workers) g.workers.restore(x.workers);
       if (x.respawn && !g.net) { g.respawn = x.respawn; g.play.spawn = { x: x.respawn.x, z: x.respawn.z }; }
     }
   }

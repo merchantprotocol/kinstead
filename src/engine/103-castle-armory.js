@@ -64,6 +64,7 @@
     make(id) {
       const g = this.g, c = g.castle, r = id === 'arrows' ? { id, name: 'Arrows', cost: { wood: 1 } } : Armory.CATALOG.find((x) => x.id === id); if (!r || this.pending) return;
       if (id !== 'arrows' && (this.owned(id) || this.tray.some((t) => t.id === id))) { g.cui.toast('You already have that.'); return; }
+      if (id !== 'arrows' && g.workers && g.workers.smith.a) { g.workers.smith.order(r); g.purse.update(); return; }   // your smith makes it, with materials from the market
       if (!c.spend(r.cost)) { g.cui.toast('Not enough materials.'); g.sound.play('clank'); return; }
       this.pending = r.cost; g.changed(); g.sound.play('clank'); g.purse.update();
       setTimeout(() => {
@@ -73,6 +74,9 @@
         g.sound.play('fanfare'); g.purse.update();
       }, 550);
     }
+    recipe(id) { return Armory.CATALOG.find((x) => x.id === id) || null; }
+    /** the smith finished an order: it waits on the forge */
+    finish(r) { const w = r.make(); this.tray.push({ kind: 'weapon', id: r.id, n: 1, name: r.name, art: K.Toolbelt.artUrl(w.art), weapon: w }); this.g.sound.play('fanfare'); this.g.purse.update(); this.g.changed(); }
     arrows() { const g = this.g, c = g.castle; if (c.amount('wood') < 1) return; c.spend({ wood: 1 }); c.add('arrow', 4); g.sound.play('clank'); g.changed(); }
     craft(r) {
       const g = this.g, c = g.castle; if (!c.spend(r.cost)) { g.cui.toast('Not enough materials.'); return; }
