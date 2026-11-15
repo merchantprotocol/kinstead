@@ -15,7 +15,14 @@
       return !!(id && game.mp && game.mp.mayUse(id));
     }
     nearbyFriendly(gate, game) {
-      return game.play.actors.some((a) => this.friendly(a, game) && this.near(a, gate, 5.5));
+      for (const actor of game.play.actors) {
+        if (this.friendly(actor, game) && this.near(actor, gate, 5.5)) return true;
+      }
+      if (!game.mp) return false;
+      for (const record of game.mp.avatars.by.values()) {
+        if (this.friendly(record.a, game) && this.near(record.a, gate, 5.5)) return true;
+      }
+      return false;
     }
     nearbyHostile(gate, game) {
       if (game.play.actors.some((a) => a && a.alive !== false && a.hostile && this.near(a, gate, 5.5))) return true;

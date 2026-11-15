@@ -51,3 +51,16 @@ test('gatekeeper opens for a friendly arrival and shuts when a hostile approache
   assert.equal(gate.bridge.open, false, 'a hostile arrival shuts the gate');
   assert.deepEqual(calls, [true, false], 'state changes are broadcast to the server');
 });
+
+
+test('gate policy opens for a nearby teammate avatar but not a non-team avatar', () => { // risk: multiplayer access control
+  const policy = new Policy();
+  const game = { mp: {
+    mayUse: (id) => id === 'ally',
+    avatars: { by: new Map([['ally', { a: player({ remote: true, pid: 'ally' }) }]]) },
+  }, play: { actors: [] } };
+  assert.equal(policy.nearbyFriendly(gate, game), true, 'teammate avatar is welcomed');
+  game.mp.avatars.by.set('stranger', { a: player({ remote: true, pid: 'stranger' }) });
+  game.mp.avatars.by.delete('ally');
+  assert.equal(policy.nearbyFriendly(gate, game), false, 'unaffiliated avatar cannot trigger opening');
+});
