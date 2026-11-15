@@ -1,31 +1,24 @@
 // Copyright (c) 2026 Merchant Protocol. All rights reserved.
-/* Kinstead · realtime server. Players connect by WebSocket to /ws/<map>. One GameRoom (a Durable Object) per map:
-     - assigns each player a plot (sticky per client id, so you come back to your homestead)
-     - relays everyone's position a few times a second, as one batch
-     - keeps the shared world edits (pieces, terrain, felled trees, buildings) and replays them to whoever joins
-   Threats (wolves, bears) are simulated by each player's own game, so they are never a shared-state problem here. */
-
-const MAX_PLAYERS = 30;           // plots on the map
-const DOOR_HP = 3000;             // a house door takes a crew a good while
-const HP = { palisade: 400, stone_wall: 900, gate: 700, stone_gate: 2500, default: 900 };   // structures other players can break
-const DMG = { sword: 5, stoneblade: 5, ironsword: 9, spear: 7, warhammer: 18, longbow: 9, bow: 6, axe: 8, pickaxe: 8, shovel: 3, hammer: 4, default: 4 };
-const PLOTS = (() => { const a = []; for (let r = 0; r < 5; r++) for (let c = 0; c < 6; c++) a.push({ x: 30 + c * 44, z: 30 + r * 35 }); a.sort((p, q) => Math.hypot(p.x - 140, p.z - 100) - Math.hypot(q.x - 140, q.z - 100)); return a; })();   // must match WorldPlan on the client
-const CYCLE = { day: 210, night: 100 };            // seconds: must match Calendar.PHASES on the client
-const WEATHER_SEC = 150;                            // the weather changes at most this often
-/** the weather for a period: the same answer for everyone, from the period number alone */
-function weatherFor(period, seed) { let h = (period * 2654435761 + seed) >>> 0; h ^= h >>> 15; h = Math.imul(h, 2246822519) >>> 0; h ^= h >>> 13; const r = (h % 1000) / 1000; return r < 0.5 ? 'clear' : r < 0.8 ? 'flurries' : 'blizzard'; }
-const STONE = new Set(['stone_wall', 'stone_gate']);
-const RES = new Set(['wood', 'stone', 'dirt', 'iron', 'food', 'arrow', 'gold', 'bread']);
-const TICK_MS = 120;              // position batches
-const SAVE_MS = 5000;
+/* Cloudflare Durable Object adapter for the realtime game room. */
+import { ServerConfig } from './ServerConfig.js';
+import { PlayerRegistry } from './PlayerRegistry.js';
+import { WorldState } from './WorldState.js';
+import { ClockWeather } from './ClockWeather.js';
+import { Markets } from './Markets.js';
+import { Stores } from './Stores.js';
+import { Banners } from './Banners.js';
+import { Teams } from './Teams.js';
+import { Doors } from './Doors.js';
+import { Tribute } from './Tribute.js';
+import { MessageRouter } from './MessageRouter.js';
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    const m = url.pathname.match(/^\/ws\/([a-z0-9_-]{1,40})$/i);
-    if (m) {
+    const match = url.pathname.match(/^\/ws\/([a-z0-9_-]{1,40})$/i);
+    if (match) {
       if (request.headers.get('Upgrade') !== 'websocket') return new Response('expected a websocket', { status: 426 });
-      return env.ROOM.get(env.ROOM.idFromName(m[1])).fetch(request);
+      return env.ROOM.get(env.ROOM.idFromName(match[1])).fetch(request);
     }
     if (url.pathname === '/health') return new Response('ok');
     return new Response('Kinstead realtime', { status: 200 });
@@ -35,291 +28,85 @@ export default {
 export class GameRoom {
   constructor(state, env) {
     this.state = state; this.env = env;
-    this.sockets = new Map();                 // ws -> player
-    this.plots = {};                          // clientId -> { slot, name }
-    this.world = { pieces: {}, tiles: {}, nodes: {}, buildings: {}, houses: {}, doors: {} };   // houses: slot -> original settler; doors: slot -> { owner, hp, hpMax, broken }
-    this.teams = {};                          // team id -> { id, name, members: [client ids] }
-    this.gates = {};                          // piece id -> open (not saved: gates shut when the server restarts)
-    this.lastHit = {};
-    this.epoch = Date.now(); this.seed = 7; this.respawns = {}; this.stores = {};   // stores: store id -> { id, owner, kind, name, res, x, z, stack, stock }
-    this.lastPeriod = -1; this.ver = { p: 1, s: 1, t: 1 };   // versions of the shared state (pieces+houses, supplies, ground) so a client can ask 'am I up to date?'
-    this.banners = {}; this.invites = {};   // invites: player id -> [{ team, from, name, teamName, banner, at }]; banners: player id -> { name, color, logo } (their own, used when they are on no team)
-    this.dirty = false; this.loaded = false; this.timer = null;
+    this.sockets = new Map(); this.plots = {};
+    this.world = { pieces: {}, tiles: {}, nodes: {}, buildings: {}, houses: {}, doors: {} };
+    this.teams = {}; this.gates = {}; this.lastHit = {};
+    this.epoch = Date.now(); this.seed = 7; this.respawns = {}; this.stores = {};
+    this.markets = {}; this.sales = {}; this.storesDirty = false;
+    this.lastPeriod = -1; this.ver = { p: 1, s: 1, t: 1 };
+    this.banners = {}; this.invites = {}; this.dirty = false; this.loaded = false; this.timer = null;
+    const services = [PlayerRegistry, WorldState, ClockWeather, Markets, Stores, Banners, Teams, Doors, Tribute, MessageRouter];
+    for (const Service of services) new Service().install(this);
     state.blockConcurrencyWhile(async () => {
       this.plots = (await state.storage.get('plots')) || {};
-      const w = await state.storage.get('world'); if (w) this.world = Object.assign(this.world, w);
+      const world = await state.storage.get('world'); if (world) this.world = Object.assign(this.world, world);
       this.teams = (await state.storage.get('teams')) || {};
-      const e = await state.storage.get('epoch'); if (e) { this.epoch = e.epoch; this.seed = e.seed; } else { this.seed = Math.floor(Math.random() * 1e9); await state.storage.put('epoch', { epoch: this.epoch, seed: this.seed }); }
-      this.banners = (await state.storage.get('banners')) || {}; this.invites = (await state.storage.get('invites')) || {}; this.respawns = (await state.storage.get('respawns')) || {}; this.stores = (await state.storage.get('stores')) || {}; this.markets = (await state.storage.get('markets')) || {}; this.sales = (await state.storage.get('sales')) || {};
+      const epoch = await state.storage.get('epoch');
+      if (epoch) { this.epoch = epoch.epoch; this.seed = epoch.seed; }
+      else { this.seed = Math.floor(Math.random() * 1e9); await state.storage.put('epoch', { epoch: this.epoch, seed: this.seed }); }
+      this.banners = (await state.storage.get('banners')) || {}; this.invites = (await state.storage.get('invites')) || {};
+      this.respawns = (await state.storage.get('respawns')) || {}; this.stores = (await state.storage.get('stores')) || {};
+      this.markets = (await state.storage.get('markets')) || {}; this.sales = (await state.storage.get('sales')) || {};
       this.loaded = true;
     });
   }
 
   async fetch(request) {
-    const pair = new WebSocketPair(), [client, server] = Object.values(pair);
-    server.accept();
+    const pair = new WebSocketPair(), [client, server] = Object.values(pair); server.accept();
     const player = { id: null, cid: null, name: '', slot: -1, x: 0, z: 0, y: 0, f: 0, s: 'idle', tool: '', hp: 0, joined: false };
     this.sockets.set(server, player);
-    server.addEventListener('message', (e) => { try { this.onMessage(server, player, JSON.parse(e.data)); } catch (err) { /* ignore a bad message */ } });
+    server.addEventListener('message', (event) => { try { this.onMessage(server,
+    player,
+    JSON.parse(event.data)); } catch (error) { /* ignore malformed messages */ } });
     const gone = () => this.onClose(server, player);
     server.addEventListener('close', gone); server.addEventListener('error', gone);
     return new Response(null, { status: 101, webSocket: client });
   }
 
-  send(ws, msg) { try { ws.send(JSON.stringify(msg)); } catch (e) { /* socket is closing */ } }
-  broadcast(msg, except) { const s = JSON.stringify(msg); for (const [ws, p] of this.sockets) if (p.joined && ws !== except) { try { ws.send(s); } catch (e) { /* closing */ } } }
-  online() { return [...this.sockets.values()].filter((p) => p.joined); }
-
-  /** the lowest free plot, or the one this client had before */
-  claim(cid, name) {
-    const mine = this.plots[cid]; if (mine) { mine.name = name; return mine.slot; }
-    const taken = new Set([...Object.values(this.plots).map((p) => p.slot), ...Object.keys(this.world.houses).map(Number)]);
-    for (let s = 0; s < MAX_PLAYERS; s++) if (!taken.has(s)) { this.plots[cid] = { slot: s, name }; this.state.storage.put('plots', this.plots); return s; }   // a plot, nothing more: the house appears when its settler builds it
-    return -1;
+  send(ws, msg) { try { ws.send(JSON.stringify(msg)); } catch (error) { /* socket is closing */ } }
+  broadcast(msg, except) {
+    const serialized = JSON.stringify(msg);
+    for (const [ws, player] of this.sockets) if (player.joined && ws !== except) { try { ws.send(serialized); } catch (error) { /* closing */ } }
   }
-  /** a settler built their cottage: it and its door (theirs alone, until someone breaks it and hangs their own) now exist for everyone */
-  onHome(p, op) {
-    if (op.id !== 'home:' + p.slot || !op.spec || !op.spec.footprint) return;
-    const sp = op.spec, x = (sp.x + sp.footprint.w / 2) * 0.5, z = (sp.z + sp.footprint.h / 2) * 0.5, old = this.world.houses[p.slot];
-    if (old && old.owner !== p.id && this.world.doors[p.slot] && this.world.doors[p.slot].owner !== p.id) return;   // someone else holds it now
-    this.world.houses[p.slot] = { owner: p.id, name: p.name, x, z, spec: sp };
-    if (!this.world.doors[p.slot]) this.world.doors[p.slot] = { owner: p.id, hp: DOOR_HP, hpMax: DOOR_HP, broken: false };
-    this.dirty = true; this.ver.p++; this.broadcast({ t: 'house', slot: p.slot, owner: p.id, name: p.name, x, z, spec: sp, door: this.world.doors[p.slot] });
-  }
-  /** the settler whose house was taken gets a fresh plot the next time they come in */
-  async evictSave(cid) {
-    const raw = await this.state.storage.get('save:' + cid); if (!raw) return;
-    try { const sv = JSON.parse(raw), keep = sv.extras || {}; sv.castle.pieces = []; sv.hero = null; sv.nodes = {}; sv.extras = { weapons: keep.weapons, held: keep.held, xp: keep.xp }; this.state.storage.put('save:' + cid, JSON.stringify(sv)); } catch (e) { /* unreadable save: leave it */ }
-  }
-  evict(ownerId) {
-    const cid = Object.keys(this.plots).find((c) => c.slice(0, 8) === ownerId); if (!cid) return; this.evictSave(cid);
-    const taken = new Set([...Object.values(this.plots).map((p) => p.slot), ...Object.keys(this.world.houses).map(Number)]);
-    for (let s = 0; s < MAX_PLAYERS; s++) if (!taken.has(s)) { this.plots[cid] = { slot: s, name: this.plots[cid].name, evicted: true }; this.state.storage.put('plots', this.plots); break; }
-  }
-
-  async onMessage(ws, p, m) {
-    if (m.t === 'hello') {
-      const cid = String(m.cid || '').slice(0, 64), name = String(m.name || 'Settler').slice(0, 24); if (!cid) return;
-      for (const [other, q] of this.sockets) if (q.cid === cid && other !== ws) { this.broadcast({ t: 'leave', id: q.id }, other); q.joined = false; try { other.close(4000, 'signed in elsewhere'); } catch (e) { /* gone */ } this.sockets.delete(other); }
-      const slot = this.claim(cid, name);
-      if (slot < 0) { this.send(ws, { t: 'full' }); return; }
-      Object.assign(p, { cid, id: cid.slice(0, 8), name, slot, x: PLOTS[slot].x, z: PLOTS[slot].z, joined: true });
-      const save = await this.state.storage.get('save:' + cid);
-      const ev = this.plots[cid].evicted; if (ev) { delete this.plots[cid].evicted; this.state.storage.put('plots', this.plots); }
-      this.send(ws, { t: 'welcome', id: p.id, slot, evicted: !!ev, max: MAX_PLAYERS, players: this.online().filter((q) => q !== p).map((q) => this.pub(q)), claimed: this.claimed(), world: this.world, teams: this.teamList(), gates: this.gates, ver: this.ver, save: save || null, invites: (this.invites[p.id] || []).filter((x) => this.teams[x.team]), banners: this.allBanners(), clock: this.clock(), weather: this.weather(), respawn: this.validRespawn(p), stores: Object.values(this.stores), markets: Object.values(this.markets), sales: this.takeSales(p.id) });
-      this.broadcast({ t: 'join', p: this.pub(p) }, ws); this.pushBanners([p.id]); this.startTimer(); return;
-    }
-    if (!p.joined) return;
-    if (m.t === 'pos') { p.x = +m.x || 0; p.z = +m.z || 0; p.y = +m.y || 0; p.f = +m.f || 0; p.s = String(m.s || 'idle').slice(0, 12); p.tool = String(m.tool || '').slice(0, 14); p.hp = +m.hp || 0; return; }
-    if (m.t === 'op' && m.op && m.op.k === 'bld+' && /^home:/.test(m.op.id || '')) { this.onHome(p, m.op); return; }
-    if (m.t === 'op') { if (this.applyOp(p, m.op) !== false) this.broadcast({ t: 'op', from: p.id, op: m.op }, ws); return; }
-    if (m.t === 'chat') { const text = String(m.text || '').slice(0, 160); if (text) this.broadcast({ t: 'chat', from: p.id, name: p.name, text }); return; }
-    if (m.t === 'doorstate') { const d = this.world.doors[p.slot]; if (!d || d.owner !== p.id) return; d.broken = !!m.broken; if (!d.broken) d.hp = d.hpMax; this.broadcast({ t: 'door', slot: p.slot, broken: d.broken, open: d.broken ? true : undefined, hp: d.hp, max: d.hpMax }, null); this.dirty = true; this.ver.p++; return; }
-    if (m.t === 'save') { if (m.data === null) { this.state.storage.delete('save:' + p.cid); return; } const str = typeof m.data === 'string' ? m.data : ''; if (str.length < 600000) this.state.storage.put('save:' + p.cid, str); return; }   // your progress, kept on the server
-    if (m.t === 'respawn') { const slot = m.slot | 0; if (!this.mayRespawn(p, slot) || !this.near(p, this.cottage(slot), 14)) return; this.respawns[p.cid] = { slot, x: +m.x, z: +m.z }; this.state.storage.put('respawns', this.respawns); return; }
-    if (m.t === 'market') { this.onMarket(p, m); return; }
-    if (m.t === 'buy') { this.onBuy(p, m); return; }
-    if (m.t === 'stores') { this.onStores(p, m); return; }
-    if (m.t === 'store') { this.onStore(p, m); return; }
-    if (m.t === 'stock') { this.onStock(p, m); return; }
-    if (m.t === 'take') { this.onTake(p, m); return; }
-    if (m.t === 'fx') { this.broadcast({ t: 'fx', from: p.id, fx: m.fx }, this.wsOf(p)); return; }   // pickups: not kept, just shown to everyone
-    if (m.t === 'pvp') {
-      const [ws, q] = this.byId(m.to); if (!ws || q === p || this.sameTeam(p.id, q.id) || !this.near(p, q, 14)) return;   // teammates are safe; the swing must be close (arrows reach further)
-      const now = Date.now(); if (now - (this.lastHit['pvp' + p.id] || 0) < 250) return; this.lastHit['pvp' + p.id] = now;
-      this.send(ws, { t: 'pvphit', from: p.id, name: p.name, dmg: DMG[m.tool] || DMG.default, auto: !!m.auto }); return;
-    }
-    if (m.t === 'sync') {   // a client checks it has not missed anything; whatever moved on is sent again in full
-      const v = m.v || {}, out = { t: 'resync', ver: this.ver, players: this.online().filter((q) => q !== p).map((q) => this.pub(q)) };
-      if (v.p !== this.ver.p) { out.world = { pieces: this.world.pieces, buildings: this.world.buildings, doors: this.world.doors }; out.claimed = this.claimed(); out.gates = this.gates; out.teams = this.teamList(); }
-      if (v.s !== this.ver.s) out.stores = Object.values(this.stores);
-      if (v.t !== this.ver.t) { out.tiles = this.world.tiles; out.nodes = this.world.nodes; }
-      this.send(ws, out); return;
-    }
-    if (m.t === 'mobs') { this.broadcast({ t: 'mobs', from: p.id, list: (m.list || []).slice(0, 40) }, ws); return; }   // creatures a player's game runs: shown to everyone
-    if (m.t === 'mobhit') { const [tw] = this.byId(m.to); if (tw && tw !== ws) this.send(tw, { t: 'mobhurt', id: m.id, dmg: DMG[m.tool] || DMG.default, from: p.id }); return; }
-    if (m.t === 'mobbite') { const [tw, target] = this.byId(m.to); if (tw && target !== p && !this.sameTeam(p.id, target.id) && this.near(p, target, 14)) this.send(tw, { t: 'pvphit', from: p.id, mob: String(m.mob || '').slice(0, 40), name: String(m.name || 'Wolf').slice(0, 30), dmg: Math.max(1, Math.min(40, m.dmg | 0)), auto: true }); return; }
-    if (m.t === 'banner') { this.onBanner(p, m); return; }
-    if (m.t === 'team') { this.onTeam(p, m); return; }
-    if (m.t === 'open') { this.onOpen(p, m); return; }
-    if (m.t === 'hit') { this.onHit(p, m); return; }
-    if (m.t === 'install') { this.onInstall(p, m); return; }
-    if (m.t === 'demand' || m.t === 'pay' || m.t === 'refuse') { this.onTribute(p, m); return; }
-    if (m.t === 'ping') this.send(ws, { t: 'pong', n: m.n });
-  }
-
-  pub(q) { return { id: q.id, name: q.name, slot: q.slot, team: this.teamOf(q.id), x: q.x, z: q.z, y: q.y, f: q.f, s: q.s, tool: q.tool }; }
-  /** every plot that has a settler (online or not) so their cottage stands on the map */
-  claimed() { return Object.entries(this.world.houses).map(([slot, h]) => ({ id: h.owner, slot: +slot, name: h.name, x: h.x, z: h.z, spec: h.spec })); }
-
-  /** the world edits are kept as the latest state per thing, so the log never grows without bound */
-  applyOp(p, op) {
-    if (!op || !op.k) return; const w = this.world;
-    if (op.k === 'piece+') { const old = w.pieces[op.id]; if (old && !this.mayUse(p, old.owner)) return false; const hpMax = HP[op.type] || HP.default; w.pieces[op.id] = { id: op.id, type: op.type, x: op.x, z: op.z, rot: op.rot, owner: p.id, hp: hpMax, hpMax }; }
-    else if (op.k === 'piece-') { const pc = w.pieces[op.id]; if (pc && !this.mayUse(p, pc.owner)) return false; delete w.pieces[op.id]; delete this.gates[op.id]; }
-    else if (op.k === 'tile') w.tiles[op.i + ',' + op.j] = [op.i, op.j, op.h, op.te];
-    else if (op.k === 'tiles' && Array.isArray(op.list)) { for (const t of op.list.slice(0, 500)) w.tiles[t[0] + ',' + t[1]] = [t[0], t[1], t[2], t[3]]; }
-    else if (op.k === 'node') w.nodes[op.id] = { id: op.id, st: op.st, x: op.x, z: op.z };
-    else if (op.k === 'bld+') { const old = w.buildings[op.id]; if (old && !this.mayUse(p, old.owner)) return false; w.buildings[op.id] = { id: op.id, spec: op.spec, owner: p.id }; }
-    else if (op.k === 'bld-') { const old = w.buildings[op.id]; if (old && !this.mayUse(p, old.owner)) return false; delete w.buildings[op.id]; }
-    else return false;
-    if (op.k === 'tile' || op.k === 'tiles' || op.k === 'node') this.ver.t++; else this.ver.p++;
-    this.dirty = true;
-  }
-
-  /* ---------- the clock and the weather belong to the server ---------- */
-  clock() { return { epoch: this.epoch, now: Date.now(), day: CYCLE.day, night: CYCLE.night }; }
-  weather() { const period = Math.floor((Date.now() - this.epoch) / 1000 / WEATHER_SEC); return { kind: weatherFor(period, this.seed), period, until: this.epoch + (period + 1) * WEATHER_SEC * 1000 }; }
-  validRespawn(p) { const r = this.respawns[p.cid]; return r && this.mayRespawn(p, r.slot) ? r : null; }
-  /** whether this settler may sleep in, and wake in, the house on this plot */
-  mayRespawn(p, slot) { const d = this.world.doors[slot]; return !!d && !d.broken && !!d.owner && this.mayUse(p, d.owner); }
-  /* ---------- markets: each settler's clerk sells at the owner's prices, even while the owner is away ---------- */
-  onMarket(p, m) {
-    const clean = (o) => { const out = {}; for (const [k, v] of Object.entries(o || {}).slice(0, 24)) if (/^[a-z_]{1,16}$/.test(k)) out[k] = Math.max(0, Math.min(9999, v | 0)); return out; };
-    const mk = this.markets[p.id] = { owner: p.id, name: p.name, x: +m.x || 0, z: +m.z || 0, stock: clean(m.stock), prices: clean(m.prices) };
-    this.state.storage.put('markets', this.markets); this.broadcast({ t: 'market', m: mk }, null);
-  }
-  onBuy(p, m) {
-    const [ws] = this.byId(p.id), mk = this.markets[String(m.owner || '')], good = String(m.good || ''), n = Math.max(1, Math.min(20, m.n | 0)), fail = (why) => this.send(ws, { t: 'buyfail', why });
-    if (!mk || mk.owner === p.id) return fail('There is no clerk here to buy from.');
-    if (!this.near(p, mk, 12)) return fail('Walk up to the market stalls to trade.');
-    const team = this.sameTeam(p.id, mk.owner), price = team ? 0 : mk.prices[good] | 0; if (!team && !price) return fail('That is not for sale.');   // your team takes for free
-    if ((mk.stock[good] | 0) < n) return fail('The clerk does not have that many.');
-    mk.stock[good] -= n; const sale = { good, n, gold: price * n, by: p.name };
-    const [ows] = this.byId(mk.owner); if (ows) this.send(ows, { t: 'sold', ...sale }); else { (this.sales[mk.owner] = this.sales[mk.owner] || []).push(sale); this.state.storage.put('sales', this.sales); }
-    this.state.storage.put('markets', this.markets); this.send(ws, { t: 'bought', owner: mk.owner, good, n, cost: price * n }); this.broadcast({ t: 'market', m: mk }, null);
-  }
-  takeSales(id) { const s = this.sales[id] || []; if (s.length) { delete this.sales[id]; this.state.storage.put('sales', this.sales); } return s; }
-  /* ---------- supplies: everyone sees them, anyone may take ---------- */
-  onStores(p, m) {
-    for (const s of (m.list || []).slice(0, 80)) {
-      const id = p.id + ':' + s.id, existing = this.stores[id];
-      this.stores[id] = { id, owner: p.id, kind: s.kind, name: String(s.name || '').slice(0, 40), res: s.res, x: s.x, z: s.z, stack: s.stack || 1, stock: existing ? Math.min(existing.stock, Math.max(0, s.stock | 0)) : Math.max(0, s.stock | 0) };
-    }
-    // A reconnect snapshot may be stale. Keep server-known stores omitted by it; only explicit store-gone removes them.
-    this.broadcast({ t: 'stores', owner: p.id, list: Object.values(this.stores).filter((q) => q.owner === p.id) }, this.wsOf(p)); this.storesDirty = true; this.ver.s++;
-    this.send(this.wsOf(p), { t: 'stores', owner: p.id, mine: true, list: Object.values(this.stores).filter((q) => q.owner === p.id) });   // what the server holds for you (it may differ: raiders)
-  }
-  onStore(p, m) {   // one store appears (a pile you dropped) or goes
-    const id = p.id + ':' + m.id;
-    if (m.gone) { delete this.stores[id]; this.broadcast({ t: 'store', id, gone: true }); }
-    else { const old = this.stores[id]; this.stores[id] = { id, owner: p.id, kind: m.kind, name: String(m.name || '').slice(0, 40), res: m.res, x: m.x, z: m.z, stack: m.stack || 1, stock: old ? Math.min(old.stock, Math.max(0, m.stock | 0)) : Math.max(0, m.stock | 0) }; this.broadcast({ t: 'store', s: this.stores[id] }, this.wsOf(p)); }
-    this.storesDirty = true; this.ver.s++;
-  }
-  onStock(p, m) {   // the owner added or removed some of their own; cap each wire delta
-    const st = this.stores[p.id + ':' + m.id]; if (!st) return; const d = Math.max(-999, Math.min(999, m.d | 0)); st.stock = Math.max(0, st.stock + d); this.broadcast({ t: 'stock', id: st.id, stock: st.stock }); this.storesDirty = true; this.ver.s++;
-  }
-  onTake(p, m) {
-    const st = this.stores[m.id]; if (!st || !this.near(p, st, 6)) return; const n = Math.min(st.stock, Math.max(1, Math.min(10, m.n | 0))); if (n <= 0) return;
-    st.stock -= n; this.send(this.wsOf(p), { t: 'took', id: st.id, res: st.res, n }); this.broadcast({ t: 'stock', id: st.id, stock: st.stock }); this.storesDirty = true; this.ver.s++;
-    const [ws] = this.byId(st.owner); if (ws && st.owner !== p.id) this.send(ws, { t: 'raided', by: p.name, res: st.res, n });
-  }
-
-  /* ---------- banners: a colour, a logo and a name; a team shares one ---------- */
-  defaultBanner(id) { let h = 0; for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0; return { name: '', color: [0, 1, 3, 4, 5, 6, 7, 10, 2][h % 9], logo: h % 12 }; }
-  clean(b, fallback) { b = b || {}; return { name: String(b.name == null ? fallback.name : b.name).slice(0, 24), color: Math.max(0, Math.min(11, b.color == null ? fallback.color : b.color | 0)), logo: Math.max(0, Math.min(11, b.logo == null ? fallback.logo : b.logo | 0)) }; }
-  /** what a settler (online or not) flies: their team's banner if they are on a team, else their own */
-  resolved(id) { const t = this.teams[this.teamOf(id)]; const b = t && t.banner ? t.banner : this.banners[id] || this.defaultBanner(id); return Object.assign({}, b, { team: t ? t.id : null }); }
-  allBanners() { const ids = new Set([...Object.keys(this.banners), ...Object.values(this.plots).map((v, i) => Object.keys(this.plots)[i].slice(0, 8)), ...Object.values(this.world.houses).map((h) => h.owner), ...Object.values(this.world.pieces).map((q) => q.owner)]); const out = {}; for (const id of ids) if (id) out[id] = this.resolved(id); return out; }
-  pushBanners(ids) { const m = {}; for (const id of ids) m[id] = this.resolved(id); this.broadcast({ t: 'banners', map: m }); this.state.storage.put('banners', this.banners); }
-  onBanner(p, m) {
-    const tid = this.teamOf(p.id), cur = this.resolved(p.id), nb = this.clean(m.b, cur);
-    if (tid) { const t = this.teams[tid]; t.banner = nb; t.name = nb.name || t.name; this.saveTeams(); this.pushBanners(t.members); }
-    else { this.banners[p.id] = nb; this.pushBanners([p.id]); }
-  }
-
-  /* ---------- teams: the same team shares every key ---------- */
-  teamOf(id) { for (const t of Object.values(this.teams)) if (t.members.includes(id)) return t.id; return null; }
-  sameTeam(a, b) { const t = this.teamOf(a); return !!t && t === this.teamOf(b); }
-  mayUse(p, owner) { return !owner || owner === p.id || this.sameTeam(p.id, owner); }
-  teamList() { return Object.values(this.teams).map((t) => ({ id: t.id, name: t.name, members: t.members, banner: t.banner })); }
-  saveTeams() { this.state.storage.put('teams', this.teams); this.broadcast({ t: 'teams', list: this.teamList() }); }
-  byId(id) { for (const [ws, q] of this.sockets) if (q.joined && q.id === id) return [ws, q]; return [null, null]; }
-  near(a, b, m) { return Math.hypot(a.x - b.x, a.z - b.z) <= m; }
-  leaveTeam(p) { const tid = this.teamOf(p.id); if (!tid) return; const t = this.teams[tid]; t.members = t.members.filter((x) => x !== p.id); if (!t.members.length) delete this.teams[tid]; }
-  onTeam(p, m) {
-    if (m.a === 'create') { if (this.teamOf(p.id)) return; this.makeTeam(p); this.saveTeams(); this.pushBanners([p.id]); }
-    else if (m.a === 'invite') {
-      let tid = this.teamOf(p.id); if (!tid) { tid = this.makeTeam(p); this.saveTeams(); this.pushBanners([p.id]); }
-      const [ws, q] = this.byId(m.to); if (!q || q === p || this.teamOf(m.to) === tid) return;
-      const t = this.teams[tid], inv = { team: tid, from: p.id, name: p.name, teamName: t.banner.name || t.name, banner: t.banner, at: Date.now() };
-      const list = (this.invites[m.to] = (this.invites[m.to] || []).filter((x) => x.team !== tid)); list.push(inv); if (list.length > 12) list.shift(); this.state.storage.put('invites', this.invites);   // kept until answered, even if they log off
-      if (ws) this.send(ws, Object.assign({ t: 'invite' }, inv));
-    } else if (m.a === 'decline') {
-      const inv = (this.invites[p.id] || []).find((x) => x.team === m.team); this.dropInvite(p.id, m.team);
-      if (inv) { const [ws] = this.byId(inv.from); if (ws) this.send(ws, { t: 'declined', name: p.name, teamName: inv.teamName }); }
-    } else if (m.a === 'accept') {
-      const t = this.teams[m.team]; this.dropInvite(p.id, m.team); if (!t || t.members.includes(p.id)) return;
-      const old = this.teamOf(p.id), oldMembers = old ? this.teams[old].members.slice() : []; this.leaveTeam(p);   // a team you were on before is left behind
-      t.members.push(p.id); this.saveTeams(); this.pushBanners([...t.members, ...oldMembers]);   // you now fly the team's name, colour and logo
-    } else if (m.a === 'leave') { const old = this.teamOf(p.id), mem = old ? this.teams[old].members.slice() : []; this.leaveTeam(p); this.saveTeams(); this.pushBanners(mem); }
-  }
-  dropInvite(id, team) { const l = this.invites[id]; if (!l) return; this.invites[id] = l.filter((x) => x.team !== team && this.teams[x.team]); this.state.storage.put('invites', this.invites); this.byId(id)[0] && this.send(this.byId(id)[0], { t: 'invites', list: this.invites[id] }); }
-  /** a team starts out flying its founder's banner */
-  makeTeam(p) { const id = 't' + Math.random().toString(36).slice(2, 7), b = this.resolved(p.id); this.teams[id] = { id, name: b.name || p.name + "'s company", members: [p.id], banner: { name: b.name || p.name + "'s company", color: b.color, logo: b.logo } }; return id; }
-  /* ---------- keys: only the owner (or their team) may open a gate or door ---------- */
-  onOpen(p, m) {
-    if (m.slot != null) { const d = this.world.doors[m.slot]; if (!d || (!d.broken && !this.mayUse(p, d.owner))) { this.send(this.wsOf(p), { t: 'locked', what: 'door', slot: m.slot }); return; } this.broadcast({ t: 'door', slot: m.slot, open: !!m.open }); return; }
-    const pc = this.world.pieces[m.id]; if (!pc) return;   // no distance rule: a gate shuts itself behind its owner from wherever they are
-    if (!this.mayUse(p, pc.owner)) { this.send(this.wsOf(p), { t: 'locked', what: 'gate', id: m.id }); return; }
-    this.gates[m.id] = !!m.open; this.ver.p++; this.broadcast({ t: 'gate', id: m.id, open: !!m.open });
-  }
-  wsOf(p) { for (const [ws, q] of this.sockets) if (q === p) return ws; return null; }
-  /* ---------- breaking in ---------- */
-  onHit(p, m) {
-    const now = Date.now(); if (now - (this.lastHit[p.id] || 0) < 300) return; this.lastHit[p.id] = now;
-    const dmg = DMG[m.tool] || DMG.default;
-    if (m.slot != null) {
-      const d = this.world.doors[m.slot], house = this.world.houses[m.slot]; if (!d || d.broken || this.mayUse(p, d.owner)) return;
-      const c = this.cottage(m.slot); if (!this.near(p, c, 6)) return;
-      d.hp = Math.max(0, d.hp - dmg); this.broadcast({ t: 'hp', slot: m.slot, hp: d.hp, max: d.hpMax });
-      if (d.hp <= 0) { d.broken = true; d.owner = null; this.ver.p++; this.broadcast({ t: 'door', slot: m.slot, broken: true, open: true }); }
-      this.dirty = true; return;
-    }
-    const pc = this.world.pieces[m.id]; if (!pc || this.mayUse(p, pc.owner) || !this.near(p, pc, 5)) return;
-    if (pc.hp == null) { pc.hpMax = HP[pc.type] || HP.default; pc.hp = pc.hpMax; }
-    const k = (STONE.has(pc.type) ? (m.tool === 'pickaxe' || m.tool === 'warhammer' ? 2 : 0.6) : (m.tool === 'axe' ? 1.5 : 1)); pc.hp = Math.max(0, pc.hp - Math.round(dmg * k));
-    this.broadcast({ t: 'hp', id: pc.id, hp: pc.hp, max: pc.hpMax });
-    if (pc.hp <= 0) { delete this.world.pieces[pc.id]; delete this.gates[pc.id]; this.ver.p++; this.broadcast({ t: 'op', from: pc.owner, op: { k: 'piece-', id: pc.id, broken: true } }); }
-    this.dirty = true;
-  }
-  /** where a house's door is: the centre of its plot (the same grid the client uses) */
-  cottage(slot) { const h = this.world.houses[slot]; return h && h.x != null ? h : PLOTS[slot] || { x: 0, z: 0 }; }
-  /** put up your own door on a broken one: you hold its key now, and the old owner is out */
-  onInstall(p, m) {
-    const d = this.world.doors[m.slot]; if (!d || !d.broken || !this.near(p, this.cottage(m.slot), 8)) return;
-    const house = this.world.houses[m.slot], was = (house || {}).owner; d.owner = p.id; d.hp = d.hpMax; d.broken = false;
-    if (house) { house.owner = p.id; house.name = p.name; }
-    this.ver.p++;
-    this.broadcast({ t: 'door', slot: m.slot, owner: p.id, hp: d.hp, max: d.hpMax, broken: false, open: false, captured: was && was !== p.id && !this.sameTeam(p.id, was) });
-    if (was && was !== p.id && !this.sameTeam(p.id, was)) { this.evict(was); const [ws] = this.byId(was); if (ws) this.send(ws, { t: 'evicted' }); }
-    if (house) this.broadcast({ t: 'house', slot: +m.slot, owner: p.id, name: p.name, x: house.x, z: house.z, spec: house.spec, door: d });
-    this.dirty = true;
-  }
-  /* ---------- tribute: a demand, paid or refused ---------- */
-  onTribute(p, m) {
-    const [ws, q] = this.byId(m.to); if (!ws || q === p || !this.near(p, q, 12)) return;
-    if (m.t === 'demand') { const res = String(m.res), n = Math.max(1, Math.min(9999, m.n | 0)); if (!RES.has(res)) return; this.send(ws, { t: 'demand', from: p.id, name: p.name, res, n }); }
-    else if (m.t === 'pay') { const res = String(m.res), n = Math.max(1, Math.min(9999, m.n | 0)); if (!RES.has(res)) return; this.send(ws, { t: 'paid', from: p.id, name: p.name, res, n }); }
-    else this.send(ws, { t: 'refused', from: p.id, name: p.name });
+  online() { return [...this.sockets.values()].filter((player) => player.joined); }
+  pub(player) { return { id: player.id,
+  name: player.name,
+  slot: player.slot,
+  team: this.teamOf(player.id),
+  x: player.x,
+  z: player.z,
+  y: player.y,
+  f: player.f,
+  s: player.s,
+  tool: player.tool };
   }
 
   startTimer() {
     if (this.timer) return;
     let last = Date.now();
     this.timer = setInterval(() => {
-      const on = this.online();
-      if (!on.length) { clearInterval(this.timer); this.timer = null; this.save(); return; }
-      const w = this.weather(); if (w.period !== this.lastPeriod) { this.lastPeriod = w.period; this.broadcast({ t: 'weather', weather: w }); }
-      if (this.storesDirty && Date.now() - last > SAVE_MS) { this.storesDirty = false; this.state.storage.put('stores', this.stores); }
-      if (on.length > 1) { const batch = on.map((q) => [q.id, +q.x.toFixed(2), +q.z.toFixed(2), +q.y.toFixed(2), +q.f.toFixed(2), q.s, q.tool]); this.broadcast({ t: 'tick', p: batch }); }
-      if (Date.now() - last > SAVE_MS) { last = Date.now(); this.save(); }
-    }, TICK_MS);
+      const online = this.online();
+      if (!online.length) { clearInterval(this.timer); this.timer = null; this.save(); return; }
+      const weather = this.weather();
+      if (weather.period !== this.lastPeriod) { this.lastPeriod = weather.period; this.broadcast({ t: 'weather', weather }); }
+      if (this.storesDirty && Date.now() - last > ServerConfig.SAVE_MS) { this.storesDirty = false; this.state.storage.put('stores', this.stores); }
+      if (online.length > 1) {
+        const batch = online.map((player) => [
+          player.id, +player.x.toFixed(2), +player.z.toFixed(2), +player.y.toFixed(2),
+          +player.f.toFixed(2), player.s, player.tool,
+        ]);
+        this.broadcast({ t: 'tick', p: batch });
+      }
+      if (Date.now() - last > ServerConfig.SAVE_MS) { last = Date.now(); this.save(); }
+    }, ServerConfig.TICK_MS);
   }
-  save() { if (this.storesDirty) { this.storesDirty = false; this.state.storage.put('stores', this.stores); } if (!this.dirty) return; this.dirty = false; this.state.storage.put('world', this.world); }
-  onClose(ws, p) {
+  save() {
+    if (this.storesDirty) { this.storesDirty = false; this.state.storage.put('stores', this.stores); }
+    if (!this.dirty) return; this.dirty = false; this.state.storage.put('world', this.world);
+  }
+  onClose(ws, player) {
     if (!this.sockets.has(ws)) return; this.sockets.delete(ws);
-    if (p.joined) this.broadcast({ t: 'leave', id: p.id });
+    if (player.joined) this.broadcast({ t: 'leave', id: player.id });
     if (!this.online().length) this.save();
   }
 }
