@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kinstead: how we built it</title>
+<meta name="description" content="The story of building Kinstead, a multiplayer browser castle game, at a hackathon with a team of AI agents.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/deck.css">
+<script type="module" src="js/main.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <button id="drawer-toggle" class="icon-btn" type="button" aria-controls="drawer" aria-expanded="true" title="Hide slides (D)">☰ <span>Slides</span></button>
+  <span class="brand">Kin<b>stead</b> · how we built it</span>
+  <span class="spacer"></span>
+  <span class="hint"><kbd>←</kbd> <kbd>→</kbd> slides · <kbd>D</kbd> drawer · <kbd>F</kbd> fullscreen</span>
+  <button id="prev" class="icon-btn" type="button" title="Previous slide (←)" aria-label="Previous slide">←</button>
+  <span id="counter" class="counter" aria-live="polite">1 / 1</span>
+  <button id="next" class="icon-btn" type="button" title="Next slide (→)" aria-label="Next slide">→</button>
+  <button id="fullscreen" class="icon-btn" type="button" title="Fullscreen (F)" aria-label="Fullscreen">⛶</button>
+</header>
+
+<nav id="drawer" class="drawer" aria-label="Slides"><ol id="drawer-list"></ol></nav>
+
+<main class="stage">
+
+<!-- 1 -->
+<section class="slide cover" tabindex="-1" data-title="Kinstead: how we built it" data-thumb="img/25-hd-characters-in-world.webp">
+  <div class="page split">
+    <div>
+      <p class="kicker">Hackathon · 13–15 November 2026</p>
+      <h1>Kin<span>stead</span></h1>
+      <p class="lead">A multiplayer castle game that runs in the browser, designed and built in about two days by one person directing a team of AI agents.</p>
+      <p class="muted">This is the story of how we got there: the mockups, the art we threw away, what we learned about character design and Grok, and the engineering that lets 30 people play at once.</p>
+    </div>
+    <figure class="hero-img"><img src="img/25-hd-characters-in-world.webp" alt="The four Kinstead heroes by a campfire in a snowy voxel diorama, with a frost troll on the right" width="1280" height="800"><figcaption>Mockup 25: the Grok-inspired heroes standing in the diorama world.</figcaption></figure>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="slide" tabindex="-1" data-title="The ask" data-thumb="img/01-realm-map.webp" hidden>
+  <div class="page">
+    <p class="kicker">Thursday evening</p>
+    <h2>It started with one sentence</h2>
+    <blockquote class="quote">“All right we are at a hackathon we're gonna be building some type of multiplayer game here be like a civilization style mixed with sims may be a little zelda give me give me a few mockups”<cite>Jonathon, to Sulla, 13 Nov, 6:41 PM</cite></blockquote>
+    <p>Sulla answered with three clickable mockups, one per ingredient, and a working name: <strong>Kinstead</strong>, “the place where kin stand”.</p>
+    <div class="grid g3">
+      <figure><img src="img/01-realm-map.webp" alt="Realm map mockup" loading="lazy"><figcaption><strong>Civ:</strong> the realm map</figcaption></figure>
+      <figure><img src="img/02-village-life.webp" alt="Village life mockup" loading="lazy"><figcaption><strong>Sims:</strong> village life</figcaption></figure>
+      <figure><img src="img/03-adventure.webp" alt="Adventure mockup" loading="lazy"><figcaption><strong>Zelda:</strong> the adventure</figcaption></figure>
+    </div>
+    <p class="source">Source: hackathon conversation, 13 Nov 2026; mockups 01–03 in the project folder.</p>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="slide" tabindex="-1" data-title="Three concepts" data-thumb="img/04-concept-a-hearthvale.webp" hidden>
+  <div class="page">
+    <p class="kicker">Mockups 04–06</p>
+    <h2>Three ways the game could go</h2>
+    <p class="lead">Before writing any game code we drew whole concepts, so Jonathon could react to something real instead of a description.</p>
+    <div class="grid g2">
+      <figure><img src="img/04-concept-a-hearthvale.webp" alt="Concept A, Hearthvale" loading="lazy"><figcaption>Concept A · Hearthvale</figcaption></figure>
+      <figure><img src="img/06-concept-c-living-map.webp" alt="Concept C, the living map" loading="lazy"><figcaption>Concept C · the living map</figcaption></figure>
+    </div>
+    <div class="lesson"><span class="label">What we learned</span>Mockups are cheap and fast to throw away. Every big decision in Kinstead came from Jonathon pointing at a picture and saying “more of this” or “not that”.</div>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="slide" tabindex="-1" data-title="Finding the art style" data-thumb="img/07-concept-32bit.webp" hidden>
+  <div class="page">
+    <p class="kicker">Art direction</p>
+    <h2>16-bit, 32-bit, 64-bit or 128-bit?</h2>
+    <p>We rendered the same village in different console-era styles so the only thing being compared was the look.</p>
+    <div class="grid g3">
+      <figure><img src="img/07-concept-32bit.webp" alt="32-bit concept" loading="lazy"><figcaption><strong>32-bit:</strong> hand-painted 2D, lighting, big sprites. “Late-90s 2D at its peak.”</figcaption></figure>
+      <figure><img src="img/08-concept-64bit.webp" alt="64-bit concept" loading="lazy"><figcaption><strong>64-bit:</strong> chunky low-poly 3D drawn at low resolution and scaled up, with fog.</figcaption></figure>
+      <figure><img src="img/09-concept-128bit.webp" alt="128-bit concept" loading="lazy"><figcaption><strong>128-bit:</strong> cel-shaded 3D, real shadows. “Early-2000s polish.”</figcaption></figure>
+    </div>
+    <blockquote class="quote">“i want the style to be more like runescape though, what you gave me has absolutely no detail in the characters or scene, so its not very exciting”<cite>Jonathon, reacting to an early blocky version</cite></blockquote>
+    <div class="lesson"><span class="label">What we learned</span>Detail is what makes people excited. The fix was characters built from many pieces (faces, beards, helmets, capes, tools) and hand-painted textures on every surface.</div>
+    <p class="source">Source: mockups 07–09 and the hackathon conversation.</p>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="slide" tabindex="-1" data-title="The map sets the tone" data-thumb="img/11-scene-frostvein-detailed.webp" hidden>
+  <div class="page">
+    <p class="kicker">The world</p>
+    <h2>A snowy ruin on a cliff, and the size of a real RTS map</h2>
+    <p>Jonathon shared a hand-painted battlemap as a <strong>style reference only</strong>: snowy ruins on a cliff plateau with one bridge in. We painted our own maps in that spirit rather than copying it.</p>
+    <blockquote class="quote">“you lost the whole look and feel of the map. you have got to get closer to this rendering”<cite>Jonathon, on the first attempt</cite></blockquote>
+    <p>The fix was a new renderer: every pixel of terrain painted from a height field (layered rock strata, light from the top left, ink rims on cliff edges), then a hand-drawn detail layer of snow drifts, rubble and ferns on top.</p>
+    <div class="grid g2">
+      <figure><img src="img/11-scene-frostvein-detailed.webp" alt="Frostvein detailed scene" loading="lazy"><figcaption>Mockup 11 · Frostvein, detailed</figcaption></figure>
+      <figure><img src="img/20-map-snow-ruins-style.webp" alt="Snow ruins style map" loading="lazy"><figcaption>Mockup 20 · the snow-ruins map style</figcaption></figure>
+      <figure><img src="img/15-rts-variation-a-frostcliff-siege.webp" alt="Frostcliff Siege RTS variation" loading="lazy"><figcaption>Mockup 15 · Frostcliff Siege, an RTS take with one fortress per player</figcaption></figure>
+      <figure><img src="img/17-map-frostvein-crown-4p.webp" alt="Four-player map" loading="lazy"><figcaption>Mockup 17 · a four-player map at Red Alert / StarCraft scale</figcaption></figure>
+    </div>
+    <p class="source">Source: hackathon and map-builder conversations, 13 Nov; mockups 10–20.</p>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="slide" tabindex="-1" data-title="Picking a character style" data-thumb="img/12-character-style-picker.webp" hidden>
+  <div class="page">
+    <p class="kicker">Characters, part 1</p>
+    <h2>Same hero, ten styles</h2>
+    <blockquote class="quote">“give me a bunch of different character sprites so i can pick the level of detail and style i like”<cite>Jonathon</cite></blockquote>
+    <div class="split">
+      <figure><img src="img/12-character-style-picker.webp" alt="Character style picker" loading="lazy"><figcaption>Mockup 12 · pick a character, and every card redraws it in another style, from blocky 8-bit to smooth 3D.</figcaption></figure>
+      <div>
+        <ul class="points">
+          <li>One picker page, six characters, ten styles each, every card rated for detail.</li>
+          <li>A reference board of real characters from 21 classic games, oldest to newest, to talk about <em>why</em> each one works.</li>
+          <li>When Jonathon asked about 3D versions of characters from an existing game, the answer was no: those belong to their owners. We built an <strong>original cast</strong> that uses the same principles instead.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="lesson"><span class="label">What we learned</span>Study what makes famous characters work, then design your own. The principles are free to use; the characters are not.</div>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="slide" tabindex="-1" data-title="What makes a character work" data-thumb="img/22-character-hires-variants.webp" hidden>
+  <div class="page">
+    <p class="kicker">Characters, part 2</p>
+    <h2>What makes a character design effective in a game</h2>
+    <p class="lead">Five rules we kept coming back to, each one learned by looking at a render and seeing it fail.</p>
+    <div class="grid g2">
+      <div class="card"><h3>1 · A readable silhouette</h3><p>Chunky shapes you recognise from the outline alone. Our 16-bit set was “silhouette-led”: big heads, a 1&nbsp;px near-black outline, four flat tones.</p></div>
+      <div class="card"><h3>2 · A signature prop per role</h3><p>Knight: flame tabard and shield. Ranger: hood and bow. Mage: glowing staff. Troll: huge club. If two heroes share a shape, players mix them up.</p></div>
+      <div class="card"><h3>3 · Contrast with the world</h3><p>Heroes must separate from snow and rock: crisp, high-contrast, a contact shadow under every figure, and sharp inside the camera's focus band.</p></div>
+      <div class="card"><h3>4 · Judge it from the game camera</h3><p>A character that looks great in a close-up can turn to mush at play distance. Every candidate was checked in the actual world view.</p></div>
+      <div class="card"><h3>5 · Enough detail to be exciting</h3><p>Faces, armour pieces, straps, tools. “No detail” was the first and loudest piece of feedback.</p></div>
+      <div class="card"><h3>6 · It has to animate</h3><p>A still that reads well can still fall apart in a walk or attack cycle. We learned that one the hard way (see the 3D slides).</p></div>
+    </div>
+    <div class="grid g2" style="margin-top:22px">
+      <figure><img src="img/21-character-style-chooser.webp" alt="Six character styles in the diorama world" loading="lazy"><figcaption>Mockup 21 · six ways to draw the same new party in the approved diorama world</figcaption></figure>
+      <figure><img src="img/22-character-hires-variants.webp" alt="Hi-res character variants" loading="lazy"><figcaption>Mockup 22 · round 2: crisp, high-contrast, clearly separated from snow and rock</figcaption></figure>
+    </div>
+    <p class="source">Source: mockups 12, 21, 22; the character review in the asset conversation, 14 Nov.</p>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="slide" tabindex="-1" data-title="The 2D-HD diorama" data-thumb="img/20-style-2d-hd-diorama.webp" hidden>
+  <div class="page">
+    <p class="kicker">Characters, part 3</p>
+    <h2>Pixel heroes in a 3D miniature</h2>
+    <p>Jonathon pointed at the “2D-HD” look: pixel-art characters standing in a lit 3D miniature, with tilt-shift depth of field, soft bloom, warm firelight against cold snow, and falling snow.</p>
+    <figure class="hero-img"><img src="img/20-style-2d-hd-diorama.webp" alt="2D-HD diorama style test" loading="lazy"><figcaption>Mockup 20 · the diorama style test. Every sprite is drawn per pixel in code from a hand-tuned palette.</figcaption></figure>
+    <div class="grid g2" style="margin-top:22px">
+      <figure><img src="img/18-sprite-sheet-v1.webp" alt="Sprite sheet" loading="lazy"><figcaption>Mockup 18 · the first sprite sheet</figcaption></figure>
+      <figure><img src="img/19-character-roster.webp" alt="Character roster" loading="lazy"><figcaption>Mockup 19 · the roster</figcaption></figure>
+    </div>
+    <blockquote class="quote">“i want the characters to feel more three-dimensional”<cite>Jonathon, which led us to Grok</cite></blockquote>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="slide" tabindex="-1" data-title="Grok as our concept artist" data-thumb="img/grok-knight-voxel.webp" hidden>
+  <div class="page">
+    <p class="kicker">Characters, part 4 · Grok</p>
+    <h2>Grok Imagine became our concept artist</h2>
+    <p class="lead">Jonathon generated hero concepts in Grok Imagine and picked his favourites. Those four became the cast: the knight is the player, the ranger and mage are friendly kin, and the frost troll is the enemy.</p>
+    <h3>Voxel HD</h3>
+    <div class="grid g4">
+      <figure class="art tall"><img src="img/grok-knight-voxel.webp" alt="Grok knight, voxel style" loading="lazy"><figcaption>Knight</figcaption></figure>
+      <figure class="art tall"><img src="img/grok-ranger-voxel.webp" alt="Grok ranger, voxel style" loading="lazy"><figcaption>Ranger</figcaption></figure>
+      <figure class="art tall"><img src="img/grok-mage-voxel.webp" alt="Grok mage, voxel style" loading="lazy"><figcaption>Mage</figcaption></figure>
+      <figure class="art tall"><img src="img/grok-troll-voxel.webp" alt="Grok frost troll, voxel style" loading="lazy"><figcaption>Frost troll</figcaption></figure>
+    </div>
+    <h3>Painted HD</h3>
+    <div class="grid g4">
+      <figure class="art tall"><img src="img/grok-knight-painted.webp" alt="Grok knight, painted style" loading="lazy"></figure>
+      <figure class="art tall"><img src="img/grok-ranger-painted.webp" alt="Grok ranger, painted style" loading="lazy"></figure>
+      <figure class="art tall"><img src="img/grok-mage-painted.webp" alt="Grok mage, painted style" loading="lazy"></figure>
+      <figure class="art tall"><img src="img/grok-troll-painted.webp" alt="Grok frost troll, painted style" loading="lazy"></figure>
+    </div>
+    <div class="lesson"><span class="label">What we learned</span>Grok was great at <em>inspiration</em>: in minutes it produced heroes with clear silhouettes, signature props and a palette that matched the snowy world. Our agents couldn't call Grok's image generation from their runtime, so this step happened in Jonathon's own signed-in Grok tab, with the agents doing the cutting out and wiring up.</div>
+    <p class="source">Source: mockups 25–26 (“Jonathon's favourite Grok-generated heroes, cut out to alpha”); the Grok sub-agent result in the map conversation.</p>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="slide" tabindex="-1" data-title="Grok art for every building" data-thumb="img/grok-art-keep.webp" hidden>
+  <div class="page">
+    <p class="kicker">Characters, part 5 · Grok</p>
+    <h2>Then every castle piece got the same treatment</h2>
+    <p>33 of 33 items (castle pieces, level-2 upgrades, weapons, furniture), generated with Grok Imagine in an HD voxel style matched to the chosen heroes, and cut out with transparent backgrounds. They became the art on the build cards, the Hearthbook and the end card.</p>
+    <div class="grid g6">
+      <figure class="art"><img src="img/grok-art-keep.webp" alt="The Keep" loading="lazy"><figcaption>The Keep</figcaption></figure>
+      <figure class="art"><img src="img/grok-art-gatehouse.webp" alt="Gatehouse" loading="lazy"><figcaption>Gatehouse</figcaption></figure>
+      <figure class="art"><img src="img/grok-art-watchtower.webp" alt="Watchtower" loading="lazy"><figcaption>Watchtower</figcaption></figure>
+      <figure class="art"><img src="img/grok-art-stone-wall.webp" alt="Stone wall" loading="lazy"><figcaption>Stone wall</figcaption></figure>
+      <figure class="art"><img src="img/grok-art-woodcutter.webp" alt="Woodcutter's lodge" loading="lazy"><figcaption>Woodcutter's lodge</figcaption></figure>
+      <figure class="art"><img src="img/grok-art-great-hall.webp" alt="Great Hall" loading="lazy"><figcaption>Great Hall</figcaption></figure>
+      <figure class="art"><img src="img/grok-art-smithy.webp" alt="Smithy" loading="lazy"><figcaption>Smithy</figcaption></figure>
+      <figure class="art"><img src="img/grok-art-storehouse.webp" alt="Storehouse" loading="lazy"><figcaption>Storehouse</figcaption></figure>
+      <figure class="art"><img src="img/grok-art-ember-forge.webp" alt="Ember forge" loading="lazy"><figcaption>Ember forge</figcaption></figure>
+      <figure class="art"><img src="img/grok-art-forge.webp" alt="Forge" loading="lazy"><figcaption>Forge</figcaption></figure>
+      <figure class="art"><img src="img/grok-art-heartfire.webp" alt="Heartfire hearth" loading="lazy"><figcaption>Heartfire hearth</figcaption></figure>
+      <figure class="art"><img src="img/grok-art-iron-sword.webp" alt="Iron sword" loading="lazy"><figcaption>Iron sword</figcaption></figure>
+    </div>
+    <p class="source">Source: mockup 27 “castle &amp; furniture art”; commit “Castle art: HD voxel art on build cards, Hearthbook and end card”.</p>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="slide" tabindex="-1" data-title="Concept art to 3D: four experiments" data-thumb="img/spike-knight-c.webp" hidden>
+  <div class="page">
+    <p class="kicker">From concept to 3D</p>
+    <h2>Can a game look exactly like the Grok art, from every angle?</h2>
+    <p class="lead">The game camera orbits, so a flat picture isn't enough. We ran a fidelity spike on two pilots, the knight and the woodcutter's lodge, with four approaches.</p>
+    <div class="grid g4">
+      <figure><img src="img/spike-knight-a.webp" alt="Hand-sculpted voxel knight" loading="lazy"><figcaption><span class="tag">A</span> Hand-sculpted voxels. Recognisable and riggable, but helmet, shield and flame marks still differ.</figcaption></figure>
+      <figure><img src="img/spike-knight-b.webp" alt="TripoSR knight" loading="lazy"><figcaption><span class="tag fail">B</span> Free TripoSR reconstruction. A real mesh, but blobby: heraldry and fine blocks melt away.</figcaption></figure>
+      <figure><img src="img/spike-knight-c.webp" alt="Eight-view impostor knight" loading="lazy"><figcaption><span class="tag">C</span> Eight Grok views as billboards. Perfect at the source angle, inconsistent everywhere else.</figcaption></figure>
+      <figure><img src="img/spike-knight-d.webp" alt="Projected texture knight" loading="lazy"><figcaption><span class="tag fail">D</span> Projecting the art onto the mesh. Right colours, but details land on the wrong surfaces.</figcaption></figure>
+    </div>
+    <h3>The same four, from behind</h3>
+    <div class="grid g4">
+      <figure><img src="img/spike-knight-a180.webp" alt="A from behind" loading="lazy"></figure>
+      <figure><img src="img/spike-knight-b180.webp" alt="B from behind" loading="lazy"></figure>
+      <figure><img src="img/spike-knight-c180.webp" alt="C from behind" loading="lazy"></figure>
+      <figure><img src="img/spike-knight-d180.webp" alt="D from behind" loading="lazy"></figure>
+    </div>
+    <div class="lesson"><span class="label">What we learned</span>No tested option earned “exactly like Grok at every angle.” Adding more cubes doesn't recreate the art either: resolution alone is not enough.</div>
+    <p class="source">Source: <code>28-fidelity-spike-report.md</code> and its 32 captured renders.</p>
+  </div>
+</section>
+
+<!-- 12 -->
+<section class="slide" tabindex="-1" data-title="Grok turnarounds drift" data-thumb="img/spike-sheet-knight.webp" hidden>
+  <div class="page">
+    <p class="kicker">From concept to 3D</p>
+    <h2>Grok's turnarounds drift</h2>
+    <p>To lock the back and sides we asked Grok for turnaround sheets of the same object. It gave us something different instead: a <em>plausible</em> object, not the <em>same</em> one.</p>
+    <figure><img src="img/spike-sheet-knight.webp" alt="Grok knight turnaround sheet" loading="lazy"><figcaption>Knight sheet: three rear views, and only one of them shows the gold back sigil. A requested right profile repeats the shield side.</figcaption></figure>
+    <div class="grid g2" style="margin-top:22px">
+      <figure><img src="img/spike-sheet-lodge.webp" alt="Grok lodge turnaround sheet" loading="lazy"><figcaption>Lodge sheet: the front door survives in 0 of 8 panels (windows replace it), and one panel has two axe stumps instead of one.</figcaption></figure>
+      <div>
+        <ul class="points">
+          <li>Prompted angles aren't reliable: several “side” and “back” views came back as three-quarter fronts.</li>
+          <li>Helmets, emblems and sigils simplify or change between panels.</li>
+          <li>Each panel is about 448×504 px, far below the original concept.</li>
+        </ul>
+        <div class="lesson"><span class="label">What we learned</span>Getting <strong>consistent views</strong> is the hardest step. A human has to approve every view before any 3D work starts.</div>
+      </div>
+    </div>
+    <p class="source">Source: fidelity spike report, “directly measured view consistency problems”; ASSET-PIPELINE.md finding 2.</p>
+  </div>
+</section>
+
+<!-- 13 -->
+<section class="slide" tabindex="-1" data-title="The free 3D trial and the honest verdict" data-thumb="img/grok-turn-knight.webp" hidden>
+  <div class="page">
+    <p class="kicker">From concept to 3D</p>
+    <h2>The free trial, and an honest “dump it”</h2>
+    <p>With $0 spent and nothing installed on the Mac, we fed Grok views to free image-to-3D tools and projected the Grok art back onto the meshes.</p>
+    <figure><img src="img/grok-turn-knight.webp" alt="Grok knight turnaround used as reference" loading="lazy"><figcaption>Grok knight turnaround (concept uploaded as reference). Front, left and back were used; the “right profile” mirrored the shield, so it was dropped.</figcaption></figure>
+    <table class="plain" style="margin-top:22px">
+      <tr><th>Route</th><th>Silhouette match at concept camera</th><th>Off-angle</th><th>Result</th></tr>
+      <tr><td>Hunyuan3D-2 (free Space) + Grok projection</td><td>0.85 knight · 0.92 lodge (IoU)</td><td>3 / 5</td><td><span class="tag ok">worked</span> ~25k triangles</td></tr>
+      <tr><td>TripoSR on the VM's CPU + Grok projection</td><td>0.84 knight</td><td>2 / 5</td><td><span class="tag ok">worked</span> blobby</td></tr>
+      <tr><td>TRELLIS.2, Hunyuan multi-view</td><td>–</td><td>–</td><td><span class="tag fail">quota</span> free tier: about 2 runs a day</td></tr>
+    </table>
+    <p style="margin-top:22px">A last try cleaned up and animated all four heroes. Standing still, you could finally tell who was who. <strong>Animated, they fell apart.</strong> The verdict to Jonathon was blunt: keep it as a prototype, not as final art. The game ships the rigged voxel characters.</p>
+    <p class="source">Source: mockup 29 “free image-to-3D trial”; PR #7 (draft); the asset conversation, 14–15 Nov.</p>
+  </div>
+</section>
+
+<!-- 14 -->
+<section class="slide" tabindex="-1" data-title="The pipeline that would work" data-icon="🧭" hidden>
+  <div class="page">
+    <p class="kicker">From concept to 3D · the lesson</p>
+    <h2>Nobody gets a faithful 3D model from one image</h2>
+    <p class="lead">Our hand-sculpted and reconstructed models failed because we tried to rebuild a painting by hand, or from a single guess of its depth. Jonathon confirmed the models don't have to be cubes, which opens the proven route:</p>
+    <div class="flow">
+      <div class="step"><b>1 · Views</b>Front, side, back and ¾ from the approved Grok concept. A human approves each one.</div>
+      <div class="step"><b>2 · Mesh</b>A multi-image 3D generator turns the approved views into a textured mesh.</div>
+      <div class="step"><b>3 · Faithful texture</b>Re-project the original art from the matching camera, so the game view <em>is</em> the painting.</div>
+      <div class="step"><b>4 · Clean up</b>Decimate to a game budget (about 10–30k triangles a hero) and bake one texture atlas.</div>
+      <div class="step"><b>5 · Rig</b>Auto-rig a clean humanoid mesh with idle, walk, run and attack.</div>
+      <div class="step"><b>6 · Check</b>Score it in the Asset Lab from the game camera. Ship only what passes.</div>
+    </div>
+    <div class="grid g3">
+      <div class="card"><h3>Multiple views</h3><p>are the only documented way to lock the back and sides. Single-image tools invent them.</p></div>
+      <div class="card"><h3>Consistent views</h3><p>are the hardest part. Edit models that start from the approved art hold identity better than generic multi-view.</p></div>
+      <div class="card"><h3>Mesh + auto-rig</h3><p>is a solved path. Chunky voxel characters break auto-riggers.</p></div>
+    </div>
+    <p style="margin-top:22px">Next step before committing: a half-day, three-asset bake-off (knight, lodge, one prop) across two paid generators and one open model, scored in the Asset Lab.</p>
+    <p class="source">Source: ASSET-PIPELINE.md (15 Nov 2026), backed by the cited research in the asset-research folder.</p>
+  </div>
+</section>
+
+<!-- 15 -->
+<section class="slide" tabindex="-1" data-title="The game design evolved" data-icon="📜" hidden>
+  <div class="page">
+    <p class="kicker">Game design</p>
+    <h2>Three design docs in one day</h2>
+    <p>Each plan was a written design with every number in a data file checked by a validator, so code and design never drifted apart.</p>
+    <div class="timeline">
+      <div class="card"><span class="tag">v0.1 · Hearth Level</span><h3>“Your home is your power”</h3><p>Light a hearth in a frozen frontier. Every room and piece of furniture raises your Hearth Level, which makes your hero stronger. Built on a study of how ten survival and base-building games link the base to the player's power (structure only, never their content).</p></div>
+      <div class="card"><span class="tag">v1.0 · Simple Core</span><h3>Restoration and completion</h3><p>For players in their 30s to 50s: simple to play, no friction to start, and something visibly changes about every five minutes. Light the hearth, build your home, push back the frost.</p></div>
+      <div class="card now"><span class="tag">v1.1 · Castle</span><h3>Spend smart, guard your friends</h3><p>Jonathon's direction: economic strategy, a castle instead of a house, and growth for the social side. Every build card shows its payback (“+6 wood/min · pays for itself in 1.7 min”). The frost raids at dusk.</p></div>
+    </div>
+    <blockquote class="quote">“Rebuild a frozen castle. Spend smart so it pays you back. Guard it, and your friends', against the frost.”<cite>GAME-PLAN-CASTLE.md, page 1</cite></blockquote>
+    <div class="lesson"><span class="label">What we learned</span>The AI pushed back where it mattered: a “pays back in 2 days” economy can't be felt in a 15-minute demo, so paybacks became minutes, and raids against friends stayed gentle (no destruction, loot caps, shields).</div>
+    <p class="source">Source: GAME-PLAN.md, GAME-PLAN-SIMPLE.md, GAME-PLAN-CASTLE.md (all 14 Nov 2026).</p>
+  </div>
+</section>
+
+<!-- 16 -->
+<section class="slide" tabindex="-1" data-title="Castle mode, playable" data-thumb="img/castle-18-heartfire-thaw.webp" hidden>
+  <div class="page">
+    <p class="kicker">Friday · the first playable</p>
+    <h2>The 14-minute castle demo</h2>
+    <p>Light the Keep's hearth, restore the Gatehouse, build producers, survive two night raids, beat the Rime Troll at the bridge, and carry its warm heart home to thaw the map.</p>
+    <div class="grid g3">
+      <figure><img src="img/castle-01-opening.webp" alt="Opening scene" loading="lazy"><figcaption>The opening: a cold Keep and one ember</figcaption></figure>
+      <figure><img src="img/castle-03-radial.webp" alt="Build radial" loading="lazy"><figcaption>The Build radial</figcaption></figure>
+      <figure><img src="img/castle-06-cl3-castle.webp" alt="Castle at level 3" loading="lazy"><figcaption>Castle Level 3</figcaption></figure>
+      <figure><img src="img/castle-08-raid1.webp" alt="First raid" loading="lazy"><figcaption>The first dusk raid</figcaption></figure>
+      <figure><img src="img/castle-15-troll-fight.webp" alt="Troll fight" loading="lazy"><figcaption>The Rime Troll</figcaption></figure>
+      <figure><img src="img/castle-18-heartfire-thaw.webp" alt="Heartfire thaw" loading="lazy"><figcaption>The Heartfire thaw</figcaption></figure>
+    </div>
+    <p class="source">Source: castle playthrough screenshots; PR #3 “Castle mode: the v1.1 hackathon game loop” and PR #4 “3D voxel characters in play”.</p>
+  </div>
+</section>
+
+<!-- 17 -->
+<section class="slide" tabindex="-1" data-title="Diablo-style controls" data-thumb="img/castle-11-upgrade.webp" hidden>
+  <div class="page">
+    <p class="kicker">Friday afternoon</p>
+    <h2>Make it feel good to play</h2>
+    <p>Jonathon took the controls himself and pushed a long run of changes straight from playing:</p>
+    <ul class="points">
+      <li><strong>Diablo-style controls:</strong> hold to walk, one click for the main action, right-click menu.</li>
+      <li><strong>The tool in your hand decides the click:</strong> felled trees, dug dirt and mined stone become pickups.</li>
+      <li><strong>Build anywhere,</strong> drag to draw walls, hold to turn a building as you drop it.</li>
+      <li><strong>Survival:</strong> a real cottage home, wolves and a thief, day and night, a door you can shut.</li>
+      <li><strong>Wolves raid your food stores at night,</strong> gnawing swing by swing.</li>
+      <li>Walls and buildings between the camera and your hero fade see-through.</li>
+    </ul>
+    <div class="lesson"><span class="label">What we learned</span>The fastest design loop was the person with the vision playing the build and saying exactly what felt wrong. Agents turned each note into a small, tested commit.</div>
+    <p class="source">Source: commit history on <code>feat/diablo-controls</code>, 14 Nov.</p>
+  </div>
+</section>
+
+<!-- 18 -->
+<section class="slide" tabindex="-1" data-title="Multiplayer architecture" data-icon="🛰️" hidden>
+  <div class="page">
+    <p class="kicker">Engineering</p>
+    <h2>One room per map, on Cloudflare</h2>
+    <div class="flow">
+      <div class="step"><b>Browser</b>Plain JavaScript + Three.js, built with esbuild. No framework.</div>
+      <div class="step"><b>Cloudflare Pages</b>Serves the static game. First load is about 525 KB (brotli).</div>
+      <div class="step"><b>Worker</b><code>kinstead-rooms</code> routes <code>/ws/&lt;map&gt;</code> to that map's room.</div>
+      <div class="step"><b>Durable Object</b>One <code>GameRoom</code> per map holds the world: players, plots, stores, doors, farms, teams.</div>
+    </div>
+    <div class="grid g2">
+      <div class="card"><h3>Plots, not chaos</h3><p>Each player gets their own plot on the shared map. When a map is full, the server recycles the plot of the player who has been away longest, but never a town whose owner was seen within a week.</p></div>
+      <div class="card"><h3>The server decides</h3><p>A trust pass made the server the owner of ownership and sync, so a client can't claim another player's buildings.</p></div>
+      <div class="card"><h3>OOP, one job per class</h3><p>The original single-file room was split into small services: <code>PlayerRegistry</code>, <code>WorldState</code>, <code>MobRelay</code>, <code>FarmSync</code>, <code>PlotRecycler</code>, <code>Teams</code>, <code>Markets</code>, <code>RoomStats</code>…</p></div>
+      <div class="card"><h3>Testable locally</h3><p>A local Durable Object server and a two-browser headless harness let agents play two players against each other before anything shipped.</p></div>
+    </div>
+    <p class="source">Source: <code>server/src/</code> and <code>server/wrangler.toml</code>; PRs #8, #14, #28.</p>
+  </div>
+</section>
+
+<!-- 19 -->
+<section class="slide" tabindex="-1" data-title="A living town" data-thumb="img/qa-baker.webp" hidden>
+  <div class="page">
+    <p class="kicker">Saturday · today's batch</p>
+    <h2>A town that is busy without you</h2>
+    <div class="grid g3">
+      <figure><img src="img/qa-baker.webp" alt="Baker taking bread to market" loading="lazy"><figcaption>The baker's supply round, bread to market</figcaption></figure>
+      <figure><img src="img/qa-cart.webp" alt="Worker hauling a cart" loading="lazy"><figcaption>Carts are always pulled by their building's worker</figcaption></figure>
+      <figure><img src="img/qa-bunkhouse.webp" alt="Workers going into the bunkhouse at dusk" loading="lazy"><figcaption>At dusk the workers head into the bunkhouse</figcaption></figure>
+      <figure><img src="img/qa-mill.webp" alt="Inside the mill" loading="lazy"><figcaption>Walk-in shops show the work inside</figcaption></figure>
+      <figure><img src="img/qa-market.webp" alt="Market" loading="lazy"><figcaption>Ledger-backed shop shelves</figcaption></figure>
+      <figure><img src="img/qa-food.webp" alt="Food balance" loading="lazy"><figcaption>Food demand: townspeople eat from the stores</figcaption></figure>
+    </div>
+    <ul class="points" style="margin-top:22px">
+      <li>Every worker visibly busy, with work poses and carried loads; a bedtime routine and meet-ups.</li>
+      <li>Building panels with livestock orders, and full build details with live costs.</li>
+      <li>Farm fields, herds, stock and workers synced, so visitors see your town as it really is.</li>
+    </ul>
+    <p class="source">Source: PRs #9, #10, #11, #15, #16, #18, #19, #21; QA screenshots from the two-browser harness.</p>
+  </div>
+</section>
+
+<!-- 20 -->
+<section class="slide" tabindex="-1" data-title="Defence: walls you can walk" data-thumb="img/qa-rampart-wall.webp" hidden>
+  <div class="page">
+    <p class="kicker">Saturday · today's batch</p>
+    <h2>Stone walls you can walk, and a gatekeeper</h2>
+    <div class="grid g2">
+      <figure><img src="img/qa-rampart-wall.webp" alt="Hero walking on the rampart" loading="lazy"><figcaption>Walking the north wall</figcaption></figure>
+      <figure><img src="img/qa-rampart-p2.webp" alt="Second player sees the first on the wall" loading="lazy"><figcaption>A second player sees you up on the wall</figcaption></figure>
+    </div>
+    <ul class="points" style="margin-top:22px">
+      <li><strong>Ramparts:</strong> stone walls as tall as the stone gate, a stone tower with a stair inside, and a player-only walkway along the top.</li>
+      <li><strong>Walls join up:</strong> neighbouring walls link automatically into solid runs.</li>
+      <li><strong>Gatekeeper:</strong> closes the gate at night and opens it for you and your teammates, never for strangers.</li>
+      <li><strong>Tower bowmen</strong> were strengthened to hold off wolf packs.</li>
+    </ul>
+    <p class="source">Source: PRs #12, #17, #26, #29; QA screenshots.</p>
+  </div>
+</section>
+
+<!-- 21 -->
+<section class="slide" tabindex="-1" data-title="Smooth for 30 players" data-icon="⚡" hidden>
+  <div class="page">
+    <p class="kicker">Performance</p>
+    <h2>Making it smooth for 30 players</h2>
+    <p>We ran a live load test with 30 players on one map, found the bottleneck, fixed it, and ran it again.</p>
+    <div class="stats">
+      <div class="stat"><div class="label">Messages per player</div><div class="nums"><span class="before">151</span><span class="after">13.4</span>/s</div><div class="delta">11× fewer</div></div>
+      <div class="stat"><div class="label">Bandwidth per player</div><div class="nums"><span class="before">206</span><span class="after">24.4</span> KB/s</div><div class="delta">8× less</div></div>
+      <div class="stat"><div class="label">Ping, 95th percentile</div><div class="nums"><span class="before">279</span><span class="after">60</span> ms</div><div class="delta">4.6× faster</div></div>
+    </div>
+    <h3>What changed</h3>
+    <ul class="points">
+      <li><strong>Server:</strong> creature updates batched and sent 4 times a second, only to players in range; farms sync only what changed; resyncs throttled.</li>
+      <li><strong>Client:</strong> only the nearest 60 remote creatures are drawn, reusing the same actors instead of creating new ones.</li>
+    </ul>
+    <p class="source">Source: PR #25 “perf/thirty-players”; load-test numbers measured on 15 Nov.</p>
+  </div>
+</section>
+
+<!-- 22 -->
+<section class="slide" tabindex="-1" data-title="How we built it with AI agents" data-icon="🤝" hidden>
+  <div class="page">
+    <p class="kicker">The process</p>
+    <h2>One director, a team of AI agents</h2>
+    <div class="flow">
+      <div class="step"><b>Jonathon</b>Sets the vision, plays every build, gives the notes.</div>
+      <div class="step"><b>Sulla</b>The AI lead: writes the plan, briefs workers, reviews every pull request, deploys.</div>
+      <div class="step"><b>Workers</b>Many Codex and Claude Opus agents in parallel, each on its own branch.</div>
+      <div class="step"><b>QA agents</b>Play two browsers against a local server and report bugs with screenshots.</div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="label">Pull requests</div><div class="nums">29</div></div>
+      <div class="stat"><div class="label">Commits, 14–15 Nov</div><div class="nums">215</div></div>
+      <div class="stat"><div class="label">Mockups before the first line of game code</div><div class="nums">29</div></div>
+    </div>
+    <h3>What we learned</h3>
+    <ul class="points">
+      <li><strong>Show, don't describe.</strong> Mockups and screenshots beat paragraphs for every decision.</li>
+      <li><strong>Make agents look at what they built.</strong> Screenshot it, compare it to the reference, then report.</li>
+      <li><strong>Ask for an honest verdict.</strong> “Dump it” on the 3D experiment saved hours.</li>
+      <li><strong>Small parallel branches, merged in batches,</strong> then one integration test before deploy.</li>
+      <li><strong>Test like a player.</strong> Two real browsers found bugs that unit tests never would.</li>
+    </ul>
+    <p class="source">Source: GitHub merchantprotocol/kinstead (PRs #1–#29, commit log); the build conversations.</p>
+  </div>
+</section>
+
+<!-- 23 -->
+<section class="slide" tabindex="-1" data-title="What's next" data-thumb="img/castle-19-end-card.webp" hidden>
+  <div class="page">
+    <p class="kicker">Next</p>
+    <h2>Where Kinstead goes from here</h2>
+    <div class="grid g2">
+      <div class="card"><h3>Lend a hero</h3><p>Visit a friend's castle and lend them a hero to guard it. They see who held their walls.</p></div>
+      <div class="card"><h3>Gentle async raids</h3><p>Raid another player's saved castle as an auto-battle the server simulates. No destruction, a loot cap and shields.</p></div>
+      <div class="card"><h3>Art that matches Grok</h3><p>The three-asset bake-off, then the multi-view → mesh → re-projected art → auto-rig pipeline for the heroes and buildings.</p></div>
+      <div class="card"><h3>Cleaner code underneath</h3><p>The client-side OOP refactor pull requests are ready and held until after today's demo.</p></div>
+    </div>
+    <p class="source">Source: GAME-PLAN-CASTLE.md (stretch and v2), ASSET-PIPELINE.md.</p>
+  </div>
+</section>
+
+<!-- 24 -->
+<section class="slide cover" tabindex="-1" data-title="Play now" data-icon="▶" hidden>
+  <div class="page">
+    <p class="kicker">Your turn</p>
+    <h1>Play <span>Kinstead</span> now</h1>
+    <p class="lead">Open it on your laptop. No account, no download.</p>
+    <p class="url"><a href="https://multiplayer.kinstead.pages.dev/play?mode=castle&amp;map=demo" target="_blank" rel="noopener">multiplayer.kinstead.pages.dev/play?mode=castle&amp;map=demo</a></p>
+    <p class="muted">Light your hearth, build your castle, and guard it with your friends against the frost.</p>
+  </div>
+</section>
+
+</main>
+</body>
+</html>
