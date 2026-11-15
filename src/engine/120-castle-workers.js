@@ -43,6 +43,14 @@
         const s = k.p.type === 'storehouse' && k.spinner; if (s && s.turning > 0) { s.turning -= dt; s.rotation.y += dt * 1.6; }
       }
     }
+    /** every worker on show, for other players to see (fix/farm-sync reads this): [{ id, kind, name, x, z, state, work, carry, hidden }] */
+    roster() {
+      return this.jobs.filter((j) => j.a).map((j) => {
+        const a = j.a, v = a.view;
+        return { id: a.id || 'wk:' + j.opts.role, kind: j.opts.role, name: j.opts.name, x: +a.x.toFixed(2), z: +a.z.toFixed(2),
+          state: a.hidden ? 'asleep' : v.state, work: v.work || null, carry: v.carry || null, hidden: !!a.hidden };
+      });
+    }
     get jobs() { return [this.cook, this.smith, this.clerk, ...this.keepers.values(), ...this.halls.values()]; }
     /** one keeper per workshop and farm building; they go when the building goes */
     syncKeepers() {
