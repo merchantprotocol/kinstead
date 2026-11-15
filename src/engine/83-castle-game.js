@@ -15,8 +15,8 @@
     constructor(items, castle) { super(items, { name: 'Hearthguard', outfit: 'warden' }); this.castle = castle; this.hp = this.stats().hpMax; }
     stats() {
       if (!this.castle) return super.stats();
-      const h = this.castle.heroStats();
-      return { atk: h.atk, def: 0, hpMax: h.hpMax, speed: 1, level: Math.max(1, this.castle.cl()), cd: this.castle.data.swingSec };
+      const h = this.castle.heroStats(), L = this.xp ? this.xp.level : 1;   // each level: +10 strength, +1 attack
+      return { atk: h.atk + (L - 1), def: 0, hpMax: h.hpMax + 10 * (L - 1), speed: 1, level: L, cd: this.castle.data.swingSec };
     }
     gainXp() { return false; }
   }
@@ -178,7 +178,7 @@
     get app() { return this.play.app; }
     get R() { return this.play.R; }
     get ui() { return this.cui; }
-    makePlayer() { const p = new CastleHero(this.play.items, this.castle); p.addItem('ember_lantern', 1); for (const w of this.castle.weapons) { p.addItem(w, 1); } this.equipBest(p); p.healFull(); return p; }
+    makePlayer() { this.xp = this.xp || new K.Experience(this); const p = new CastleHero(this.play.items, this.castle); p.xp = this.xp; p.addItem('ember_lantern', 1); for (const w of this.castle.weapons) { p.addItem(w, 1); } this.equipBest(p); p.healFull(); return p; }
     equipBest(p) { const w = this.castle.bestWeapon(); if (w && p.count(w.id)) p.equip(w.id); }
 
     /* ---------- enter / exit ---------- */
@@ -209,7 +209,7 @@
       this.kinActors = {}; this.troll = null;
       this.restoreNodes();
       this.raid = null;
-      this.cui = new K.CastleUI(this); this.vitals = new K.Vitals(this); this.wild = new K.Wild(this); this.calendar.on((ev) => this.onCalendar(ev)); this.tools = new K.CastleTools(this); this.minimap = new K.Minimap(this); this.walls = new K.WallDrawer(this); this.forest = new K.Forest(this); this.brush = new K.GroundBrush(this); this.purse = new K.Purse(this); this.stash = new K.Stash(this); this.site = new K.BuildingSite(this); this.sweep = new K.SweepAttack(this); this.demolisher = new K.Demolisher(this); this.play.refreshProps();
+      this.cui = new K.CastleUI(this); this.vitals = new K.Vitals(this); this.wild = new K.Wild(this); this.calendar.on((ev) => this.onCalendar(ev)); this.tools = new K.CastleTools(this); this.minimap = new K.Minimap(this); this.walls = new K.WallDrawer(this); this.xp = this.xp || new K.Experience(this); this.forest = new K.Forest(this); this.brush = new K.GroundBrush(this); this.purse = new K.Purse(this); this.stash = new K.Stash(this); this.site = new K.BuildingSite(this); this.sweep = new K.SweepAttack(this); this.demolisher = new K.Demolisher(this); this.play.refreshProps();
       if (this.day.isNight) this.startRaid();
       play.app.rig.set({ dist: 11, pitch: 0.78 }); play.app.rig.maxDist = 44;   // you can never zoom out far enough to see the edge of the world
       this.persist = new K.Persist(this); if (this.saved && this.saved.extras) { try { this.persist.restore(this.saved.extras); } catch (err) { console.warn('could not restore the homestead', err); } }
@@ -466,7 +466,7 @@
     placeDirt(x, z, quiet) {
       const why = this.dirtOk(x, z), c = this.castle; if (why) { if (!quiet) { this.cui.toast(why[0].toUpperCase() + why.slice(1) + '.'); this.sound.play('clank'); } return false; }
       if (c.amount('dirt') < 1) { if (!quiet) this.cui.toast('You need dirt. Dig some with the shovel.'); return false; }
-      c.spend({ dirt: 1 }); const [i, j] = this.play.doc.tileOf(x, z); this.tools.editor.raise(i, j);
+      c.spend({ dirt: 1 }); const [i, j] = this.play.doc.tileOf(x, z); this.tools.editor.raise(i, j); this.xp.built('dirt');
       this.tools.effects.burst('dirt', x, this.play.nav.y(x, z) + 0.2, z, 5, 2.2); this.sound.play('thunk'); this.changed(); return true;
     }
     buildAt(type, x, z, rot = this.autoRot(x, z), quiet = false) {
@@ -476,7 +476,7 @@
       const m = this.addPieceMesh(r.piece); this.pop(m); this.sound.play('thunk'); this.puff(x, z); this.shake(0.08);
       const pr = this.data.piece(type).produces;
       if (!quiet) this.cui.toast(pr ? `${this.data.piece(type).name}: ${K.CastleUI.prodLine(this.castle, type)}.` : `${this.data.piece(type).name} built.`);
-      this.changed(); return true;
+      this.xp.built(type); this.changed(); return true;
     }
     upgrade(p) {
       const r = this.castle.upgrade(p); if (!r.ok) { this.cui.toast(`Upgrade: ${r.why}.`); this.sound.play('clank'); return; }
@@ -570,7 +570,7 @@
 
     /* ---------- combat glue ---------- */
     damage(a, b) { return Math.max(1, Math.round((a.atk - (b.def || 0)) * (a.dmgScale || 1))); }   // a.dmgScale: the hero is weaker with a work tool than with a sword
-    onHit(a, b) { if (a === this.play.me) this.sound.play('hit'); if (b.raider && b.brain && this.castle.weapons.has('ember_brand') && a === this.play.me) b.brain.burnT = 3; }
+    onHit(a, b) { if (a === this.play.me) { this.sound.play('hit'); this.xp.dealt(); } if (b.raider && b.brain && this.castle.weapons.has('ember_brand') && a === this.play.me) b.brain.burnT = 3; }
     wakeSec() { return this.castle.has('chapel') ? 2 : 5; }
     nearestEnemy(a, range) { let best = null, bd = range; for (const e of this.play.actors) if (e.alive && (e.raider || (e.boss && this.castle.zoneOpen('troll_bridge')))) { const d = Math.hypot(e.x - a.x, e.z - a.z); if (d < bd) { bd = d; best = e; } } return best; }
     /* the watchtower the Pinewarden climbs at dusk: the nearest one still standing and not frosted */
@@ -595,8 +595,9 @@
       if (show || a.dmgAcc >= 4) { this.play.float(a, String(Math.round(a.dmgAcc)), src === 'glow' || src === 'burn' ? 'loot' : 'dealt'); a.dmgAcc = 0; a.view.flash('hit'); }
       if (a.hp <= 0) this.play.kill(a);
     }
+    onHurt() { this.xp.taken(); }
     onKill(a) {
-      const c = this.castle; this.wild.onKill(a);
+      const c = this.castle; this.wild.onKill(a); this.xp.killed(a);
       if (a.raider) {
         const drops = {};
         for (const [r, lo, hi, p] of a.enemy.drops) if (Math.random() < p) drops[r] = (drops[r] || 0) + lo + Math.floor(Math.random() * (hi - lo + 1));

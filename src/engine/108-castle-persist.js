@@ -26,7 +26,7 @@
         weapons: this.weaponIds(g.tools.belt.weapons), held: g.tools.tool.kind === 'weapon' ? g.tools.tool.id : null,
         tray: g.forge ? g.forge.tray.map((t) => (t.kind === 'weapon' ? { weapon: t.id } : { res: t.id, n: t.n })) : [],
         smithy: g.smithy ? { x: g.smithy.x, z: g.smithy.z, turns: g.smithyTurns || 0 } : null,
-        moved: g.forest.moved, wolves: g.wild.difficulty.wolvesSpawned,
+        xp: g.xp.toJSON(), moved: g.forest.moved, wolves: g.wild.difficulty.wolvesSpawned,
       };
     }
     restore(x) {
@@ -50,6 +50,7 @@
       for (const [id, v] of Object.entries(x.vaults || {})) { const vault = g.purse.vault(id); vault.res = v.res || {}; vault.items = v.items || {}; vault.weapons = (v.weapons || []).map((w) => K.Armory.make(w)).filter(Boolean); }
       if (x.tray && x.tray.length) { g.forge = g.forge || new K.Forge(g); g.forge.restoreTray(x.tray); }
       if (x.wolves) g.wild.difficulty.wolvesSpawned = x.wolves;
+      if (x.xp) g.xp.restore(x.xp);
     }
   }
 

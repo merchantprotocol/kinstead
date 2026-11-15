@@ -90,7 +90,7 @@
       const next = !c.lit ? 'Light the Keep’s hearth to begin' : nx ? (nx.capped ? (cl >= 4 ? esc(c.data.raw.castleLevel.capMessage) : '') : `Next: CL ${nx.cl} at ${nx.need} castle points (${nx.have}/${nx.need})`) : 'The castle burns at its brightest';
       const w = c.bestWeapon();
       const pct = Math.max(0, Math.min(100, 100 * hp / hpMax));
-      this.$('cHud').innerHTML = `<div class="hp ${pct < 30 ? 'low' : ''}" title="Health: eat and sleep to recover"><i style="width:${pct.toFixed(1)}%"></i><span>♥ ${Math.ceil(hp)}</span></div>`;
+      this.$('cHud').innerHTML = `<div class="hp ${pct < 30 ? 'low' : ''}" title="Strength: eat to recover fast; rest in your house to recover slowly"><i style="width:${pct.toFixed(1)}%"></i><span>♥ ${Math.ceil(hp)}</span></div>${this.xpBar()}`;
       if (this.g.tools) this.g.tools.drawer.update();
       if (this.radialOpen) this.renderRadial();
       if (this.bookOpen) this.renderBook();
@@ -121,6 +121,8 @@
       e.innerHTML = `<div class="bn">${Icons.img(ic, 3)}<div><h2>${esc(b.title)}</h2><p>${esc(b.text)}</p></div></div>`; e.hidden = false; e.classList.remove('in'); void e.offsetWidth; e.classList.add('in');
       this.bannerT = 3.6;
     }
+    /** the level and how far to the next one */
+    xpBar() { const x = this.g.xp.progress(), pct = x.need ? Math.min(100, x.into / x.need * 100) : 100; return `<div class="xp" title="Level ${x.level} · ${x.need ? x.into + ' / ' + x.need + ' XP' : 'top level'}. You earn XP by building and by fighting."><i style="width:${pct.toFixed(1)}%"></i><span>Level ${x.level}</span></div>`; }
     modal(html, buttons) {
       const m = this.$('cModal'); m.innerHTML = `<div class="card">${html}<div class="acts">${buttons.map((b, i) => `<button class="cb ${b.pri ? 'pri' : ''}" data-i="${i}">${esc(b.label)}</button>`).join('')}</div></div>`; m.hidden = false;
       m.onclick = (e) => { const b = e.target.closest('[data-i]'); if (!b) return; m.hidden = true; const f = buttons[+b.dataset.i].run; if (f) f(); };

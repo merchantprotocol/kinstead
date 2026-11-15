@@ -466,7 +466,7 @@
       const dmg = this.ext ? this.ext.damage(a, b) : Math.max(1, Math.round(a.atk * rnd(0.7, 1.3) - b.def * 0.5));
       b.view.flash('hit'); if (b.view.state !== 'attack') b.view.setState('hurt');
       if (b === this.me) {
-        this.float(b, '-' + dmg, 'hurt');
+        this.float(b, '-' + dmg, 'hurt'); if (this.ext && this.ext.onHurt) this.ext.onHurt(a, dmg);
         if (this.player.hurt(dmg)) this.defeat();
       } else {
         b.hp -= dmg; this.float(b, String(dmg), 'dealt');

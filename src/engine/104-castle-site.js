@@ -140,7 +140,7 @@
       const spec = this.specAt(ti, tj, turns, 'smithy'); play.doc.objects.push(spec);
       R.syncBuildings(true); play.nav.applyBuildings(R.buildings); play.bplay.dirty(); play.refreshProps(); g.home.door.apply();
       const me = play.me; if (!play.nav.standable(me.x, me.z)) { const q = play.nav.nearestOk(...play.nav.tile(me.x, me.z), 10); if (q) { [me.x, me.z] = play.nav.centre(...q); me.path = null; } }
-      g.smithy = spec; g.smithyTurns = turns; g.forge = g.forge || new K.Forge(g); this.clearGhost(); g.cui.stopPlacing();
+      g.xp.built('blacksmith'); g.smithy = spec; g.smithyTurns = turns; g.forge = g.forge || new K.Forge(g); this.clearGhost(); g.cui.stopPlacing();
       const cx = (ti + w / 2) * TILE, cz = (tj + h / 2) * TILE; g.sound.play('whump'); g.shake(0.2); g.puff(cx, cz); g.cui.toast('Blacksmith built. Click the anvil to forge new weapons.'); g.changed(); return true;
     }
     /** put a saved blacksmith back (no cost, no ceremony) */

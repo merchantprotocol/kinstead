@@ -64,12 +64,13 @@
     }
     update(dt) {
       this.t += dt; this.chk -= dt; if (this.chk > 0) return; this.chk = 6;
+      if (this.g.xp.level < K.Experience.BEAR_LEVEL) return;   // not before you are level 4: time to enjoy the new fence first
       if (!this.g.calendar.isNight || this.t < this.next || this.bears().length) { if (!this.g.calendar.isNight) this.shutOut = 0; return; }
       const stores = this.foodStores(); if (!stores.length) return;
       const from = this.wild.edgePoint(); if (!from) return;
       const near = stores.sort((p, q) => dist(p.ent, from) - dist(q.ent, from)).slice(0, 3);
       if (near.some((s) => this.wolfCanReach(from, s))) { this.shutOut = 0; return; }
-      this.shutOut += 6; if (this.shutOut < 18) return;     // the wolves have been shut out for a while
+      this.shutOut += 6; if (this.shutOut < 60) return;     // the wolves have been shut out for a good while
       this.spawn(from); this.next = this.t + 240; this.shutOut = 0;
     }
     spawn(at) {
