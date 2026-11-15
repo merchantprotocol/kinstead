@@ -52,6 +52,7 @@
       this.extraSites();
       this.paintTerrain();
       this.scatter();
+      if (K.StarterVillage) new K.StarterVillage(doc).apply(w, h);   // the builder's furnished village (79b), when loaded
       return doc;
     }
     /* height (world units) at (x,z) + whether it is rift */
