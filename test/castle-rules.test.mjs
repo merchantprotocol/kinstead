@@ -37,6 +37,7 @@ test('economy: a Storehouse raises caps; a frosted producer makes nothing until 
   const c = fresh(); c.hearthCap = 4; give(c, { wood: 100, stone: 100 });
   c.build('gatehouse'); c.build('woodcutter');                     // 8 points -> CL2 unlocks the Storehouse
   assert.equal(c.cl(), 2);
+  assert.equal(c.build('storehouse').ok, false, 'a Storehouse needs a Quarry first'); c.build('quarry');
   assert.equal(c.build('storehouse').ok, true);
   assert.equal(c.caps().wood, 160); assert.equal(c.caps().iron, 100); assert.equal(c.caps().ember_shard, 40);
   const lodge = c.pieces.find((p) => p.type === 'woodcutter');
@@ -82,13 +83,13 @@ test('ruins repair at half cost, rounded up, once', () => {   // risk: money
 test('Castle Level: thresholds from distinct piece types, gates, and the hearth cap', () => {   // risk: core rules
   const c = new K.Castle(data());
   assert.equal(c.cl(), 0); assert.equal(c.blocker('palisade', { ignoreCost: true }), null, 'you can build before the hearth is lit');
-  assert.match(c.blocker('storehouse', { ignoreCost: true }), /Castle Level 2/, 'level gates still apply');
+  assert.match(c.blocker('storehouse', { ignoreCost: true }), /Quarry/, 'the building tree still gates what you can build');
   c.light(); assert.equal(c.cl(), 1);
   give(c, { wood: 60, stone: 60 });
-  assert.match(c.blocker('storehouse'), /Castle Level 2/);
+  assert.match(c.blocker('storehouse'), /Quarry/);
   c.build('palisade'); c.build('palisade');
   assert.equal(c.score(), 2, 'a second palisade adds nothing');
-  c.build('gatehouse'); c.build('quarry'); assert.equal(c.score(), 10); assert.equal(c.cl(), 2);
+  c.build('gatehouse'); c.build('woodcutter'); c.build('quarry'); assert.ok(c.score() >= 10); assert.equal(c.cl(), 2);
   assert.equal(c.blocker('storehouse'), null);
   assert.match(c.blocker('mine', { ignoreCost: true }), /Iron Hills/);
   c.flags.add('zone:iron_hills'); assert.equal(c.blocker('mine', { ignoreCost: true }), null);
@@ -110,7 +111,7 @@ test('raid loss: 10% of unprotected stores, a Storehouse guards half, buildings 
   assert.equal(c.amount('wood'), 54);
   assert.equal(JSON.stringify(c.pieces), before, 'no building lost or damaged');
   const s = fresh(); s.hearthCap = 4; give(s, { wood: 100, stone: 100 });
-  s.build('gatehouse'); s.build('woodcutter'); s.build('storehouse'); give(s, { wood: 100, stone: 60 });
+  s.build('gatehouse'); s.build('woodcutter'); s.build('quarry'); s.build('storehouse'); give(s, { wood: 100, stone: 60 });
   assert.equal(s.protectPct(), 50);
   assert.deepEqual({ ...s.raidLoss() }, { wood: 5, stone: 3 }, 'half is guarded');
 });

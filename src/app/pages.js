@@ -31,7 +31,7 @@
       if (!doc) doc = new K.WorldGenerator(4242).generate(64, 48);
       this.scene.setDoc(doc); MenuPage.hideLoading();
     }
-    static hideLoading() { const l = document.getElementById('loading'); if (l) l.remove(); }
+    static hideLoading() { const l = document.getElementById('loading'); if (!l) return; l.classList.add('done'); setTimeout(() => l.remove(), 500); }   // the bar fills, the screen fades
   }
 
   /* builder.html and play.html both run K.BuilderApp; play.html locks it into play mode */
@@ -123,7 +123,7 @@
       const go = () => {
         if (started) return; started = true;
         try { G.page = new Page(new PageServices()); G.pageReady = G.page.start().catch((e) => { console.error(e && e.stack || e); }); }
-        catch (e) { console.error(e && e.stack || e); const l = document.getElementById('loading'); if (l) l.textContent = 'Error: ' + e.message; }
+        catch (e) { console.error(e && e.stack || e); const l = document.getElementById('loading'); if (l) { l.classList.remove('done'); const m = l.querySelector('.ld-msg'); if (m) m.textContent = 'Error: ' + e.message; else l.textContent = 'Error: ' + e.message; } }
       };
       if (document.readyState === 'complete') setTimeout(go, 30); else G.addEventListener('load', () => setTimeout(go, 30));
       setTimeout(go, 1500);

@@ -466,7 +466,7 @@
       this.storeReady = this.initStore();
       const loop = () => { this.frame(); this.raf = requestAnimationFrame(loop); };
       loop();
-      const l = $('loading'); if (l) l.remove();
+      const l = $('loading'); if (l) { l.classList.add('done'); setTimeout(() => l.remove(), 500); }
       return this;
     }
     get doc() { return this.renderer.doc; }
