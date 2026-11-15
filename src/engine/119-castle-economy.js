@@ -8,7 +8,26 @@
 (function (G) {
   const K = G.K, THREE = G.THREE, TILE = K.TILE;
   const GROW = 180, FIELD_REACH = 14, FARM_CAP = 40, SILO_CAP = 200, MARKET_CAP = 999, CART_LOAD = 10, CART_SPEED = 2.2;
-  const STAGE_COLOR = [0x8bcf63, 0x3f9a3a, 0xe0b84a], STAGE_H = [0.12, 0.32, 0.5];
+  const STAGE_COLOR = [0x9fe070, 0x55b844, 0xf6c845], STAGE_H = [0.12, 0.32, 0.5];
+  /** one wheat square as a single geometry of unit height: 4 rows of stalks with fat ears on top, shaded dark at the root and
+      bright at the tip (vertex colours), so the per-square stage colour reads as sprouts, green wheat, then golden wheat */
+  const WHEAT_GEO = (() => {
+    const pos = [], nor = [], col = [];
+    const add = (x, z, w, y0, y1, c0, c1) => {
+      const g = new THREE.BoxGeometry(w, y1 - y0, w).toNonIndexed(); g.translate(x, (y0 + y1) / 2, z); const p = g.attributes.position, n = g.attributes.normal;
+      for (let i = 0; i < p.count; i++) { pos.push(p.getX(i), p.getY(i), p.getZ(i)); nor.push(n.getX(i), n.getY(i), n.getZ(i)); const c = c0 + (c1 - c0) * (p.getY(i) - y0) / (y1 - y0); col.push(c, c, c); }
+      g.dispose();
+    };
+    let q = 0;
+    for (const x of [-0.15, -0.05, 0.05, 0.15]) for (const z of [-0.16, -0.08, 0, 0.08, 0.16]) {
+      const r = (q++ * 37 % 11) / 11, top = 0.82 + r * 0.18, jx = x + (q % 2 ? 0.012 : -0.012);
+      add(jx, z, 0.035, 0, top * 0.72, 0.5, 0.85);               // stalk
+      add(jx, z, 0.07, top * 0.68, top, 0.95, 1.12);            // ear
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    return geo;
+  })();
 
   class Ledger {
     constructor(cap, only) { this.goods = {}; this.cap = cap; this.only = only || null; }
@@ -22,7 +41,7 @@
   class Fields {
     constructor(eco) {
       this.eco = eco; this.tiles = new Map(); this.max = 4000; const g = eco.g;
-      this.mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.42, 1, 0.42), new THREE.MeshLambertMaterial({ color: 0xffffff }), this.max);
+      this.mesh = new THREE.InstancedMesh(WHEAT_GEO.clone(), new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true }), this.max);
       this.mesh.count = 0; this.mesh.frustumCulled = false; this.m = new THREE.Matrix4(); this.c = new THREE.Color(); g.group.add(this.mesh); this.dirty = true;
     }
     key(i, j) { return i + ',' + j; }
@@ -86,8 +105,24 @@
       this.stock = stock; this.kind = kind; this.home = home; this.spec = KINDS[kind]; this.t = Math.random() * this.spec.every; this.hunger = 0; this.fed = true; this.exposed = false;
       const g = stock.g, P = g.play; this.a = { x, z, y: P.nav.y(x, z), view: { setFacing() {} }, path: null }; this.wait = Math.random() * 4;
       const grp = this.mesh = new THREE.Group(), part = (hex, x, y, z, w, h, d) => { const m = new THREE.Mesh(BOX, mat(hex)); m.position.set(x, y + h / 2, z); m.scale.set(w, h, d); m.castShadow = true; grp.add(m); };
-      if (kind === 'chicken') { part(0xf4f1ea, 0, 0.1, 0, 0.22, 0.2, 0.3); part(0xf4f1ea, 0, 0.26, 0.12, 0.14, 0.14, 0.12); part(0xd8352a, 0, 0.4, 0.13, 0.04, 0.06, 0.08); part(0xe8a92a, 0, 0.3, 0.2, 0.05, 0.04, 0.06); part(0xe8a92a, -0.05, 0, 0, 0.03, 0.1, 0.03); part(0xe8a92a, 0.05, 0, 0, 0.03, 0.1, 0.03); }
-      else { part(0xf2f0ea, 0, 0.42, 0, 0.5, 0.42, 0.95); part(0x2a2622, 0.12, 0.6, 0.1, 0.27, 0.25, 0.4); part(0x2a2622, -0.1, 0.55, -0.25, 0.3, 0.28, 0.3); part(0xf2f0ea, 0, 0.62, 0.55, 0.3, 0.3, 0.32); part(0xe8b4a8, 0, 0.62, 0.72, 0.24, 0.14, 0.06); part(0xd8cfa0, -0.14, 0.92, 0.55, 0.06, 0.08, 0.04); part(0xd8cfa0, 0.14, 0.92, 0.55, 0.06, 0.08, 0.04); for (const [lx, lz] of [[-0.17, 0.32], [0.17, 0.32], [-0.17, -0.32], [0.17, -0.32]]) part(0x3a332c, lx, 0, lz, 0.1, 0.42, 0.1); }
+      if (kind === 'chicken') {   // a white hen: red comb and wattle, yellow beak and legs, grey-tipped wings, a raised tail
+        const W = 0xfbf8f0, Wg = 0xe2ddd2, R = 0xe0302a, Y = 0xf2a81e, E = 0x15130f;
+        part(Y, -0.05, 0, 0.01, 0.03, 0.1, 0.03); part(Y, 0.05, 0, 0.01, 0.03, 0.1, 0.03); part(Y, -0.05, 0, 0.04, 0.05, 0.015, 0.06); part(Y, 0.05, 0, 0.04, 0.05, 0.015, 0.06);
+        part(W, 0, 0.1, 0, 0.22, 0.2, 0.3); part(Wg, -0.115, 0.13, -0.02, 0.02, 0.13, 0.2); part(Wg, 0.115, 0.13, -0.02, 0.02, 0.13, 0.2);
+        part(W, 0, 0.2, -0.15, 0.16, 0.18, 0.08); part(Wg, 0, 0.33, -0.17, 0.1, 0.07, 0.05);
+        part(W, 0, 0.24, 0.12, 0.14, 0.15, 0.13); part(R, 0, 0.39, 0.11, 0.04, 0.06, 0.1); part(R, 0, 0.21, 0.19, 0.04, 0.05, 0.03);
+        part(Y, 0, 0.29, 0.19, 0.05, 0.04, 0.06); part(E, -0.071, 0.32, 0.15, 0.01, 0.03, 0.03); part(E, 0.071, 0.32, 0.15, 0.01, 0.03, 0.03);
+      } else {   // a black-and-white milk cow: pink nose and udder, little horns, ears, a bell and a tufted tail
+        const W = 0xf7f5ef, B = 0x1e1c1a, P = 0xf0a8a0, H = 0xeee2c4, E = 0x15130f;
+        part(W, 0, 0.42, 0, 0.5, 0.42, 0.95); part(B, 0.12, 0.6, 0.1, 0.27, 0.25, 0.4); part(B, -0.1, 0.55, -0.25, 0.3, 0.28, 0.3); part(B, -0.15, 0.45, 0.25, 0.22, 0.22, 0.2);
+        part(W, 0, 0.62, 0.55, 0.3, 0.3, 0.32); part(B, 0.06, 0.74, 0.58, 0.19, 0.18, 0.28); part(P, 0, 0.62, 0.72, 0.26, 0.15, 0.07); part(E, -0.06, 0.69, 0.756, 0.04, 0.03, 0.01); part(E, 0.06, 0.69, 0.756, 0.04, 0.03, 0.01);
+        part(E, -0.151, 0.8, 0.62, 0.01, 0.05, 0.05); part(E, 0.151, 0.8, 0.62, 0.01, 0.05, 0.05);
+        part(H, -0.13, 0.92, 0.55, 0.06, 0.08, 0.05); part(H, 0.13, 0.92, 0.55, 0.06, 0.08, 0.05); part(W, -0.21, 0.82, 0.52, 0.12, 0.06, 0.08); part(W, 0.21, 0.82, 0.52, 0.12, 0.06, 0.08);
+        part(0xe8b830, 0, 0.5, 0.48, 0.09, 0.1, 0.07);
+        part(P, 0, 0.32, -0.22, 0.24, 0.12, 0.22); for (const [tx, tz] of [[-0.06, -0.16], [0.06, -0.16], [-0.06, -0.28], [0.06, -0.28]]) part(P, tx, 0.27, tz, 0.035, 0.06, 0.035);
+        part(W, 0, 0.4, -0.49, 0.04, 0.4, 0.04); part(B, 0, 0.34, -0.5, 0.07, 0.1, 0.07);
+        for (const [lx, lz] of [[-0.17, 0.32], [0.17, 0.32], [-0.17, -0.32], [0.17, -0.32]]) { part(W, lx, 0.09, lz, 0.1, 0.34, 0.1); part(B, lx, 0, lz, 0.11, 0.09, 0.11); }
+      }
       grp.position.set(x, this.a.y, z); g.group.add(grp);
     }
     get x() { return this.a.x; } get z() { return this.a.z; }
