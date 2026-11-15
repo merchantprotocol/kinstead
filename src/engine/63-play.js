@@ -464,7 +464,7 @@
       if (!a.alive || !b.alive || this.dist(a, b) > (reach || a.reach) + b.r + 0.6) return;
       if (!this.ext && Math.random() < 0.08) { this.float(b, 'miss', 'miss'); return; }
       const dmg = this.ext ? this.ext.damage(a, b) : Math.max(1, Math.round(a.atk * rnd(0.7, 1.3) - b.def * 0.5));
-      b.view.flash('hit'); if (b.view.state !== 'attack') b.view.setState('hurt');
+      a.lastFight = b.lastFight = this.t; b.view.flash('hit'); if (b.view.state !== 'attack') b.view.setState('hurt');
       if (b === this.me) {
         this.float(b, '-' + dmg, 'hurt'); if (this.ext && this.ext.onHurt) this.ext.onHurt(a, dmg);
         if (this.player.hurt(dmg)) this.defeat();

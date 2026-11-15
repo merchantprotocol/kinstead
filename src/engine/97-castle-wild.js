@@ -35,7 +35,7 @@
     get armedAllowed() { return this.day >= 8; }       // armed raiders (they break gates and the door) come late
     armedInterval() { return rnd(300, 420); }
     dayInterval() { return rnd(70, 110); }
-    nightInterval() { return rnd(35, 55); }
+    nightInterval() { return rnd(90, 150); }
     thiefInterval() { return rnd(240, 360); }
   }
 
@@ -67,7 +67,7 @@
   }
 
   class WolfBrain extends Brain {
-    constructor(game, actor) { super(game, actor); this.mode = 'hunt'; this.spot = null; this.spotT = 0; this.leave = null; this.pace = 0; this.plunder = null; this.food = null; this.badStore = null; this.breach = new K.Breacher(game, actor, 'wolf'); }
+    constructor(game, actor) { super(game, actor); this.mode = 'hunt'; this.spot = null; this.spotT = 0; this.leave = null; this.pace = 0; this.plunder = null; this.food = null; this.badStore = null; this.breach = new K.Breacher(game, actor, 'wolf'); this.idle = 0; this.roamTo = null; }
     /** wolves also never plan a route through the house */
     blocker() { const g = this.g, T = K.TILE; return (i, j) => g.gateTiles.has(i + ',' + j) || g.insideBuilding((i + 0.5) * T, (j + 0.5) * T); }
     /** dawn: go back to the dark */
@@ -78,10 +78,24 @@
       if (d > 80 && this.mode !== 'retreat') { if (this.plunder) this.plunder.release(); g.removeActor(a); return; }
       if (this.plunder) this.plunder.follow();
       if (this.mode === 'retreat') { if (dist(a, g.L.keep) > 66) { if (this.plunder) this.plunder.escape(); g.removeActor(a); return; } const lp = g.wild.leavePoint(a); this.goTo(lp.x, lp.z, a.speed, 1.5, dt); return; }   // it walks away a stretch at a time
+      if (this.nothingHere(d)) { this.idle += dt; if (this.idle > 25) { this.retreat(); return; } this.roam(dt); return; }   // a pack that finds nothing roams on, then leaves
+      this.idle = 0;
       if (g.calendar.isNight && this.forage(dt, d)) return;   // at night the smell of your food is what they came for
       if (!me.alive || g.isSanctuary(me.x, me.z) || this.pace > 0) { this.pace -= dt; this.prowl(dt); this.keepOut(); return; }   // you are in your house or at a gate: they circle outside
       this.hunt(dt, d); this.keepOut();
       if (this.noWay) this.prowl(dt);          // no way to you: they can only circle
+    }
+    /** nothing to eat and no one to hunt within its reach: no food outside, and you are in your house or too far to smell */
+    nothingHere(d) {
+      const g = this.g, me = this.P.me, night = g.calendar.isNight, smell = night ? g.wild.difficulty.smell : 18;
+      const prey = me.alive && !g.isSanctuary(me.x, me.z) && d < smell; if (prey || this.a.hp < this.a.hpMax - 0.01 || (this.plunder && this.plunder.carrying)) return false;
+      return !(night && this.pickFood());
+    }
+    /** wander across the snow looking for something */
+    roam(dt) {
+      const a = this.a, g = this.g, L = g.L, wu = L.size.w * K.TILE, hu = L.size.h * K.TILE;
+      if (!this.roamTo || dist(a, this.roamTo) < 2 || (this.roamT = (this.roamT || 0) - dt) < 0) { const ang = rnd(0, 6.283), r = rnd(14, 26); this.roamTo = { x: Math.max(6, Math.min(wu - 6, a.x + Math.cos(ang) * r)), z: Math.max(6, Math.min(hu - 6, a.z + Math.sin(ang) * r)) }; this.roamT = 8; a.path = null; }
+      this.goTo(this.roamTo.x, this.roamTo.z, a.speed * 0.7, 1.2, dt); this.keepOut();
     }
     /** go for your food stores and gnaw them (until full, then slink off with it). false = do something else (you are near, or it is hurt). */
     forage(dt, d) {
@@ -221,7 +235,7 @@
       const me = this.P.me; if (!me.alive) return; this.t += dt; const df = this.difficulty;
       (this.bearDirector || (this.bearDirector = new K.BearDirector(this.g))).update(dt);
       if (this.cal.isNight) {
-        if (this.t >= this.nextNightWolf && this.wolves().length < df.nightCap) { this.spawnPack(1); this.nextNightWolf = this.t + df.nightInterval(); }
+        if (this.t >= this.nextNightWolf && this.wolves().length === 0) { this.spawnPack(df.packSize); this.nextNightWolf = this.t + df.nightInterval(); }   // a pack roams and leaves; a new one wanders in later
       } else if (this.t >= this.nextDayWolf) {
         if (this.wolves().length < df.dayCap) this.spawnPack(1);
         this.nextDayWolf = this.t + df.dayInterval();

@@ -228,7 +228,8 @@
       const g = this.g, P = this.$('plates'), seen = new Set();
       for (const a of g.actors) {
         if (!a.view.visible) continue;
-        const showBar = a !== g.me ? a.alive && (a.hp < a.hpMax || g.target === a || a.aggro || (g.hover === a && a.hostile)) : g.inCombat();
+        const fighting = g.t - (a.lastFight == null ? -99 : a.lastFight) < 6;   // a health bar only shows once blows have been traded
+        const showBar = a !== g.me ? a.alive && (fighting || g.target === a) : fighting;
         const showName = a !== g.me && (g.hover === a || g.target === a);
         if (!showBar && !showName) continue;
         const [sx, sy, ok] = g.toScreen(a.x, a.y + a.view.h * 0.98 + 0.12, a.z); if (!ok) continue;
