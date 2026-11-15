@@ -217,6 +217,14 @@
       for (const [name, p] of Object.entries(D.parts)) { const part = M.part(name, p.pivot, p.parent, { jitter: 0 }); for (const [x, y, z, i] of ReconModel.unpack(p.data)) part.set(x, y, z, pal[i]); }
       return M;
     }
+    /* a rigid piece from its data: one part, glowing palette entries emissive, lights at the glow clusters (voxels -> origin-relative) */
+    static static(id, ctx) {
+      const D = ReconModel.data(id); if (!D) throw new Error(`no reconstruction data for ${id} (src/models/${id}.data.js)`);
+      const glow = new Set(D.glow || []), pal = D.palette.map((h, i) => (glow.has(i) ? ctx.Colour.glow(h) : ctx.Colour.hex(h)));
+      const M = new ctx.StaticVoxelModel(id, { size: D.height / D.voxels, footprint: D.footprint || null, lights: D.lights || [] }), p = M.part();
+      for (const [x, y, z, i] of ReconModel.unpack(D.parts.main.data)) p.set(x, y, z, pal[i]);
+      return M;
+    }
   }
 
   /* ---------------- the registry ---------------- */

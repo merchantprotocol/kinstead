@@ -7,7 +7,8 @@
 (function (G) {
   const K = G.K;
 
-  K.Models.register('woodcutter', ({ Shapes: S, StaticVoxelModel, Hash, K: KK }) => {
+  /* the reconstruction (tools/lab/recon.mjs -> woodcutter.data.js) when present; this hand sculpt otherwise */
+  const handBuild = ({ Shapes: S, StaticVoxelModel, Hash, K: KK }) => {
     const P = S.palette({
       log: '#6b4a2e', logL: '#8a6440', logD: '#47301e', logDD: '#2e1f14', chink: '#3a2a1c', cut: '#b88a58', cutL: '#d4a874', cutD: '#8c6238',
       stone: '#7b7f84', stoneL: '#9a9ea3', stoneD: '#575b60', stoneDD: '#3c4044', mortar: '#4a4d51',
@@ -107,5 +108,10 @@
     S.cylinder(p, { axis: 'y', at: [17, 37], from: 15, to: 15, r: 4 }, (x, y, z) => (Hash.h3(x, y, z, 91) < 0.5 ? P.ember : P.emberL));
     for (const [a, b] of [[[-2, 7, 34], [10, 8, 42]], [[-1, 7, 42], [9, 9, 33]], [[1, 9, 37], [8, 10, 41]]]) S.slab(p, { a, b, wdir: [0, 1, 0], half: 1.2, thick: 1 }, (x, y, z, t) => (t < 0.06 || t > 0.94 ? P.cutL : P.cut));
     return M;
-  }, { kind: 'static', title: "Woodcutter's lodge", view: { yaw: 0.78, pitch: 0.52, fov: 18, fit: 'both' } });
+  };
+  /* flip to true once the reconstruction out-scores the hand sculpt in the lab (lodge recon r0: IoU 75.6%, dE 23.5) */
+  const RECON_ACCEPTED = false;
+  const D = RECON_ACCEPTED && K.ModelData && K.ModelData.woodcutter;
+  K.Models.register('woodcutter', (ctx) => (D ? ctx.KV.ReconModel.static('woodcutter', ctx) : handBuild(ctx)),
+    { kind: 'static', title: "Woodcutter's lodge", view: D ? D.view : { yaw: 0.78, pitch: 0.52, fov: 18, fit: 'both' } });
 })(typeof window !== 'undefined' ? window : globalThis);

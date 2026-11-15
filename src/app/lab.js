@@ -38,7 +38,8 @@
     }
     isHero(id) { return id.startsWith('hero_'); }
     refUrl(id) {
-      const w = this.win || {}, lab = 'lab/' + id + '.png';
+      const w = this.win || {}, lab = 'lab/' + id + '.png', d = G.K.ModelData && G.K.ModelData[id];
+      if (d && d.ref) return (w.KINSTEAD_LAB_INLINE && w.KINSTEAD_LAB_INLINE[d.ref]) || d.ref;   // reconstructions: the exact image they were calibrated on
       if (this.isHero(id)) return (w.KINSTEAD_LAB_INLINE && w.KINSTEAD_LAB_INLINE[lab]) || lab;
       return (w.KINSTEAD_ART_INLINE && w.KINSTEAD_ART_INLINE[id]) || this.art.base + id + '.webp';
     }

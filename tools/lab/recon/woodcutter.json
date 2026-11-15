@@ -1,0 +1,34 @@
+{
+  "id": "woodcutter",
+  "kind": "static",
+  "ref": "public/lab/woodcutter.png",
+  "labRef": "lab/woodcutter.png",
+  "prior": "/mnt/worktrees/_scratch/asset-fidelity/priors/woodcutter-mesh.json",
+  "out": "/mnt/worktrees/_scratch/asset-fidelity/recon",
+  "height": 72,
+  "heightM": 3.0,
+  "footprint": [
+    2.6,
+    2.2
+  ],
+  "palette": 32,
+  "fit": "both",
+  "symBand": [
+    0.3,
+    0.75
+  ],
+  "edgeErode": 2,
+  "glowBand": 0,
+  "centreRadius": 3,
+  "brightFrac": 0.8,
+  "gain": [
+    1,
+    1,
+    1
+  ],
+  "glow": {
+    "L": 62,
+    "b": 45,
+    "a": 8
+  }
+}
