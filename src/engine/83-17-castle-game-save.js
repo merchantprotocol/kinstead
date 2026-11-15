@@ -12,20 +12,31 @@
       nodes: this.mp ? {} : nodes, playTime: +this.playTime.toFixed(1), ended: !!this.endShown, extras: this.safeExtras() };
     }
     /** the homestead extras (piles, chests, terrain...); a problem here must never stop the main save */
-    safeExtras() { try { return this.persist ? this.persist.capture() : null; } catch (err) { console.warn('could not capture the homestead', err);
-    return null; } }
-    save(force) { if (!this.castle.lit) return false; const snap = this.snapshot(); if (this.mp) this.mp.saveRemote(snap, !!force);
-    return this.slot.write(snap); }   // to this browser, and (on a server) to the server
+    safeExtras() { try { return this.persist ? this.persist.capture() : null;
+      } catch (err) { console.warn('could not capture the homestead', err);
+    return null;
+      } }
+    save(force) { if (!this.castle.lit) return false;
+      const snap = this.snapshot();
+      if (this.mp) this.mp.saveRemote(snap, !!force);
+    return this.slot.write(snap);
+      }   // to this browser, and (on a server) to the server
     restoreNodes() {
-      const s = this.saved; if (!s || !s.nodes) return;
+      const s = this.saved;
+        if (!s || !s.nodes) return;
       for (const [id, n] of Object.entries(s.nodes)) { if (!this.play.doc.obj(id)) continue;
       this.play.nodes.set(id, { charges: n.charges, max: n.max,
-      respawnAt: n.respawnIn < 0 ? Infinity : n.respawnIn ? this.play.t + n.respawnIn : 0 }); if (n.charges <= 0) this.R.setPropState(id, 'depleted'); }
+      respawnAt: n.respawnIn < 0 ? Infinity : n.respawnIn ? this.play.t + n.respawnIn : 0 });
+        if (n.charges <= 0) this.R.setPropState(id, 'depleted');
+        }
     }
 
     /* ---------- test / demo hooks ---------- */
-    debugSkip(sec) { this.day.t = Math.min(this.day.t + sec, (this.day.length() || 1e9) - 0.01); }
-    debugGive(o) { for (const [r, n] of Object.entries(o)) this.castle.add(r, n); this.changed(); }
+    debugSkip(sec) { this.day.t = Math.min(this.day.t + sec, (this.day.length() || 1e9) - 0.01);
+      }
+    debugGive(o) { for (const [r, n] of Object.entries(o)) this.castle.add(r, n);
+      this.changed();
+      }
   }
   K.CastleGameSave = CastleGameSave;
 })(typeof window !== 'undefined' ? window : globalThis);

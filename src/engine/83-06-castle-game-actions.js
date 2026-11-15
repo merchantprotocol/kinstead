@@ -58,7 +58,8 @@
         `Forge ${this.data.item(st.replace('craft_', '')).name} · ${K.CastleGameUtility.formatCost(this.data.recipe(st).inputs)}`,
         st === 'craft_iron_sword' ? 'sword' : 'brand', () => this.craft(st), { range: e.r + 0.8 });
       } else if (e.type === 'c_rstore') {
-        const v = e.rec || {}; act('take', `Take from the ${e.name.toLowerCase()}`, 'hand', () => this.mp.takeFrom(e.sid), { range: e.r + 0.8 });
+        const v = e.rec || {};
+          act('take', `Take from the ${e.name.toLowerCase()}`, 'hand', () => this.mp.takeFrom(e.sid), { range: e.r + 0.8 });
       } else if (e.type === 'c_rpiece') {
         const rec = e.rec, mp = this.mp, gate = K.Breacher.GATES.has(rec.p.type), mine = mp.mayUse(rec.p.owner);
         if (gate) act('open', rec.gate.open ? 'Shut the gate' : (mine ? 'Open the gate' : 'Try the gate (locked)'), 'hand', () => mp.requestGate(rec),
@@ -67,20 +68,27 @@
         if (!mine) act('break', 'Break it down', 'sword', () => mp.hit(rec), { range: 2.1 });
       } else if (e.type === 'c_rdoor') {
         const rec = e.rec, mp = this.mp, mine = mp.mayUse(rec.owner), d = rec.door;
-        if (d.broken) { if (!mine) act('install', 'Hang your own door (3 wood): take the castle', 'hammer', () => mp.installDoor(rec), { range: 2.4 }); }
+        if (d.broken) { if (!mine) act('install', 'Hang your own door (3 wood): take the castle', 'hammer', () => mp.installDoor(rec), { range: 2.4 });
+          }
         else { act('open', d.open ? 'Shut the door' : (mine ? 'Open the door' : 'Try the door (locked)'), 'hand', () => mp.requestDoor(rec),
-        { range: 2.4 }); if (!mine) act('break', 'Break the door down', 'sword', () => mp.hit(rec, true), { range: 2.1 }); }
+        { range: 2.4 });
+          if (!mine) act('break', 'Break the door down', 'sword', () => mp.hit(rec, true), { range: 2.1 });
+          }
       } else if (e.type === 'c_rack') {
-        const rk = e.rack; act('bow', rk.owned ? 'Put the bow back' : 'Take the bow', 'sword', () => (rk.owned ? rk.putBack() : rk.take()), { range: 1.2 });
+        const rk = e.rack;
+          act('bow', rk.owned ? 'Put the bow back' : 'Take the bow', 'sword', () => (rk.owned ? rk.putBack() : rk.take()), { range: 1.2 });
         act('fletch', 'Fletch 4 arrows (1 wood)', 'hand', () => rk.fletch(), { range: 1.2 });
       } else if (e.type === 'c_door') {
         const door = this.home.door;
         act('door', door.broken ? 'Repair the door (3 wood)' : door.open ? 'Shut the door' : 'Open the door', 'hand', () => door.toggle(), { range: 1.3 });
       } else if (e.type === 'c_barrel') {
         const rg = e.r + 0.8, st = e.store;
-        if (st.pile) act('take', `Pick up the ${e.name.toLowerCase()} (${st.amount})`, 'hand', () => this.stash.take(st), { range: rg }); else
+        if (st.pile) act('take', `Pick up the ${e.name.toLowerCase()} (${st.amount})`, 'hand', () => this.stash.take(st), { range: rg });
+          else
         if (e.res === 'bread') { act('eat', `Eat a loaf (+${K.BUILDING_DATA.FOOD.bread.hp} strength · ${st.amount} left)`, 'hand',
-        () => this.home.eatBread(st), { range: rg }); act('take', 'Take a loaf', 'hand', () => this.home.takeBread(st), { range: rg }); }
+        () => this.home.eatBread(st), { range: rg });
+          act('take', 'Take a loaf', 'hand', () => this.home.takeBread(st), { range: rg });
+          }
         else if (e.res === 'food') act('take', `Take some raw food (${st.amount} left)`, 'hand', () => this.home.takeFood(st), { range: rg });
         else if (e.res === 'arrow') act('take', `Take arrows (${st.amount} left)`, 'hand', () => this.home.takeArrows(st), { range: rg });
         else act('look', `${e.name}: ${st.amount} ${K.CastleData.resName(e.res)}`, 'eye',
@@ -119,37 +127,57 @@
       K.CastleGameUtility.formatCost(c.buildCost(e.ruinType, { ruin: true }))]] };
       if (e.type === 'c_site') return { title: 'Iron outcrop', sub: 'Iron Hills',
       body: 'Rust-red rock: the one place an Iron mine can stand. It is outside the walls, so raiders can frost it.', rows: [] };
-      if (e.type === 'c_kin') { const h = this.data.hero(e.kinId); return { title: h.name, sub: h.role,
-      body: c.kin.has(e.kinId) ? h.perk : h.found + '. Joins when ' + h.joinsWhen + '.', rows: [] }; }
-      const n = this.nodeSpec(e); if (n) { const st = this.play.nodeState(e); return { title: e.name, sub: 'Resource',
+      if (e.type === 'c_kin') { const h = this.data.hero(e.kinId);
+        return { title: h.name, sub: h.role,
+      body: c.kin.has(e.kinId) ? h.perk : h.found + '. Joins when ' + h.joinsWhen + '.', rows: [] };
+        }
+      const n = this.nodeSpec(e);
+        if (n) { const st = this.play.nodeState(e);
+        return { title: e.name, sub: 'Resource',
       body: `Yields ${Object.entries(n.yields).map(([r, v]) => v + ' ' + r).join(', ')} per action (+${c.row().gatherBonus} from Castle Level).`,
-      rows: [['Left', st.charges > 0 ? `${st.charges} / ${st.max}` : 'spent']] }; }
+      rows: [['Left', st.charges > 0 ? `${st.charges} / ${st.max}` : 'spent']] };
+        }
       return { title: e.name, body: '' };
     }
 
     /* ---------- gathering ---------- */
-    nodeSpec(e) { return this.data.node({ c_tree: 'tree', c_boulder: 'boulder', c_rubble: 'rubble', c_iron: 'iron_rock' }[e.type]); }
+    nodeSpec(e) { return this.data.node({ c_tree: 'tree', c_boulder: 'boulder', c_rubble: 'rubble', c_iron: 'iron_rock' }[e.type]);
+      }
     gather(e) {
-      const play = this.play, n = this.nodeSpec(e), st = play.nodeState(e); this.sound.unlock();
-      if (st.charges <= 0) { this.cui.toast(`This ${e.name.toLowerCase()} is spent. ${n.respawnSec ? 'It regrows soon.' : 'It is gone.'}`); return; }
+      const play = this.play, n = this.nodeSpec(e), st = play.nodeState(e);
+        this.sound.unlock();
+      if (st.charges <= 0) { this.cui.toast(`This ${e.name.toLowerCase()} is spent. ${n.respawnSec ? 'It regrows soon.' : 'It is gone.'}`);
+        return;
+        }
       const [r, base] = Object.entries(n.yields)[0];
       if (this.castle.amount(r) >= this.castle.caps()[r]) {
         const cap = this.castle.caps()[r];
         const message = `Your ${K.CastleData.resName(r)} store is full (${cap}). ` +
           'Spend it or build a Storehouse.';
-        this.cui.toast(message); this.cui.flashRes(r); return;
+        this.cui.toast(message);
+          this.cui.flashRes(r);
+          return;
       }
       play.face(play.me, e);
       play.channel({ label: { c_tree: 'Chopping…', c_iron: 'Mining…' }[e.type] || 'Gathering…', time: 1.5, onDone: () => {
         const got = Math.round(this.castle.gather(r, base));
-        if (got > 0) { play.float(play.me, `+${got}`, 'loot', K.CastleUI.ICON[r]); this.cui.bump(r); this.sound.play('gather'); }
+        if (got > 0) { play.float(play.me, `+${got}`, 'loot', K.CastleUI.ICON[r]);
+          this.cui.bump(r);
+          this.sound.play('gather');
+          }
         st.charges--;
         if (e.type === 'c_tree' && st.charges > 0) this.R.setPropState(e.id, 'cut' + Math.min(4, st.max - st.charges));
         // the tree visibly shrinks with every swing
-        if (st.charges <= 0) { st.respawnAt = n.respawnSec ? play.t + n.respawnSec : Infinity; this.R.setPropState(e.id, 'depleted');
-        this.forest.cleared(e); play.me.view.setState('idle'); }
-        else if (this.castle.amount(r) < this.castle.caps()[r]) this.gather(e); else { play.me.view.setState('idle');
-        this.cui.toast(`${K.CastleData.resName(r)[0].toUpperCase() + K.CastleData.resName(r).slice(1)} is full.`); this.cui.flashRes(r); }
+        if (st.charges <= 0) { st.respawnAt = n.respawnSec ? play.t + n.respawnSec : Infinity;
+          this.R.setPropState(e.id, 'depleted');
+        this.forest.cleared(e);
+          play.me.view.setState('idle');
+          }
+        else if (this.castle.amount(r) < this.castle.caps()[r]) this.gather(e);
+          else { play.me.view.setState('idle');
+        this.cui.toast(`${K.CastleData.resName(r)[0].toUpperCase() + K.CastleData.resName(r).slice(1)} is full.`);
+          this.cui.flashRes(r);
+          }
         this.changed();
       } });
     }
@@ -157,10 +185,17 @@
     /* ---------- building ---------- */
     lightKeep() {
       if (!this.castle.light()) return;
-      const p = this.play; p.face(p.me, this.keepEnt); p.me.view.setState('action');
+      const p = this.play;
+        p.face(p.me, this.keepEnt);
+        p.me.view.setState('action');
       p.player.removeItem('ember_lantern', 1);
-      this.sound.play('whump'); this.redrawKeep(); this.pop(this.keepMesh, 0.6); this.flareT = 2.5; this.shake(0.25);
-      this.meltTo(this.castle.glowRadius(), 1.4); this.glowR = 0.5;
+      this.sound.play('whump');
+        this.redrawKeep();
+        this.pop(this.keepMesh, 0.6);
+        this.flareT = 2.5;
+        this.shake(0.25);
+      this.meltTo(this.castle.glowRadius(), 1.4);
+        this.glowR = 0.5;
       this.cui.banner('The hearth roars', 'CL 1 · the glow pushes the frost back 6 m', 'fire');
       this.changed();
     }

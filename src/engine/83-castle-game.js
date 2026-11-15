@@ -4,7 +4,8 @@
   const K = G.K;
 
   class CastleGame extends K.CastleGameSave {
-    constructor(play, opts = {}) { super(play, opts); }
+    constructor(play, opts = {}) { super(play, opts);
+      }
   }
 
   K.CastleGame = CastleGame;
