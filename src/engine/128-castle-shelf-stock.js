@@ -15,7 +15,15 @@
       potion_strength: 'paintPurple', potion_warmth: 'paintOrange', saddle: 'woodDark', horse: 'woodLight',
     };
 
-    constructor(game, type, owner) { this.game = game; this.type = type; this.owner = owner; }
+    /** `owner` is the shop owner's player id; '' means this player's own shop, whoever this player turns out to be */
+    constructor(game, type, owner) { this.game = game; this.type = type; this.fixedOwner = owner || ''; }
+
+    /** the local player's id once multiplayer is up (a shop restored before joining resolves to it later) */
+    localId() { const mp = this.game.mp; return (mp && mp.net && mp.net.id) || ''; }
+
+    get owner() { return this.fixedOwner || this.localId(); }
+
+    mine() { return !this.fixedOwner || this.fixedOwner === this.localId(); }
 
     goods(slot) {
       const available = this.stock(), explicit = ShelfStock.GOODS[this.type];
@@ -32,8 +40,8 @@
     }
 
     stock() {
-      const game = this.game, workers = game.workers, own = game.mp ? game.mp.net.id === this.owner : !this.owner;
-      if (!own) return (workers.markets.get(this.owner) || {}).stock || {};
+      const game = this.game, workers = game.workers;
+      if (!this.mine()) return (workers.markets.get(this.owner) || {}).stock || {};
       const market = workers.cook.market;
       return market ? game.economy.ledger(market).goods : {};
     }
