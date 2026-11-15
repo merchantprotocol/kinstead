@@ -305,7 +305,7 @@
       if (!this.me.alive) return;
       this.ui.close('ctx'); this.ui.close('card'); this.ui.tip(null);
       const e = this.pick(sx, sy); if (!e || e === this.me) { if (this.ext && this.ext.rightClick) this.ext.rightClick(sx, sy); return; }   // empty ground: a game mode may use it (drop a pile)
-      if (e.remote && this.ext && this.ext.playerMenu) { this.ext.playerMenu(e); return; }   // right-click another player: invite, demand tribute
+      if (e.remote && !this.reg.has(e.type) && this.ext && this.ext.playerMenu) { this.ext.playerMenu(e); return; }   // right-click another player: invite, demand tribute
       const acts = this.reg.actions(e, this); if (acts.length) this.ui.openMenu(e, acts, sx, sy);
     }
     click(sx, sy) {

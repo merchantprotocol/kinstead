@@ -6,10 +6,12 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 
-const file = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'src/engine/128-castle-gatekeeper.js');
+const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'src/engine');
 const context = { Math, Map, Set, K: {} };
 context.globalThis = context; vm.createContext(context);
-vm.runInContext(fs.readFileSync(file, 'utf8'), context);
+for (const file of ['128-castle-gate-opening.js', '128-castle-gatekeeper.js']) {
+  vm.runInContext(fs.readFileSync(path.join(dir, file), 'utf8'), context);
+}
 const Policy = context.K.GatePolicy;
 const gate = { x: 0, z: 0 };
 const player = (props = {}) => ({ x: 2, z: 0, alive: true, ...props });
@@ -123,4 +125,53 @@ test('a stranger at the gate cannot lock the owner or a teammate out, but gets n
   s.game.play.actors.push(player({ x: 1, hostile: true, wolf: true }));
   s.run(0.25);
   assert.equal(s.open, false, 'a wolf at the gate keeps it shut even for a teammate');
+});
+
+/* The real gate refuses to shut while anything at all stands on its 31-tile deck (arch + lowered bridge), the way
+   Drawbridge.occupied() checks it. The keeper must not lean on that: only the passage itself matters. */
+class DeckScene extends GateScene {
+  constructor() {
+    super();
+    this.gate.rot = 0;
+    this.gate.bridge.occupied = () => this.game.play.actors.some((a) => a.alive !== false && Math.abs(a.x) <= 2 && a.z >= -1 && a.z <= 3.4);
+  }
+  arrive() { Object.assign(this.me, { x: 1, z: -2 }); this.run(0.25); }
+  leave() { Object.assign(this.me, { x: 40, z: 40 }); }
+}
+
+// risk: castle security. QA on prod 765d266: a worker idling in the gateway kept the owner's gate open forever.
+test('an idle worker standing in the gate opening does not hold it open: it is stepped inside and the gate shuts', () => {
+  const s = new DeckScene();
+  const worker = player({ x: 0.3, z: 0.2, worker: 'mason' });
+  s.game.play.actors.push(worker);
+  s.arrive();
+  assert.equal(s.open, true, 'the owner arriving opens it');
+  s.leave();
+  s.run(3);
+  assert.equal(s.open, false, 'the gate shuts behind the owner although a worker stood in the gateway');
+  assert.ok(worker.z < -0.75, 'the worker was stepped out of the gateway into the castle');
+});
+
+// risk: castle security. A worker on the lowered bridge (the deck, not the passage) must not keep it open either.
+test('the gate closes within 4 s of the owner leaving even with a worker standing on the bridge deck', () => {
+  const s = new DeckScene();
+  const worker = player({ x: -0.5, z: 2.2, kin: 'emberwright' });
+  s.game.play.actors.push(worker);
+  s.arrive();
+  s.leave();
+  s.run(4);
+  assert.equal(s.open, false, 'shut within 4 s of the owner leaving');
+  assert.equal(worker.z, 2.2, 'someone on the bridge deck is not in the gateway and is left where they are');
+});
+
+// risk: locked out / broken in. QA: stranger Bo stood at Ann's gate; after Ann went through it never closed.
+test('a stranger left at the gate after the owner passes does not keep it open', () => {
+  const s = new DeckScene();
+  const bo = s.avatar('stranger', { x: 0.4, z: 0.5 });
+  s.game.play.actors.push(bo, player({ x: 1.2, z: 1.8, worker: 'clerk' }));
+  s.arrive();
+  assert.equal(s.open, true, 'opens for the owner even with the stranger in the gateway');
+  s.leave();
+  s.run(0.5);
+  assert.equal(s.open, false, 'shuts straight behind the owner although the stranger stands in the gateway');
 });

@@ -38,6 +38,7 @@
       a.remote = true;
       a.hostile = !worker;
       if (worker) a.worker = true;
+      if (worker) K.RemoteWorkerTalk.mark(a);   // someone else's townsperson: click to talk (and trade at their shop)
       if (kind === 'raider') a.view.setTint(0x6e4a42);
       if (K.GAME_ANIMALS && K.GAME_ANIMALS[kind]) {   // a deer, elk, bison or wild horse someone else's game runs
         a.view.dispose();

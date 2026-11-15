@@ -72,6 +72,7 @@ class EngineManifest {
     '115-castle-mob-caster.js',
     '115-castle-mob-pool.js',
     '115-castle-remote-mobs.js',
+    '115-castle-remote-workers.js',
     '115-castle-join-notice.js',
     '115-castle-freed-plots.js',
     '115-castle-net.js',
@@ -111,6 +112,7 @@ class EngineManifest {
     '128-castle-herdsync.js',
     '129-castle-farm-visuals.js',
     '130-castle-farmsync.js',
+    '128-castle-gate-opening.js',
     '128-castle-gatekeeper.js',
   ];
   /* game data inlined as K.CASTLE_DATA (src/data is the single source; tests read the same file) */
