@@ -401,6 +401,9 @@ body.castle #voxOrbit{display:none!important}
   #cPlates .plate b{display:block;font:700 12px system-ui;color:#cfe6ff;letter-spacing:.03em}
   #cPlates .plate span{display:none;margin-top:2px;padding:3px 8px;border-radius:9px;background:rgba(20,27,41,.88);border:1px solid #c9953c;font:13px system-ui;color:#fff;max-width:220px;white-space:normal}
   #cPlates .plate.talking span{display:block}
+  #cTalk{position:fixed;inset:0;pointer-events:none;z-index:6}
+  #cTalk .wk-say{position:absolute;left:0;top:0;padding:3px 9px;border-radius:10px;background:rgba(250,244,228,.94);border:1px solid #8a6a3a;color:#2a1e10;font:600 12px system-ui;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.35)}
+  #cTalk .wk-say:after{content:'';position:absolute;left:50%;bottom:-6px;margin-left:-5px;border:5px solid transparent;border-top-color:rgba(250,244,228,.94);border-bottom:0}
   #cChat{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:14;pointer-events:auto}#cChat[hidden]{display:none}
   #cChat input{width:min(440px,80vw);padding:10px 14px;border-radius:12px;border:2px solid #c9953c;background:rgba(14,19,30,.94);color:#fff;font:15px system-ui;outline:none}
   #cPlates .plate.ally b{color:#8fe9a0}

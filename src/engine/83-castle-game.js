@@ -257,6 +257,8 @@
       const far = V.o.distanceTo(V.h) - 0.4; V.ray.set(V.o, V.d.subVectors(V.h, V.o).normalize());
       for (const m of [...this.meshes.values(), this.keepMesh]) {
         if (!m || !m.parent) continue;
+        const roof = m.userData.roof, pc = m.userData.piece;
+        if (roof && pc) { const under = this.onPiece(pc, me.x, me.z, 0.1); if (roof.visible === under) roof.visible = !under; if (under) { if (m.userData.faded) this.setFaded(m, false); continue; } }   // you walked in: the roof lifts, the walls stay
         if (!m.userData.box || m.userData.popT < 0.5) m.userData.box = new THREE.Box3().setFromObject(m);   // re-measure while a new piece pops up
         const hit = V.ray.intersectBox(m.userData.box, V.hit), fade = !!hit && V.o.distanceTo(V.hit) < far;
         if (fade !== !!m.userData.faded) this.setFaded(m, fade);
@@ -306,7 +308,7 @@
     }
     pieceRadius(p) { const [w, d] = CastleArt.size(p.type); return Math.max(w, d) / 2; }
     addPieceMesh(p) {
-      const m = this.art.piece(p.type, { level: p.level }); this.place(m, p.x, p.z, p.rot); this.meshes.set('p' + p.uid, m);
+      const m = this.art.piece(p.type, { level: p.level }); this.place(m, p.x, p.z, p.rot); this.meshes.set('p' + p.uid, m); m.userData.piece = p;
       if (p.frosted || this.castle.isFrosted(p)) this.setFrost(p, true);
       if (K.Breacher.GATES.has(p.type) && !p.bridge) p.bridge = p.type === 'gate' ? new K.WoodGate(this, p) : new K.Drawbridge(this, p);
       if (K.Breacher.GATES.has(p.type) && this.flags) { const lx = p.type === 'gate' ? 1.05 : 2.25; this.flags.flag('g' + p.uid, p.x + lx * Math.cos(p.rot || 0), p.z - lx * Math.sin(p.rot || 0), this.banners.meId, p.type === 'gate' ? 2.6 : 3.8); }   // your colours on your gate
@@ -330,7 +332,17 @@
     blockPiece(p) {
       if (K.Breacher.GATES.has(p.type)) { if (p.bridge) p.bridge.apply(); return; }   // a gate's tiles follow its leaves or bridge: shut, nothing passes; open, you do
       if (p.type === 'gate_old') { const nav = this.play.nav; this.rectTiles(p.x, p.z, 2, 0.5, p.rot, (i, j) => { this.occ[j * nav.w + i] = 1; this.gateTiles.add(i + ',' + j); }); return; }   // occupied for building, but you can walk through
-      const [w, d] = CastleArt.size(p.type); this.blockRect(p.x, p.z, this.walls.handles(p.type) ? w + 0.04 : w, d, p.rot, p.type === 'gatehouse'); }
+      const [w, d] = CastleArt.size(p.type);
+      if (CastleArt.solids(p.type)) { this.blockSolids(p); return; }
+      this.blockRect(p.x, p.z, this.walls.handles(p.type) ? w + 0.04 : w, d, p.rot, p.type === 'gatehouse'); }
+    /** a workshop with a walkable yard or work floor: its whole footprint is taken (nothing else is built there), but only its solid parts block feet */
+    blockSolids(p) {
+      const nav = this.play.nav, [w, d] = CastleArt.size(p.type);
+      this.rectTiles(p.x, p.z, w, d, p.rot, (i, j, lx, lz) => { const k = j * nav.w + i; this.occ[k] = 1; if (CastleArt.solidAt(p.type, lx, lz)) nav.walk[k] = 0; });
+      const me = this.play.me; if (me && !nav.standable(me.x, me.z)) { const q = nav.nearestOk(...nav.tile(me.x, me.z), 8); if (q) { [me.x, me.z] = nav.centre(...q); me.path = null; } }
+    }
+    /** is this point on the floor of a piece (inside its footprint)? */
+    onPiece(p, x, z, pad = 0) { const [w, d] = CastleArt.size(p.type), c = Math.cos(p.rot || 0), s = Math.sin(p.rot || 0), dx = x - p.x, dz = z - p.z; return Math.abs(dx * c - dz * s) <= w / 2 + pad && Math.abs(dx * s + dz * c) <= d / 2 + pad; }
     /* the piece standing on this ground point, or null */
     pieceAt(x, z, pad = 0.2) {
       for (const p of this.castle.pieces) {
@@ -353,7 +365,7 @@
       if (opts.refund !== false) for (const [res, n] of Object.entries(r.refund)) { const k = Math.min(n, 6); for (let i = 0; i < k; i++) fx.spawnPickup(res, Math.floor(n / k) + (i < n % k ? 1 : 0), p.x + (Math.random() - 0.5) * w * 0.5, y + 0.6, p.z + (Math.random() - 0.5) * d, 2.6, true); }
       this.play.refreshProps(); this.changed(); return true;
     }
-    redrawPiece(p) { const old = this.meshes.get('p' + p.uid); if (old) this.group.remove(old); const m = this.art.piece(p.type, { level: p.level }); this.place(m, p.x, p.z, p.rot); this.meshes.set('p' + p.uid, m); if (this.castle.isFrosted(p)) this.setFrost(p, true); return m; }
+    redrawPiece(p) { const old = this.meshes.get('p' + p.uid); if (old) this.group.remove(old); const m = this.art.piece(p.type, { level: p.level }); this.place(m, p.x, p.z, p.rot); this.meshes.set('p' + p.uid, m); m.userData.piece = p; if (this.castle.isFrosted(p)) this.setFrost(p, true); return m; }
     setFrost(p, on) {
       const m = this.meshes.get('p' + p.uid); if (!m) return; const cur = m.children.find((c) => c.userData.frost);
       if (on && !cur) { const f = this.art.frostShell(p.type); f.userData.frost = true; m.add(f); } else if (!on && cur) m.remove(cur);

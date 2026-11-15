@@ -29,19 +29,46 @@
   /* piece footprints (m): w along the piece's local x, d along local z; used for nav blocking, raider collision and placement */
   const SIZE = {
     keep: [4.2, 4.2], palisade: [0.5, 0.5], stone_wall: [0.5, 0.5], dirt: [0.5, 0.5], gate: [2, 0.5], stone_gate: [4, 1.5], blacksmith: [6, 4.5], cottage: [5, 3.5], gatehouse: [3.6, 1.6], watchtower: [1.5, 1.5], ember_brazier: [0.8, 0.8], fire_pot: [0.8, 0.8], farm: [3, 2.5], silo: [1.6, 1.6], coop: [1.6, 1.4], barn: [3.4, 2.6], market: [1, 1], market_stalls: [3.8, 2.6], market_pavilion: [3.8, 2.6], market_wagons: [3.8, 2.6], field: [0.5, 0.5],
-    woodcutter: [2.6, 2.2], quarry: [2.6, 2.2], mine: [2.6, 2.4], great_hall: [5.2, 3.2], chapel: [2.2, 2.6], storehouse: [2.8, 2.2],
+    woodcutter: [2.6, 2.2], quarry: [2.6, 2.2], mine: [2.6, 2.4], great_hall: [5.2, 3.2], chapel: [2.2, 2.6], storehouse: [4.8, 2.6],
     smithy: [3.2, 2.6], ember_forge: [1.8, 1.6], barracks: [4.2, 2.2],
+  };
+
+  /* the parts of a piece you cannot walk through, as local rects [cx, cz, w, d] (same frame as SIZE). A type listed here has a
+     walkable yard, work floor or open-sided shed inside its footprint: the rest of the footprint is still taken (nothing else
+     can be built on it) but people walk in. Anything not listed is solid all over. */
+  const SOLID = {
+    storehouse: [[-1.15, -0.38, 2.55, 1.5], [1.3, -1.08, 2.3, 0.45], [2.25, -0.55, 0.3, 1.2], [1.45, -0.45, 0.8, 0.8], [2.0, 0.15, 0.6, 0.9]],
+    woodcutter: [[-0.45, -0.45, 1.85, 1.35], [0.84, -0.32, 0.9, 1.1], [-0.92, 0.65, 0.75, 0.5]],
+    quarry: [[-0.35, -0.65, 2.05, 0.9], [0.82, -0.3, 0.5, 0.8], [-0.82, 0.62, 1.1, 0.45], [0.52, 0.62, 0.65, 0.8]],
+    farm: [[-0.3, -0.28, 2.25, 1.85], [1.2, -0.4, 0.4, 1.1]],
+    barn: [[-0.5, -0.4, 2.4, 1.8], [-1.41, 0.98, 0.55, 0.6]],
+  };
+  /* where the trade happens in each workshop (local x, z, and the pose the worker uses there): read by the townsfolk (120-castle-workers.js) */
+  const WORK = {
+    storehouse: [{ x: 1.45, z: 0.15, pose: 'stir', face: [1.45, -0.45], spin: true }, { x: 0.75, z: -0.55, pose: 'lift', face: [0.7, -0.85], carry: 'sack' }, { x: 1.85, z: 0.55, pose: 'pitch', face: [2.0, 0.15] }, { x: -0.4, z: 0.95, pose: 'lift', face: [-0.4, 0.5], carry: 'crate' }],
+    woodcutter: [{ x: 0.62, z: 0.98, pose: 'chop', face: [0.62, 0.68] }, { x: -0.12, z: 1.0, pose: 'saw', face: [-0.12, 0.72] }, { x: 1.2, z: 0.55, pose: 'lift', face: [0.84, 0.1], carry: 'log' }, { x: -0.6, z: 0.95, pose: 'lift', face: [-0.92, 0.65], carry: 'plank' }],
+    quarry: [{ x: -0.5, z: 0.12, pose: 'chop', face: [-0.5, -0.24] }, { x: 0.1, z: 0.1, pose: 'chop', face: [0.1, -0.3] }, { x: -0.3, z: 0.75, pose: 'lift', face: [-0.82, 0.62], carry: 'stone' }, { x: 0.52, z: 0.15, pose: 'lift', face: [0.52, 0.62], carry: 'stone' }],
+    farm: [{ x: -1.0, z: 0.75, pose: 'pitch', face: [-1.0, 1.0] }, { x: 0.6, z: 0.85, pose: 'lift', face: [0.6, 0.5], carry: 'sack' }, { x: -0.3, z: 0.95, pose: 'sweep', face: [-0.3, 0.7] }],
+    barn: [{ x: 0.85, z: -0.85, pose: 'pitch', face: [1.2, -0.85] }, { x: 0.85, z: 0.1, pose: 'lift', face: [1.15, 0.08], carry: 'bucket' }, { x: 0.6, z: 0.75, pose: 'sweep', face: [0.95, 0.75] }],
   };
 
   class CastleArt {
     /* mats: K.BuildingMaterials (the renderer's bmats) */
     constructor(mats) { this.mats = mats; this.cache = new Map(); this.iceMat = null; }
     static size(type) { return SIZE[type] || [2, 2]; }
+    /** the solid rects of a piece type, or null if the whole footprint is solid */
+    static solids(type) { return SOLID[type] || null; }
+    /** is local point (lx, lz) of a piece of this type solid? */
+    static solidAt(type, lx, lz) { const s = SOLID[type]; if (!s) return true; return s.some(([cx, cz, w, d]) => Math.abs(lx - cx) <= w / 2 && Math.abs(lz - cz) <= d / 2); }
+    /** the work spots of a workshop, in its local frame */
+    static workSpots(type) { return WORK[type] || null; }
     /* a THREE.Group for a piece; opts: { ruin, level, built } */
     piece(type, opts = {}) {
       const kit = new K.VoxKit(), k = this.draw(kit, type, opts);
       const g = new THREE.Group(); g.name = 'castle:' + type;
       for (const m of kit.meshes(this.mats)) g.add(m);
+      if (kit.roof) { const r = new THREE.Group(); r.name = 'roof'; for (const m of kit.roof.meshes(this.mats)) r.add(m); g.add(r); g.userData.roof = r; }   // a roof you can stand under: it lifts away when you do
+      if (kit.spin) { const s = new THREE.Group(); s.name = 'spin'; for (const m of kit.spin.kit.meshes(this.mats)) s.add(m); s.position.set(...kit.spin.at); g.add(s); g.userData.spin = s; }   // a part that turns while someone works it (the millstone)
       if (k && k.flames) for (const f of k.flames) g.add(this.flame(f));
       if (opts.level >= 2 && !opts.ruin) this.levelFlag(g, type);
       return g;
@@ -357,5 +384,5 @@
     static tintGhost(g, ok) { g.traverse((m) => { if (m.isMesh && m.userData.pad) m.material.color.setHex(ok ? 0x7fe08a : 0xff6a5a); }); }
   }
 
-  Object.assign(K, { CastleArt, CASTLE_SIZE: SIZE });
+  Object.assign(K, { CastleArt, CASTLE_SIZE: SIZE, CASTLE_SOLID: SOLID, CASTLE_WORK: WORK });
 })(typeof window !== 'undefined' ? window : globalThis);

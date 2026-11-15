@@ -154,6 +154,11 @@
         for (const e of [-0.24, 0.24]) k.box('woodMid', kx + e, y, kz, 0.05, 0.02, 0.44);
       }
       k.box('woodDark', kx, 0, kz - 0.32, 0.6, 0.03, 0.03);
+      // an open work shed over the chopping block and the saw-horse: four posts and a shingle roof (it lifts away when you walk under it)
+      const rk = k.roof || (k.roof = new K.VoxKit()), PH = 1.5;
+      for (const [x, z] of [[-0.55, 0.28], [1.22, 0.28], [-0.55, 1.05], [1.22, 1.05]]) k.box('woodDark', x, 0, z, 0.08, PH, 0.08);
+      for (const z of [0.28, 1.05]) k.box('woodMid', 0.335, PH - 0.08, z, 1.85, 0.08, 0.1);
+      rk.box('roofBrown', 0.335, PH + 0.04, 0.665, 2.0, 0.07, 1.05, 0, -0.18); rk.box('snow', 0.335, PH + 0.13, 0.62, 1.9, 0.03, 0.8, 0, -0.18);
       return k;
     },
 
@@ -216,11 +221,51 @@
       k.box('stoneLight', ax - 0.1, 0.32, az - 0.1, 0.22, 0.2, 0.24, 0.2); k.box('whitewash', ax + 0.1, 0.32, az + 0.12, 0.2, 0.18, 0.22, -0.3);
       // a sign by the path: crossed picks on a pale board
       k.box('woodDark', -0.15, 0, 0.98, 0.07, 1.25, 0.07); board(k, -0.15, 1.12, 1.02, 0.56, 0.42, 'paintWhite', PIC.picks, 1.25);
+      // a lean-to of planks against the face, on two posts: the masons dress stone in its shade (it lifts away when you walk under it)
+      const rk = k.roof || (k.roof = new K.VoxKit());
+      for (const x of [-1.05, 0.32]) k.box('woodDark', x, 0, 0.38, 0.08, 1.42, 0.08); k.box('woodMid', -0.365, 1.36, 0.38, 1.5, 0.08, 0.1);
+      rk.box('roofBrown', -0.365, 1.5, 0.05, 1.6, 0.07, 0.9, 0, -0.3); rk.box('snow', -0.365, 1.58, 0.02, 1.5, 0.03, 0.7, 0, -0.3);
       return k;
     },
 
     /* ---------------- the storehouse: a whitewashed, half-timbered warehouse; big open doors with goods inside, a loading deck and a hoist ---------------- */
     storehouse(k, o) {
+      frame(k, -1.15, 0, 0); ART.storeBody(k, o); k.pop();   // the warehouse on the left,
+      ART.millWing(k, o);                                    // and the mill you can walk into on the right
+      return k;
+    },
+    /** the mill: an open-fronted timber shed against the storehouse, a stone back wall, a pair of millstones (the top one turns
+        while the miller grinds), sacks of wheat and flour, and hay bales stacked by the side wall. Its roof lifts away when you walk in. */
+    millWing(k, o) {
+      const L2 = (o.level || 1) >= 2, x0 = 0.18, x1 = 2.38, z0 = -1.2, z1 = 0.92, mx = (x0 + x1) / 2, mz = (z0 + z1) / 2, H = 1.62, rk = k.roof || (k.roof = new K.VoxKit());
+      k.box('stoneMid', mx, 0, mz, x1 - x0 + 0.06, 0.06, z1 - z0 + 0.06); k.box('planks', mx, 0.06, mz, x1 - x0 - 0.06, 0.02, z1 - z0 - 0.06);
+      k.box('stoneLight', mx, 0.06, z0 + 0.08, x1 - x0, H - 0.06, 0.16);                    // the stone back wall
+      k.box('whitewash', x1 - 0.06, 0.06, (z0 + 0.1) / 2 - 0.05, 0.12, H - 0.06, 1.25);       // the side wall, half way: the rest is open
+      for (const [x, z] of [[x0 + 0.06, z1 - 0.06], [x1 - 0.06, z1 - 0.06], [mx, z1 - 0.06], [x1 - 0.06, 0.12]]) k.box('woodDark', x, 0.06, z, 0.12, H - 0.06, 0.12);
+      k.box('woodDark', mx, H - 0.1, z1 - 0.06, x1 - x0, 0.12, 0.14); k.box('woodDark', x1 - 0.06, H - 0.1, mz, 0.14, 0.12, z1 - z0);
+      for (const x of [x0 + 0.5, mx, x1 - 0.5]) k.box('woodMid', x, H - 0.12, mz, 0.08, 0.08, z1 - z0 - 0.2);   // ceiling joists you see when the roof lifts
+      roofX(rk, 'roofRed', mx, mz, x1 - x0, z1 - z0, H, 0.5, { over: 0.16, ends: 0.1, gableMat: 'whitewash' });
+      // the millstones: a bed stone on a timber cradle, the runner stone on top (it turns), a hopper of wheat over it and a flour spout
+      const sx = 1.45, sz = -0.45;
+      k.box('woodMid', sx, 0.06, sz, 0.95, 0.24, 0.95); k.geo('stoneMid', CYL, sx, 0.4, sz, 0, 0, 0, 0.42, 0.18, 0.42); k.geo('paintWhite', CYL, sx, 0.31, sz, 0, 0, 0, 0.45, 0.02, 0.45);
+      const sp = new K.VoxKit(); sp.geo('stoneLight', CYL, 0, 0.08, 0, 0, 0, 0, 0.38, 0.16, 0.38); sp.geo('stoneDark', CYL, 0, 0.165, 0, 0, 0, 0, 0.07, 0.02, 0.07);
+      sp.box('woodLight', 0.3, 0.16, 0, 0.05, 0.36, 0.05); sp.box('woodDark', 0.3, 0.5, 0, 0.08, 0.06, 0.08); for (let i = 0; i < 4; i++) sp.box('stoneDark', 0, 0.161, 0, 0.7, 0.004, 0.02, i * Math.PI / 4);
+      k.spin = { kit: sp, at: [sx, 0.49, sz] };
+      for (const s of [-1, 1]) k.box('woodDark', sx + s * 0.32, 0.06, sz - 0.42, 0.06, 1.25, 0.06); k.box('woodDark', sx, 1.25, sz - 0.42, 0.7, 0.06, 0.08);
+      k.box('woodLight', sx, 0.95, sz - 0.18, 0.34, 0.26, 0.34, 0, 0.0); k.box('wheatGold', sx, 1.2, sz - 0.18, 0.28, 0.03, 0.28); k.box('woodLight', sx, 0.78, sz - 0.18, 0.08, 0.18, 0.08);
+      k.box('woodLight', sx + 0.48, 0.3, sz + 0.05, 0.2, 0.06, 0.08, 0, 0, -0.4); k.box('paintWhite', sx + 0.6, 0.06, sz + 0.06, 0.22, 0.1, 0.22);   // the flour spout and the heap under it
+      // sacks: wheat waiting (gold) by the back wall, flour done (white) by the front, and a weighing beam
+      for (let i = 0; i < (L2 ? 6 : 4); i++) sack(k, 0.48 + (i % 3) * 0.26, 0.08 + Math.floor(i / 3) * 0.3, -0.85 + (i % 2) * 0.04, i * 0.4, 'wheatGold', 0.9);
+      for (let i = 0; i < (L2 ? 5 : 3); i++) sack(k, 0.5 + (i % 3) * 0.27, 0.08 + Math.floor(i / 3) * 0.3, 0.45 + (i % 2) * 0.05, -i * 0.5, 'paintWhite', 0.9);
+      k.box('woodDark', 0.62, 0.06, 0.05, 0.06, 1.2, 0.06); k.box('woodDark', 0.62, 1.22, 0.05, 0.6, 0.05, 0.05); k.box('rope', 0.4, 0.9, 0.05, 0.02, 0.32, 0.02); k.box('ironDark', 0.4, 0.84, 0.05, 0.16, 0.04, 0.16);
+      // hay bales stacked two high along the side wall, and a pitchfork against them
+      const bale = (x, y, z, ry) => { k.box('hay', x, y, z, 0.48, 0.28, 0.32, ry); for (const b of [-0.12, 0.12]) k.box('rope', x + Math.cos(ry) * b, y - 0.005, z - Math.sin(ry) * b, 0.03, 0.29, 0.33, ry); };
+      bale(2.0, 0.08, -0.15, Math.PI / 2); bale(2.0, 0.08, 0.35, Math.PI / 2); bale(2.0, 0.36, 0.1, Math.PI / 2 + 0.1); if (L2) bale(2.0, 0.36, 0.55, Math.PI / 2);
+      k.box('woodLight', 1.68, 0.06, 0.62, 0.035, 1.15, 0.035, 0, 0, 0.18); k.box('steel', 1.58, 1.16, 0.62, 0.16, 0.03, 0.03);
+      // a sign over the opening: wheat sheaves and a loaf
+      board(k, mx, H + 0.02, z1 + 0.02, 0.62, 0.3, 'paintWhite', PIC.bread, 1.0);
+    },
+    storeBody(k, o) {
       const L2 = (o.level || 1) >= 2, cx = 0, cz = -0.38, w = 2.4, d = 1.36, H = L2 ? 1.95 : 1.45, front = cz + d / 2, plinth = 0.25;
       k.box('stoneLight', cx, 0, cz, w + 0.08, plinth, d + 0.08); k.box('stoneMid', cx, 0, cz, w + 0.12, 0.06, d + 0.12);
       k.box('whitewash', cx, plinth, cz, w, H, d);
@@ -272,7 +317,6 @@
       if (L2) {   // a second-floor window pair either side of the loft
         for (const s of [-1, 1]) { k.box('woodDark', cx + s * 0.95, plinth + 1.35, front + 0.02, 0.36, 0.4, 0.04); k.box('window', cx + s * 0.95, plinth + 1.38, front + 0.04, 0.28, 0.34, 0.02); }
       }
-      return k;
     },
 
     /* ---------------- the market's street stall row: four stalls, one per section, in front of the hall ---------------- */
