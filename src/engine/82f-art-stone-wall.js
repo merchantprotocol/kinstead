@@ -7,15 +7,43 @@
 (function (G) {
   const K = G.K;
 
+  /* Local-only connectivity derived from tile occupancy. Bits: N=1, E=2, S=4, W=8. */
+  class WallConnections {
+    static mask(piece, pieces) {
+      const family = (type) => type === 'palisade' ? 'wood' : type === 'stone_wall' ? 'stone' : null;
+      const mine = family(piece.type); if (!mine || piece.broken) return 0;
+      let mask = 0;
+      for (const p of pieces) {
+        if (p === piece || p.broken) continue;
+        const dx = p.x - piece.x, dz = p.z - piece.z;
+        const wall = !!family(p.type), endpoint = ['gate', 'stone_gate', 'stone_tower'].includes(p.type);
+        if (!wall && !endpoint) continue;
+        const [w, d] = K.CastleArt.size(p.type), c = Math.abs(Math.cos(p.rot || 0)), s = Math.abs(Math.sin(p.rot || 0));
+        const extentX = (c * w + s * d) / 2, extentZ = (s * w + c * d) / 2, alongX = Math.abs(dx) > Math.abs(dz), halfExtent = alongX ? extentX : extentZ;
+        const gap = wall ? 0.5 : 0.25 + halfExtent;
+        if (Math.abs(dx) < 0.03 && Math.abs(dz + gap) < 0.03) mask |= 1;
+        if (Math.abs(dz) < 0.03 && Math.abs(dx - gap) < 0.03) mask |= 2;
+        if (Math.abs(dx) < 0.03 && Math.abs(dz - gap) < 0.03) mask |= 4;
+        if (Math.abs(dz) < 0.03 && Math.abs(dx + gap) < 0.03) mask |= 8;
+      }
+      return mask;
+    }
+  }
+  K.WallConnections = WallConnections;
+
   class StoneWallArt {
     constructor() { this.tones = ['stoneLight', 'whitewash', 'stoneLight', 'stoneLight', 'whitewash']; }
-    draw(k) {
+    draw(k, opts = {}) {
       const top = K.RampartPlan.WALK, slab = top - 0.08;
+      const mask = opts.wallMask || 0;
       k.box('stoneDark', 0, 0, 0, 0.5, 0.2, 0.5);                       // footing
       k.box('stoneDark', 0, 0.2, 0, 0.44, slab - 0.2, 0.44);            // mortar core
+      for (const [bit, x, z, sx, sz] of [[1, 0, -0.125, 0.28, 0.25], [2, 0.125, 0, 0.25, 0.28], [4, 0, 0.125, 0.28, 0.25], [8, -0.125, 0, 0.25, 0.28]]) if (mask & bit) {
+        k.box('stoneDark', x, 0.2, z, sx, slab - 0.2, sz);
+      }
       this.courses(k, 0.2, slab);
       k.box('stoneMid', 0, slab, 0, 0.5, 0.08, 0.5);                    // walkway slab
-      for (const x of [-0.18, 0.18]) for (const z of [-0.18, 0.18]) k.box('stoneLight', x, top, z, 0.14, 0.32, 0.14);   // corner merlons
+      for (const x of [-0.18, 0.18]) for (const z of [-0.18, 0.18]) k.box('stoneLight', x, top, z, 0.14, 0.32, 0.14);   // corner merlons: parapet both sides, walk clear down the middle
       return k;
     }
     /* staggered block faces, the same on all four sides so a run looks right in either direction */

@@ -41,6 +41,8 @@
     static register(type, painter) { CastleArt.painters.set(type, painter); }
     /* a THREE.Group for a piece; opts: { ruin, level, built } */
     piece(type, opts = {}) {
+      const isWall = !opts.ruin && (type === 'palisade' || type === 'stone_wall'), cacheKey = isWall ? `${type}:${opts.wallMask || 0}:${opts.level || 1}` : null;
+      if (cacheKey && this.cache.has(cacheKey)) return this.cache.get(cacheKey).clone(true);
       const kit = new K.VoxKit(), painter = opts.ruin ? null : CastleArt.painters.get(type);
       const k = painter ? painter.draw(kit, opts) || kit : this.draw(kit, type, opts);
       const g = new THREE.Group(); g.name = 'castle:' + type;
@@ -49,6 +51,7 @@
       if (kit.spin) { g.userData.spin = this.part(g, 'spin', kit.spin.kit); g.userData.spin.position.set(...kit.spin.at); }   // turns while someone works it
       if (k && k.flames) for (const f of k.flames) g.add(this.flame(f));
       if (opts.level >= 2 && !opts.ruin) this.levelFlag(g, type);
+      if (cacheKey) { this.cache.set(cacheKey, g); return g.clone(true); }
       return g;
     }
     /** a separately movable part of a piece (its roof, its millstone) drawn from its own kit */
