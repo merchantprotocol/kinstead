@@ -76,6 +76,14 @@
         .go(door.x, door.z).then(() => this.show(false)).pause(COOK_TIME)
         .then(() => { this.g.purse.hearth.addMeal(meal.id); this.g.cui.toast(`Your cook made ${meal.name}. It is on the kitchen hearth.`); this.g.changed(); });
     }
+    report() {
+      const n = this.meals(), m = this.market, out = [n ? `I have ${n} meal${n > 1 ? 's' : ''} ready on the kitchen hearth. Help yourself.` : 'The kitchen hearth is empty right now.'];
+      if (!m) { out.push('We have no marketplace, so I have nothing to cook with. Build one and keep it stocked.'); return out; }
+      const l = this.eco.ledger(m), can = MEALS.filter((r) => Object.entries(r.need).every(([g, k]) => l.amount(g) >= k)).map((r) => r.name);
+      out.push(`In the market: ${['wheat', 'egg', 'milk', 'beef'].map((g) => `${l.amount(g)} ${K.CastleData.resName(g)}`).join(', ')}.`);
+      out.push(can.length ? `I can make ${can.join(', ')}.` : 'I cannot cook anything: I need 3 wheat for bread, 2 eggs and a milk for an omelette, or beef, milk and wheat for a stew.');
+      if (n >= PANTRY_MAX) out.push('The hearth is full, so I am resting until you eat something.'); return out;
+    }
     backHome(e) { const d = this.home && this.home.doorPoint; if (d) { e.steps = []; e.go(d.x, d.z).then(() => this.show(false)); } }
   }
 
@@ -85,6 +93,13 @@
     update() { if (this.shop && !this.a) { this.spawn(doorOf(this.shop)); this.show(false); } else if (!this.shop && this.a) this.despawn(); }
     /** you order something at the forge: he gathers the materials (market first, then your purse) and makes it */
     order(r) { this.orders.push(r); this.g.cui.toast(`The smith will make the ${r.name.toLowerCase()}. He fetches what he needs from the market first.`); }
+    report() {
+      const out = [], m = this.market, l = m ? this.eco.ledger(m) : null, c = this.g.castle;
+      out.push(this.orders.length ? `I have ${this.orders.length} order${this.orders.length > 1 ? 's' : ''} to make: ${this.orders.map((r) => r.name.toLowerCase()).join(', ')}.` : 'No orders right now. Order weapons at the forge and I will fetch what I need.');
+      out.push(`Wood: ${l ? l.amount('wood') : 0} in the market, ${c.amount('wood')} in your purse. Iron: ${l ? l.amount('iron') : 0} in the market, ${c.amount('iron')} in your purse.`);
+      if (!m) out.push('With a marketplace I would make arrows for it whenever I am idle.'); else if (l.amount('wood') < 2) out.push('The market has no wood for arrows. Send some over and I will keep the racks full.'); else out.push(`The market has ${l.amount('arrow')} arrows. I make more whenever it is low.`);
+      return out;
+    }
     gather(cost) {
       const c = this.g.castle, l = this.market ? this.eco.ledger(this.market) : null;
       for (const [r, n] of Object.entries(cost)) if ((l ? l.amount(r) : 0) + c.amount(r) < n) return false;
@@ -110,20 +125,69 @@
     constructor(w) { super(w, { role: 'clerk', sprite: 'ranger', name: 'Clerk', tint: 0xc8e0ff, speed: 1.2, scale: 0.95 }); this.t = 40; }
     get post() { const m = this.market; if (!m) return null; const r = m.rot || 0; return { x: m.x - Math.sin(r) * 0.15, z: m.z - Math.cos(r) * 0.15 }; }
     update() { const p = this.post; if (p && !this.a) this.spawn(p); else if (!p && this.a) this.despawn(); }
+    report() {
+      const m = this.market; if (!m) return ['No market, no customers.']; const l = this.eco.ledger(m), w = this.w, on = Object.entries(w.prices).filter(([, pr]) => pr > 0);
+      const stock = Object.entries(l.goods).filter(([g, n]) => n > 0 && g !== 'gold').sort((a, b) => b[1] - a[1]).slice(0, 6).map(([g, n]) => `${n} ${K.CastleData.resName(g)}`);
+      return [stock.length ? `On the stalls: ${stock.join(', ')}.` : 'The stalls are bare. The carts bring whatever your town makes.', `I have taken ${l.amount('gold')} gold so far. It is in the market for you.`, `I sell ${on.length} kinds of goods at the prices you set. Other settlers pay; your own team takes what they need for free.`, w.sold ? `Today I sold ${w.sold} lots.` : 'No sales yet today.'];
+    }
     idle(e, dt) {
       const p = this.post; if (!p) return; if (dist(this.a, p) > 0.8) { e.go(p.x, p.z); return; }
       if ((this.t -= dt) > 0) return; this.t = 45 + Math.random() * 30;   // a passing trader buys a little of something you have priced
       const l = this.eco.ledger(this.market), on = Object.entries(this.w.prices).filter(([g, pr]) => pr > 0 && l.amount(g) >= 1); if (!on.length) return;
       const [good, pr] = on[Math.floor(Math.random() * on.length)], n = Math.min(l.amount(good), 1 + Math.floor(Math.random() * 4));
-      l.take(good, n); l.add('gold', n * pr); e.pause(2, 'action');
+      l.take(good, n); l.add('gold', n * pr); e.pause(2, 'action'); this.w.sold = (this.w.sold || 0) + 1;
       this.g.cui.toast(`A passing trader bought ${n} ${K.CastleData.resName(good)} from your clerk for ${n * pr} gold.`); this.g.changed();
     }
   }
 
+  /** the person who runs a workshop or farm building: stands out front, and tells you how it is going */
+  const KEEP = {
+    farm: { name: 'Farmer', sprite: 'ranger', tint: 0xe8d090 }, coop: { name: 'Henwife', sprite: 'witch', tint: 0xf0e0c0 }, barn: { name: 'Cowherd', sprite: 'warden', tint: 0xd0b080 },
+    woodcutter: { name: 'Woodcutter', sprite: 'ranger', tint: 0x9ac080 }, quarry: { name: 'Quarryman', sprite: 'warden', tint: 0xc0b8a8 }, storehouse: { name: 'Storekeeper', sprite: 'warden', tint: 0xb0c8a0 },
+    silo: { name: 'Miller', sprite: 'ranger', tint: 0xf0e8d0 }, watchtower: { name: 'Archer', sprite: 'ranger', tint: 0xc8e0ff },
+  };
+  class Keeper extends Job {
+    constructor(w, p) { const k = KEEP[p.type], look = (K.WORKER_LOOKS || {})[k.name]; super(w, { role: 'keep' + p.uid, sprite: look ? look.sprite : k.sprite, name: k.name, tint: look ? look.tint : k.tint, speed: 1.2 }); this.p = p; this.wanderT = Math.random() * 8; }
+    get post() { const p = this.p, [, d] = K.CastleArt.size(p.type), r = p.rot || 0, o = d / 2 + 0.9; return { x: p.x + Math.sin(r) * o + Math.cos(r) * 0.6, z: p.z + Math.cos(r) * o - Math.sin(r) * 0.6 }; }
+    update() { if (!this.a) { const at = this.post; if (this.g.play.nav.standable(at.x, at.z)) this.spawn(at); } }
+    idle(e, dt) { if ((this.wanderT -= dt) > 0) return; this.wanderT = 6 + Math.random() * 8; const p = this.post, a = Math.random() * 6.283; e.go(p.x + Math.cos(a) * 0.8, p.z + Math.sin(a) * 0.8).pause(2 + Math.random() * 3, Math.random() < 0.4 ? 'action' : 'idle'); }
+    report() {
+      const g = this.g, p = this.p, c = g.castle, e = g.economy, l = e.ledger(p), held = Object.entries(p.held || {}).filter(([, n]) => n >= 1).map(([r, n]) => `${Math.floor(n)} ${K.CastleData.resName(r)}`);
+      const full = held.length ? `Your purse and storehouses are full, so I have ${held.join(', ')} stacked here. Build a storehouse and I will send it over.` : null;
+      switch (p.type) {
+        case 'farm': { const f = [...e.fields.tiles.values()].filter((t) => e.nearestFarm((t.i + 0.5) * TILE, (t.j + 0.5) * TILE) === p), ripe = f.filter((t) => e.fields.stage(t) === 2).length;
+          return [f.length ? `I tend ${f.length} squares of wheat. ${ripe} are golden now.` : 'I have no fields. Pick Wheat field in the drawer and draw squares around me.', `${l.amount('wheat')} wheat is waiting in the barn. A cart takes it to the silo every 10.`, 'The bigger the field, the more wheat.']; }
+        case 'coop': { const h = e.stock.herd(p), out = h.filter((b) => b.exposed).length;
+          return [h.length ? `${h.length} hens, each laying an egg a minute.` : 'No hens yet. Buy them here for 5 wheat each.', `${l.amount('egg')} eggs waiting. The carts take them to the market.`, out ? `${out} of them are outside your walls. Wolves will take them.` : (h.length ? 'They are safe inside the walls.' : '')].filter(Boolean); }
+        case 'barn': { const h = e.stock.herd(p), hungry = h.filter((b) => !b.fed).length;
+          return [h.length ? `${h.length} cows.` : 'No cows yet. Buy them here for 10 wheat each.', hungry ? `${hungry} are hungry. They need wheat in the silo or the market.` : (h.length ? 'They are fed and giving milk.' : ''), `${l.amount('milk')} milk and ${l.amount('beef')} beef here.`].filter(Boolean); }
+        case 'woodcutter': case 'quarry': { const pr = c.producesOf(p) || {}, [r, n] = Object.entries(pr)[0] || ['wood', 0];
+          return [`We cut ${n} ${K.CastleData.resName(r)} a minute${p.level >= 2 ? ' (upgraded)' : ''}.`, full || `It all goes straight to your stores. You hold ${c.amount(r)} of ${c.caps()[r]}.`]; }
+        case 'storehouse': { const caps = c.caps(); return [`With your storehouses you can hold ${caps.wood} wood, ${caps.stone} stone, ${caps.iron} iron and ${caps.gold} gold.`, `Right now: ${c.amount('wood')} wood, ${c.amount('stone')} stone, ${c.amount('iron')} iron.`, 'Another storehouse holds even more, and raiders take less.']; }
+        case 'silo': return [`${l.amount('wheat')} of 200 wheat in the silo.`, l.amount('wheat') >= 190 ? 'Nearly full: the extra goes to the market.' : 'Wheat from the farms comes here first.'];
+        case 'watchtower': return ['I shoot anything hostile within 12 m of this tower.', 'Keep the tower inside your walls and it covers the gate.'];
+      }
+      return ['All is well.'];
+    }
+  }
+
   class Workers {
-    constructor(game) { this.g = game; this.prices = Object.assign({}, PRICE); this.cook = new Cook(this); this.smith = new Smith(this); this.clerk = new Clerk(this); this.pubT = 2; this.pubSig = ''; this.markets = new Map(); this.hooked = false; }
-    get jobs() { return [this.cook, this.smith, this.clerk]; }
+    constructor(game) { this.g = game; this.prices = Object.assign({}, PRICE); this.cook = new Cook(this); this.smith = new Smith(this); this.clerk = new Clerk(this); this.pubT = 2; this.pubSig = ''; this.markets = new Map(); this.hooked = false; this.keepers = new Map(); this.keepT = 0; }
+    get jobs() { return [this.cook, this.smith, this.clerk, ...this.keepers.values()]; }
+    /** one keeper per workshop and farm building; they go when the building goes */
+    syncKeepers() {
+      const live = new Set();
+      for (const p of this.g.castle.pieces) if (KEEP[p.type]) { live.add(p.uid); if (!this.keepers.has(p.uid)) this.keepers.set(p.uid, new Keeper(this, p)); }
+      for (const [uid, k] of this.keepers) if (!live.has(uid)) { k.despawn(); this.keepers.delete(uid); }
+    }
+    /** talk to someone: they tell you how it is going */
+    talk(a) {
+      const j = this.jobs.find((x) => x.a === a); if (!j) return; const lines = j.report();
+      this.g.cui.modal(`<h2>${j.opts.name}</h2>${lines.map((t) => `<p>${t}</p>`).join('')}`, [{ label: 'Thanks', pri: true }]);
+      if (j.a) { j.a.path = null; this.g.play.face(j.a, this.g.play.me); }
+    }
     update(dt) {
+      if ((this.keepT -= dt) <= 0) { this.keepT = 2; this.syncKeepers(); }
       for (const j of this.jobs) j.update(dt);
       const mp = this.g.mp; if (!mp) return; if (!this.hooked) this.hook(mp);
       if ((this.pubT -= dt) <= 0) { this.pubT = 5; this.publish(); }
@@ -139,31 +203,33 @@
     /** what your market has for sale, for everyone to see */
     publish() {
       const mk = this.cook.market, mp = this.g.mp; if (!mk || !mp) return; const l = this.g.economy.ledger(mk), stock = {}, prices = {};
-      for (const [g, pr] of Object.entries(this.prices)) if (pr > 0 && l.amount(g) > 0) { stock[g] = l.amount(g); prices[g] = pr; }
+      for (const [g, n] of Object.entries(l.goods)) if (n >= 1 && g !== 'gold') stock[g] = Math.floor(n);   // everything shows (your team may take any of it); outsiders only see what has a price
+      for (const [g, pr] of Object.entries(this.prices)) if (pr > 0) prices[g] = pr;
       const sig = JSON.stringify([stock, prices, Math.round(mk.x), Math.round(mk.z)]); if (sig === this.pubSig) return; this.pubSig = sig;
       mp.net.send({ t: 'market', x: mk.x, z: mk.z, stock, prices });
     }
     buy(owner, good, n) {
-      const g = this.g, m = this.markets.get(owner); if (!m) return; const cost = (m.prices[good] || 0) * n;
+      const g = this.g, m = this.markets.get(owner); if (!m) return; const cost = g.mp.mayUse(owner) ? 0 : (m.prices[good] || 0) * n;   // your team takes for free
       if (g.castle.amount('gold') < cost) { g.cui.toast(`That costs ${cost} gold. You have ${g.castle.amount('gold')}.`); g.sound.play('clank'); return; }
       g.mp.net.send({ t: 'buy', owner, good, n });
     }
     bought(m) {
       const g = this.g, c = g.castle; c.spend({ gold: m.cost }); const got = c.add(m.good, m.n);
-      g.cui.toast(`You bought ${m.n} ${K.CastleData.resName(m.good)} for ${m.cost} gold.${got < m.n ? ' Your purse was full; the rest is lost.' : ''}`); g.sound.play('gather'); g.changed();
+      g.cui.toast(`${m.cost ? 'You bought' : 'You took'} ${m.n} ${K.CastleData.resName(m.good)}${m.cost ? ` for ${m.cost} gold` : ''}.${got < m.n ? ' Your purse was full; the rest is lost.' : ''}`); g.sound.play('gather'); g.changed();
       const mk = this.markets.get(m.owner); if (mk && mk.stock) mk.stock[m.good] = Math.max(0, (mk.stock[m.good] || 0) - m.n); if (this.tradeWith === m.owner) this.trade(m.owner);
     }
     /** someone bought from your clerk (now, or while you were away) */
     sold(s) {
       const g = this.g, mk = this.cook.market; if (!mk) return; const l = g.economy.ledger(mk); l.take(s.good, s.n); l.add('gold', s.gold);
-      g.cui.toast(`${s.by} bought ${s.n} ${K.CastleData.resName(s.good)} from your clerk for ${s.gold} gold.`); g.changed(); this.pubSig = '';
+      g.cui.toast(s.gold ? `${s.by} bought ${s.n} ${K.CastleData.resName(s.good)} from your clerk for ${s.gold} gold.` : `${s.by} (your team) took ${s.n} ${K.CastleData.resName(s.good)} from your market.`); g.changed(); this.pubSig = '';
     }
     /** the trading window at another player's market */
     trade(owner) {
       const g = this.g, m = this.markets.get(owner); this.tradeWith = owner;
-      if (!m || !Object.keys(m.stock || {}).length) { g.cui.modal(`<h2>The clerk shrugs</h2><p>Nothing is for sale here right now.</p>`, [{ label: 'Leave', pri: true }]); return; }
-      const rows = Object.entries(m.stock).map(([gd, n]) => `<div class="trow"><b>${K.CastleData.resName(gd)}</b> <span>${n} in stock · ${m.prices[gd]} gold each</span> <button class="cb" data-buy="${gd}" data-n="1">Buy 1</button> <button class="cb" data-buy="${gd}" data-n="5">Buy 5</button></div>`).join('');
-      g.cui.modal(`<h2>${m.name || 'A settler'}'s market</h2><p>You have ${g.castle.amount('gold')} gold.</p><div class="trade">${rows}</div>`, [{ label: 'Done', pri: true, run: () => { this.tradeWith = null; } }]);
+      if (!m || !Object.entries(m.stock || {}).some(([gd, n]) => n > 0 && (g.mp.mayUse(owner) || (m.prices || {})[gd] > 0))) { g.cui.modal(`<h2>The clerk shrugs</h2><p>Nothing is for sale here right now.</p>`, [{ label: 'Leave', pri: true }]); return; }
+      const team = g.mp.mayUse(owner), verb = team ? 'Take' : 'Buy';
+      const rows = Object.entries(m.stock).filter(([gd, n]) => n > 0 && (team || m.prices[gd] > 0)).map(([gd, n]) => `<div class="trow"><b>${K.CastleData.resName(gd)}</b> <span>${n} in stock${team ? '' : ` · ${m.prices[gd]} gold each`}</span> <button class="cb" data-buy="${gd}" data-n="1">${verb} 1</button> <button class="cb" data-buy="${gd}" data-n="5">${verb} 5</button></div>`).join('');
+      g.cui.modal(`<h2>${m.name || 'A settler'}'s market</h2><p>${team ? 'Your team: take what you need, free.' : `You have ${g.castle.amount('gold')} gold.`}</p><div class="trade">${rows}</div>`, [{ label: 'Done', pri: true, run: () => { this.tradeWith = null; } }]);
       const box = g.cui.$('cModal'), prev = box.onclick; box.onclick = (e) => { const b = e.target.closest('[data-buy]'); if (b) { this.buy(owner, b.dataset.buy, +b.dataset.n); return; } prev(e); };
     }
     /** your own prices, set at your market */

@@ -124,7 +124,9 @@
         if (this.isFrosted(p)) continue;
         p.acc = p.acc || {};
         for (const [r, perMin] of Object.entries(this.producesOf(p))) {
-          const got = this.add(r, perMin * dt / 60); gains[r] = (gains[r] || 0) + got;
+          p.held = p.held || {}; const make = perMin * dt / 60, got = this.add(r, make); gains[r] = (gains[r] || 0) + got;
+          if (got < make - 1e-9) p.held[r] = Math.min(Castle.HOLD, (p.held[r] || 0) + make - got);   // your purse is full: the workshop stacks it and waits
+          else if (p.held[r] > 0) { const back = this.add(r, Math.min(p.held[r], 2)); p.held[r] -= back; }   // room again: the stack goes in
           p.acc[r] = (p.acc[r] || 0) + got;
           if (p.acc[r] >= 1) { const n = Math.floor(p.acc[r]); p.acc[r] -= n; ticks.push({ piece: p, r, n }); }
         }
@@ -144,7 +146,9 @@
     ruinOpen(type) { return this.isRuinType(type) && !this.ruins[type]; }
     buildCost(type, { ruin = false } = {}) {
       const d = this.data.piece(type); if (!d) return null;
-      return ruin ? Cost.scale(d.cost, this.data.raw.ruinRules.repairCostFraction) : Object.assign({}, d.cost);
+      if (ruin) return Cost.scale(d.cost, this.data.raw.ruinRules.repairCostFraction);
+      const n = Castle.FLAT.has(type) ? 0 : this.pieces.filter((p) => p.type === type).length;   // every extra one of a building costs more than the last
+      return n ? Cost.scale(d.cost, Math.pow(1.6, n)) : Object.assign({}, d.cost);
     }
     zoneOpen(z) { return z === 'castle_hill' || this.flags.has('zone:' + z); }
     /* why a piece can't be built right now (null = it can) */
@@ -163,7 +167,8 @@
     canDemolish(p) { return !!p && !this.ruins[p.type] && this.pieces.includes(p); }
     refundFor(p) {
       const half = (cost) => { const o = {}; for (const [r, n] of Object.entries(cost || {})) { const h = Math.floor(n / 2); if (h > 0) o[r] = h; } return o; };
-      const out = half(this.buildCost(p.type));
+      const paid = Castle.FLAT.has(p.type) ? this.buildCost(p.type) : Cost.scale(this.data.piece(p.type).cost, Math.pow(1.6, Math.max(0, this.pieces.filter((q) => q.type === p.type).length - 1)));   // what this one cost: the price before it was built
+      const out = half(paid);
       if (p.level >= 2) for (const [r, n] of Object.entries(half(this.upgradeCost(p)))) out[r] = (out[r] || 0) + n;
       return out;
     }
@@ -266,7 +271,7 @@
     currentGoals(n = 3) { return this.objectives().filter((o) => !o.done).slice(0, n); }   // goals met early drop out of the list
     /* ---- save ---- */
     toJSON() {
-      return { v: 1, stores: Object.assign({}, this.stores), pieces: this.pieces.map((p) => ({ uid: p.uid, type: p.type, level: p.level, x: +p.x.toFixed(3), z: +p.z.toFixed(3), rot: +(p.rot || 0).toFixed(3), hp: p.hp, ruin: !!p.ruin, frosted: !!p.frosted, frostedUntil: p.frostedUntil || 0 })),
+      return { v: 1, stores: Object.assign({}, this.stores), pieces: this.pieces.map((p) => ({ uid: p.uid, type: p.type, level: p.level, held: p.held || undefined, x: +p.x.toFixed(3), z: +p.z.toFixed(3), rot: +(p.rot || 0).toFixed(3), hp: p.hp, ruin: !!p.ruin, frosted: !!p.frosted, frostedUntil: p.frostedUntil || 0 })),
         nextUid: this.nextUid, lit: this.lit, hearthCap: this.hearthCap, ruins: Object.assign({}, this.ruins), kin: [...this.kin], weapons: [...this.weapons], flags: [...this.flags], t: +this.t.toFixed(2) };
     }
     static fromJSON(data, o) {
@@ -309,6 +314,9 @@
   }
 
   /* ---------- the save slot (localStorage-like store injected, so tests use a Map) ---------- */
+  Castle.FLAT = new Set(['palisade', 'stone_wall', 'gate', 'field', 'dirt', 'fire_pot', 'market']);   // walls, fields and fire pots never get dearer (the market is one per settler)
+  Castle.HOLD = 400;   // how much a workshop stacks while your purse is full
+
   class CastleSave {
     constructor(storage, key = CastleSave.KEY) { this.storage = storage; this.key = key; }
     write(snapshot) { try { this.storage.setItem(this.key, JSON.stringify(Object.assign({ savedAt: Date.now() }, snapshot))); return true; } catch (e) { return false; } }

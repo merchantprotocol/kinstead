@@ -414,6 +414,8 @@
         else if (e.res === 'arrow') act('take', `Take arrows (${st.amount} left)`, 'hand', () => this.home.takeArrows(st), { range: rg });
         else act('look', `${e.name}: ${st.amount} ${K.CastleData.resName(e.res)}`, 'eye', () => this.cui.toast(`${st.amount} ${K.CastleData.resName(e.res)} stored here.`), { range: rg });
         if (!st.pile && st.stock != null && st.stock > 0) act('pickup', `Pick up everything (${st.stock})`, 'hand', () => this.stash.take(st), { range: rg });   // crates and barrels can be emptied into your purse and put down elsewhere
+      } else if (e.type === 'c_worker') {
+        act('talk', `Talk to the ${e.name.toLowerCase()}`, 'hand', () => this.workers.talk(e), { range: 2.4 });
       } else if (e.type === 'c_kin') {
         const id = e.kinId;
         if (!c.kin.has(id) && id === 'emberwright') act('touch', 'Touch her with the lantern', 'lantern', () => this.touchEmberwright(), { range: 1.4 });
@@ -974,6 +976,7 @@
   reg.register('c_door', spec(0xffd27a, 'hand'));
   reg.register('c_rack', spec(0xffd27a, 'hand'));
   reg.register('c_kin', Object.assign(spec(0x8fe0a0, 'bubble'), { name: (e) => e.name }));
+  reg.register('c_worker', Object.assign(spec(0xffe0a0, 'bubble'), { name: (e) => e.name }));
   const node = (verb, cursor, charges, respawn) => ({ color: 0x9fd8ff, cursor: (e, game) => (game.nodeState(e).charges > 0 ? cursor : 'no'), node: { charges, respawn },
     actions: (e) => [{ id: 'gather', label: verb, icon: cursor, range: e.r + 0.55, run: (game, x) => castleOf(game).tools.engage(x) }, { id: 'inspect', label: 'Inspect', icon: 'eye', run: (game, x) => game.inspect(x) }],
     inspect: (e, game) => castleOf(game).inspect(e) });

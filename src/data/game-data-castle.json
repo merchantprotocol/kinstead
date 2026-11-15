@@ -188,18 +188,18 @@
  },
  "storage": {
   "base": {
-   "wood": 60,
-   "stone": 60,
-   "iron": 40,
-   "gold": 40,
+   "wood": 160,
+   "stone": 160,
+   "iron": 60,
+   "gold": 100,
    "ember_shard": 20,
-   "dirt": 60,
-   "food": 40,
-   "arrow": 60,
-   "wheat": 60,
-   "egg": 30,
-   "milk": 30,
-   "beef": 20
+   "dirt": 100,
+   "food": 60,
+   "arrow": 100,
+   "wheat": 120,
+   "egg": 60,
+   "milk": 60,
+   "beef": 40
   },
   "baseFrom": "the Keep",
   "rule": "production and gathering stop at the cap; a full producer shows a red 'FULL' flag (the hint to build a Storehouse or spend)",
@@ -272,8 +272,8 @@
    "name": "Watchtower",
    "category": "defense",
    "cost": {
-    "wood": 14,
-    "stone": 10
+    "wood": 100,
+    "stone": 120
    },
    "requiresCastleLevel": 1,
    "castlePoints": 4,
@@ -310,8 +310,8 @@
    "name": "Woodcutter's lodge",
    "category": "producer",
    "cost": {
-    "wood": 6,
-    "stone": 4
+    "wood": 30,
+    "stone": 10
    },
    "requiresCastleLevel": 1,
    "castlePoints": 4,
@@ -319,18 +319,17 @@
    "effect": "A woodcutter's hut. It brings in wood on its own. Needs your cottage first.",
    "artPrompt": "a small log lodge with a chopping block, a stacked woodpile and a big axe in a stump",
    "produces": {
-    "wood": 6
+    "wood": 15
    },
    "levels": [
     {
      "level": 2,
      "cost": {
-      "wood": 16,
-      "stone": 12,
-      "gold": 4
+      "wood": 80,
+      "stone": 60
      },
      "produces": {
-      "wood": 12
+      "wood": 30
      },
      "requiresCastleLevel": 2,
      "paybackMin": 6.0,
@@ -347,7 +346,8 @@
    "name": "Quarry",
    "category": "producer",
    "cost": {
-    "wood": 10
+    "wood": 40,
+    "stone": 10
    },
    "requiresCastleLevel": 1,
    "castlePoints": 4,
@@ -355,18 +355,17 @@
    "effect": "Cuts stone for you, steadily. Needs a woodcutter's hut first.",
    "artPrompt": "a small stone quarry cut into a grey rock face with a timber crane, a rope and a pile of cut blocks",
    "produces": {
-    "stone": 6
+    "stone": 15
    },
    "levels": [
     {
      "level": 2,
      "cost": {
-      "wood": 16,
-      "stone": 10,
-      "gold": 4
+      "wood": 80,
+      "stone": 60
      },
      "produces": {
-      "stone": 12
+      "stone": 30
      },
      "requiresCastleLevel": 2,
      "paybackMin": 5.7,
@@ -476,36 +475,48 @@
    "name": "Storehouse",
    "category": "storage",
    "cost": {
-    "wood": 20,
-    "stone": 12
+    "wood": 120,
+    "stone": 80
    },
    "requiresCastleLevel": 1,
    "castlePoints": 4,
    "hp": 200,
-   "effect": "Holds far more of everything. Needs a quarry first.",
+   "effect": "Your goods pile up here. Each storehouse lets you hold far more (400 more wood and stone). When your purse is full, your workshops stack what they make and wait for room.",
    "artPrompt": "a sturdy stone storehouse with a timber loft, barrels, sacks and crates under a sloped roof, iron-bound door",
    "storageCap": {
-    "wood": 100,
-    "stone": 100,
-    "iron": 60,
-    "gold": 60,
-    "ember_shard": 20
+    "wood": 400,
+    "stone": 400,
+    "iron": 100,
+    "gold": 200,
+    "ember_shard": 20,
+    "wheat": 200,
+    "food": 100,
+    "egg": 60,
+    "milk": 60,
+    "beef": 60,
+    "arrow": 100
    },
    "protectsPct": 50,
    "levels": [
     {
      "level": 2,
      "cost": {
-      "wood": 30,
-      "stone": 30,
-      "iron": 10
+      "wood": 200,
+      "stone": 200,
+      "iron": 20
      },
      "storageCap": {
-      "wood": 250,
-      "stone": 250,
-      "iron": 150,
-      "gold": 150,
-      "ember_shard": 40
+      "wood": 900,
+      "stone": 900,
+      "iron": 250,
+      "gold": 400,
+      "ember_shard": 40,
+      "wheat": 400,
+      "food": 200,
+      "egg": 120,
+      "milk": 120,
+      "beef": 120,
+      "arrow": 200
      },
      "protectsPct": 70,
      "requiresCastleLevel": 3
@@ -601,7 +612,7 @@
    "name": "Gate",
    "category": "defense",
    "cost": {
-    "wood": 6
+    "wood": 8
    },
    "requiresCastleLevel": 1,
    "castlePoints": 0,
@@ -615,8 +626,8 @@
    "name": "Blacksmith",
    "category": "building",
    "cost": {
-    "wood": 20,
-    "stone": 25
+    "wood": 150,
+    "stone": 150
    },
    "requiresCastleLevel": 1,
    "castlePoints": 0,
@@ -632,9 +643,9 @@
    "name": "Stone gate",
    "category": "defense",
    "cost": {
-    "stone": 20,
-    "wood": 8,
-    "iron": 4
+    "wood": 60,
+    "stone": 250,
+    "iron": 10
    },
    "requiresCastleLevel": 1,
    "castlePoints": 0,
@@ -665,8 +676,8 @@
    "name": "Fire pot",
    "category": "defense",
    "cost": {
-    "wood": 3,
-    "stone": 2
+    "wood": 4,
+    "stone": 4
    },
    "requiresCastleLevel": 1,
    "castlePoints": 0,
@@ -680,8 +691,8 @@
    "name": "Farm",
    "category": "farming",
    "cost": {
-    "wood": 20,
-    "stone": 6
+    "wood": 60,
+    "stone": 20
    },
    "requiresCastleLevel": 1,
    "castlePoints": 0,
@@ -713,8 +724,8 @@
    "name": "Grain silo",
    "category": "farming",
    "cost": {
-    "wood": 16,
-    "stone": 20
+    "wood": 80,
+    "stone": 100
    },
    "requiresCastleLevel": 1,
    "castlePoints": 0,
@@ -730,8 +741,9 @@
    "name": "Marketplace",
    "category": "trade",
    "cost": {
-    "wood": 50,
-    "stone": 30
+    "wood": 600,
+    "stone": 600,
+    "iron": 30
    },
    "requiresCastleLevel": 1,
    "castlePoints": 0,
@@ -747,7 +759,8 @@
    "name": "Chicken coop",
    "category": "farming",
    "cost": {
-    "wood": 14
+    "wood": 50,
+    "stone": 10
    },
    "requiresCastleLevel": 1,
    "castlePoints": 0,
@@ -763,8 +776,8 @@
    "name": "Cattle barn",
    "category": "farming",
    "cost": {
-    "wood": 30,
-    "stone": 10
+    "wood": 150,
+    "stone": 60
    },
    "requiresCastleLevel": 1,
    "castlePoints": 0,

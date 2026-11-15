@@ -182,7 +182,7 @@ export class GameRoom {
     const [ws] = this.byId(p.id), mk = this.markets[String(m.owner || '')], good = String(m.good || ''), n = Math.max(1, Math.min(20, m.n | 0)), fail = (why) => this.send(ws, { t: 'buyfail', why });
     if (!mk || mk.owner === p.id) return fail('There is no clerk here to buy from.');
     if (!this.near(p, mk, 12)) return fail('Walk up to the market stalls to trade.');
-    const price = mk.prices[good] | 0; if (!price) return fail('That is not for sale.');
+    const team = this.sameTeam(p.id, mk.owner), price = team ? 0 : mk.prices[good] | 0; if (!team && !price) return fail('That is not for sale.');   // your team takes for free
     if ((mk.stock[good] | 0) < n) return fail('The clerk does not have that many.');
     mk.stock[good] -= n; const sale = { good, n, gold: price * n, by: p.name };
     const [ows] = this.byId(mk.owner); if (ows) this.send(ows, { t: 'sold', ...sale }); else { (this.sales[mk.owner] = this.sales[mk.owner] || []).push(sale); this.state.storage.put('sales', this.sales); }
