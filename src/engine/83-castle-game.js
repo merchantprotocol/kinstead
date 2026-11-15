@@ -241,7 +241,10 @@
       if (this.day.isNight) this.startRaid();
       play.app.rig.set({ dist: 11, pitch: 0.78 }); play.app.rig.maxDist = 44;   // you can never zoom out far enough to see the edge of the world
       this.persist = new K.Persist(this); if (this.saved && this.saved.extras) { try { this.persist.restore(this.saved.extras); } catch (err) { console.warn('could not restore the homestead', err); } }
-      if (this.net) { try { this.mp = new K.Multiplayer(this, this.net); this.calendar.sync = () => this.mp.cycleState(); this.mp.uploadMine(); } catch (err) { console.warn('multiplayer failed to start; playing alone', err); this.mp = null; } }   // after your own save is back, so the shared world wins
+      if (this.net) { try { this.mp = new K.Multiplayer(this, this.net); this.calendar.sync = () => this.mp.cycleState(); this.mp.uploadMine(); } catch (err) {
+          console.warn('multiplayer failed to start; playing alone', err); this.mp = null;
+          if (this.cui) this.cui.toast('Could not join the shared world, so you are playing alone. Reload to try again.');
+        } }   // after your own save is back, so the shared world wins
       this.gatekeepers = new K.GateKeeper(this); this.gatekeepers.refresh();
       this.cui.toast(this.saved ? 'Welcome back.' : 'You arrive with wood, stone and bread. Build your cottage first: hammer (5), then Buildings. Wolves hunt at night. Press E to eat.');
       G.castle = this;   // test hook (and the console's best friend)

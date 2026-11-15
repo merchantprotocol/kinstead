@@ -41,7 +41,7 @@ export class MessageRouter {
       this.sockets.delete(other);
     }
     const slot = this.claim(cid, name);
-    if (slot < 0) { this.send(ws, { t: 'full' }); return; }
+    if (slot < 0) { this.send(ws, { t: 'full', max: ServerConfig.MAX_PLAYERS, online: this.online().length }); return; }
     Object.assign(p, { cid, id: cid.slice(0, 8), name, slot, mobsV2: m.mv === 2, mobView: null, x: ServerConfig.PLOTS[slot].x, z: ServerConfig.PLOTS[slot].z, joined: true });
     const save = await this.state.storage.get('save:' + cid);
     const evicted = this.plots[cid].evicted;

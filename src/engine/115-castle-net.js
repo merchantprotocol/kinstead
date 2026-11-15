@@ -46,10 +46,15 @@
     /** connect and get a plot. Resolves to a Net, or null (play alone). */
     static async join(map = 'main') {
       const base = Net.url(); if (!base) return null;
-      const name = await NameGate.ask(), net = new Net(base.replace(/\/+$/, '') + '/ws/' + map, Identity.cid, name);
-      const t0 = performance.now();
-      try { await net.open(); } catch (e) { console.warn('multiplayer unavailable, playing alone:', e && e.message || e, Math.round(performance.now() - t0) + ' ms', base); return null; }
-      return net;
+      const name = await NameGate.ask(), url = base.replace(/\/+$/, '') + '/ws/' + map, notice = new K.JoinNotice();
+      for (;;) {   // a full world or a failed connection is said out loud: try again, or play alone by choice
+        const net = new Net(url, Identity.cid, name), t0 = performance.now();
+        try { await net.open(); return net; } catch (e) {
+          net.close();
+          console.warn('multiplayer unavailable:', e && e.message || e, Math.round(performance.now() - t0) + ' ms', base);
+          if (await notice.ask(e) !== 'retry') return null;
+        }
+      }
     }
     constructor(url, cid, name) { this.url = url; this.cid = cid; this.name = name; this.ws = null; this.handlers = {}; this.id = null; this.slot = 0; this.welcome = null; this.ready = false; this.closed = false; this.lastPos = 0; }
     /** messages that arrive before anything is listening (the game is still loading) are kept and handed over, so nobody misses a join */
@@ -60,7 +65,7 @@
     }
     open() {
       return new Promise((resolve, reject) => {
-        let done = false; const fail = (why) => { if (!done) { done = true; reject(new Error(why)); } }, timer = setTimeout(() => fail('timed out'), 15000);   // a busy or slow machine may take a while to answer
+        let done = false; const fail = (why, extra) => { if (!done) { done = true; reject(Object.assign(new Error(why), extra)); } }, timer = setTimeout(() => fail('timed out'), 15000);   // a busy or slow machine may take a while to answer
         const ws = (this.ws = new WebSocket(this.url));
         ws.onopen = () => ws.send(JSON.stringify({ t: 'hello', cid: this.cid, name: this.name, mv: 2 }));   // mv 2: send me batched creature deltas ('mobz')
         ws.onerror = () => fail('connection failed');
@@ -68,7 +73,7 @@
         ws.onmessage = (e) => {
           let m; try { m = JSON.parse(e.data); } catch (err) { return; }
           if (m.t === 'welcome') { this.id = m.id; this.slot = m.slot; this.welcome = m; this.clock = m.clock; this.offset = m.clock.now - Date.now(); clearTimeout(timer); if (!done) { done = true; this.ready = true; resolve(this); } else { this.ready = true; this.emit('welcome', m); this.flush(); } return; }
-          if (m.t === 'full') { fail('the map is full'); return; }
+          if (m.t === 'full') { clearTimeout(timer); fail('the map is full', { code: 'full', max: m.max }); return; }
           this.emit(m.t, m);
         };
       });
@@ -281,7 +286,7 @@
 
   class Multiplayer {
     constructor(game, net) {
-      this.g = game; this.net = net; this.world = new RemoteWorld(game, net); this.avatars = new Avatars(game, net); this.stores = new RemoteStores(game, net); this.mobs = new K.RemoteMobs(game, net); this.caster = new K.MobCaster(game, net); this.farms = new K.FarmSync(game, this); this.lastSave = -1e9; this.ver = net.welcome.ver || {}; this.syncT = 8; this.t = 0; this.chat = null;
+      this.g = game; this.net = net; this.world = new RemoteWorld(game, net); this.avatars = new Avatars(game, net); this.stores = new RemoteStores(game, net); this.mobs = new K.RemoteMobs(game, net); this.caster = new K.MobCaster(game, net); this.farms = new K.FarmSync(game, this); this.freed = new K.FreedPlots(this); this.lastSave = -1e9; this.ver = net.welcome.ver || {}; this.syncT = 8; this.t = 0; this.chat = null;
       net.on('join', (m) => { this.avatars.add(m.p); game.cui.toast(`${m.p.name} joined.`); });
       net.on('house', (m) => this.onHouse(m)); net.on('pvphit', (m) => this.onPvpHit(m)); game.banners.on(() => { this.avatars.relook(); this.world.relabel(); });
       net.on('leave', (m) => { const r = this.avatars.by.get(m.id); if (r) game.cui.toast(`${r.name} left.`); this.avatars.remove(m.id); });
@@ -299,7 +304,7 @@
       net.on('took', (m) => this.giveTaken(m.res, m.n)); net.on('raided', (m) => game.cui.toast(`${m.by} raided your supplies (${m.n} ${K.CastleData.resName(m.res).toLowerCase()}).`));
       net.on('evicted', () => this.onEvicted()); net.on('weather', (m) => game.weather && game.weather.setFromServer(m.weather));
       net.on('chat', (m) => { if (m.from === net.id) return; game.cui.toast(`${m.name}: ${m.text}`); this.avatars.say(m.from, m.text); });
-      net.on('welcome', (m) => this.start(m));
+      net.on('welcome', (m) => this.start(m)); this.freed.listen(net);
       net.on('offline', () => game.cui.toast('Lost the connection. Reconnecting…'));
       this.teams = (net.welcome.teams || []); this.invites = (net.welcome.invites || []).slice(); this.board = new InviteBoard(this); this.lastOpen = null; this.lastBroken = null; this.lastHit = 0;
       this.start(net.welcome, true); this.makeChatBox(); this.board.render();
@@ -469,7 +474,7 @@
       const g = this.g;
       if (m.id) {
         const r = this.world.pieces.get(m.id), mine = g.castle.pieces.find((q) => this.pieceId(q) === m.id), old = r ? r.hp : mine ? mine.hp : m.hp;
-        if (r) r.hp = m.hp; if (mine) mine.hp = m.hp; const at = r ? r.p : mine; if (at && old > m.hp) g.play.float({ x: at.x, z: at.z, y: g.play.nav.y(at.x, at.z), h: 1 }, '-' + (old - m.hp), 'hurt');
+        if (r) r.hp = m.hp; if (mine) mine.hp = Math.min(m.hp, (g.data.piece(mine.type) || {}).hp || 100);   // never above its own maximum const at = r ? r.p : mine; if (at && old > m.hp) g.play.float({ x: at.x, z: at.z, y: g.play.nav.y(at.x, at.z), h: 1 }, '-' + (old - m.hp), 'hurt');
       } else if (m.slot != null) {
         const d = m.slot === g.L.slot ? g.home.door : (this.world.doors.get(m.slot) || {}).door; if (!d) return; const old = d.hp || m.hp; d.hp = m.hp; const rec = this.world.doors.get(m.slot); if (rec) rec.hp = m.hp;
         if (old > m.hp) g.play.float(d.ent, '-' + (old - m.hp), 'hurt');

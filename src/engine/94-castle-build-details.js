@@ -118,11 +118,17 @@
         const amount = enough ? '✓' : `· need ${needed - have} more`;
         const icon = K.CastleUI.ICON[resource] || resource;
         return `<div class="detail-cost ${status}">
-          <span>${K.Icons.img(icon, 1)} ${this.escape(K.CastleData.resName(resource))}</span>
+          <span>${K.Icons.img(icon, 1)} ${this.escape(this.materialName(resource))}</span>
           <b>${needed}</b><span>You have ${have} ${amount}</span>
         </div>`;
       });
       return rows.join('') || '<p>No materials required.</p>';
+    }
+
+    /** 'Wood', not 'wood': a list label starts with a capital */
+    materialName(resource) {
+      const name = K.CastleData.resName(resource);
+      return name.charAt(0).toUpperCase() + name.slice(1);
     }
 
     shortages(cost) {
