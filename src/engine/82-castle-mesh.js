@@ -37,9 +37,12 @@
     /* mats: K.BuildingMaterials (the renderer's bmats) */
     constructor(mats) { this.mats = mats; this.cache = new Map(); this.iceMat = null; }
     static size(type) { return SIZE[type] || [2, 2]; }
+    /** a class that draws one piece type (an object with draw(kit, opts)); it wins over the built-in models */
+    static register(type, painter) { CastleArt.painters.set(type, painter); }
     /* a THREE.Group for a piece; opts: { ruin, level, built } */
     piece(type, opts = {}) {
-      const kit = new K.VoxKit(), k = this.draw(kit, type, opts);
+      const kit = new K.VoxKit(), painter = opts.ruin ? null : CastleArt.painters.get(type);
+      const k = painter ? painter.draw(kit, opts) || kit : this.draw(kit, type, opts);
       const g = new THREE.Group(); g.name = 'castle:' + type;
       for (const m of kit.meshes(this.mats)) g.add(m);
       if (k && k.flames) for (const f of k.flames) g.add(this.flame(f));
@@ -357,5 +360,6 @@
     static tintGhost(g, ok) { g.traverse((m) => { if (m.isMesh && m.userData.pad) m.material.color.setHex(ok ? 0x7fe08a : 0xff6a5a); }); }
   }
 
+  CastleArt.painters = new Map();   // type -> a registered art class (CastleArt.register)
   Object.assign(K, { CastleArt, CASTLE_SIZE: SIZE });
 })(typeof window !== 'undefined' ? window : globalThis);

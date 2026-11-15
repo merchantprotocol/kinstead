@@ -256,11 +256,19 @@
     }
     stopPlacing() { if (!this.placing) return; if (this.g.site) this.g.site.clearGhost(); this.g.group.remove(this.placing.ghost); this.placing = null; this.$('cPlace').hidden = true; this.g.play.ui.tip(null); }
     rotate() { if (this.g.site.active) { this.g.site.turn(); if (this.lastP) this.moveGhost(this.lastP.sx, this.lastP.sy); return; } this.g.rotExtra = ((this.g.rotExtra || 0) + Math.PI / 2) % (Math.PI * 2); if (this.lastP) this.moveGhost(this.lastP.sx, this.lastP.sy); }
+    /* where a piece snaps for the pointer at p: walls to the square, gates to a wall run, stone towers to the tile grid; null = free */
+    snapSpot(type, p) {
+      const g = this.g;
+      if (g.walls.handles(type)) return g.walls.edgeAt(type, p);
+      if (K.Breacher.GATES.has(type)) return g.gateSpot(p);
+      if (type === 'stone_tower' && g.ramparts) return g.ramparts.towerSpot(p);
+      return null;
+    }
     moveGhost(sx, sy) {
       this.lastP = { sx, sy }; if (this.g.site.active) { this.g.site.hover(sx, sy); return; }   // a building: the site draws it
       const P = this.placing, g = this.g, p = g.app.pickGround(sx, sy);
       if (!p) { P.ghost.visible = false; return; }
-      const e = g.walls.handles(P.type) ? g.walls.edgeAt(P.type, p) : K.Breacher.GATES.has(P.type) ? g.gateSpot(p) : null;
+      const e = this.snapSpot(P.type, p);
       const x = e ? e.x : Math.round(p.x * 4) / 4, z = e ? e.z : Math.round(p.z * 4) / 4, rot = e ? e.rot : g.autoRot(x, z), why = g.placementOk(P.type, x, z, rot);
       P.ghost.visible = true; P.ghost.position.set(x, g.play.nav.y(x, z), z); P.ghost.rotation.y = rot; CastleArt.tintGhost(P.ghost, !why); P.at = { x, z, rot, why };
       g.play.ui.tip(why ? `<b>Can’t build here</b> · ${esc(why)}` : `<b>${esc(this.c.data.piece(P.type).name)}</b> · ${g.walls.handles(P.type) ? 'click to build, or drag to draw a wall' : 'press, hold and swing the mouse to turn it, let go to build'} (${esc(Object.entries(this.c.buildCost(P.type)).map(([r, n]) => n + ' ' + K.CastleData.resName(r)).join(', '))})`, sx, sy);

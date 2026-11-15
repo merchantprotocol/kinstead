@@ -8,10 +8,6 @@
   const PYR = new THREE.ConeGeometry(1, 1, 4), BOWL = new THREE.CylinderGeometry(1, 0.62, 1, 12), CONE8 = new THREE.ConeGeometry(1, 1, 8);
   const SPHERE = new THREE.SphereGeometry(1, 8, 6), RING = new THREE.TorusGeometry(1, 0.09, 6, 16);
   const D = Math.PI / 4;
-  const WALK = 3.4;   // the walk height on top of stone walls, the stone gate and stone towers (K.RAMPART_Y)
-  /* the stone tower's stair: local [x, z, y] corner points, from the foot inside the tower to the deck */
-  const StoneTower = { STAIR: [[-0.38, -0.38, 0.16], [0.38, -0.38, 0.72], [0.38, 0.38, 1.28], [-0.38, 0.38, 1.84], [-0.38, -0.38, 2.4], [0.38, -0.38, 2.96], [0.38, 0.38, 3.4]] };
-  K.RAMPART_Y = WALK; K.StoneTower = StoneTower;
 
   /* a beam from (x0,y0) to (x1,y1) lying in the plane z (rz rotation) */
   const braceXY = (k, mat, x0, y0, x1, y1, z, t = 0.07, d = 0.06) => {
@@ -49,53 +45,20 @@
       for (const y of [0.36, 1.06]) k.box('ironDark', 0, y + 0.03, -0.152, 0.06, 0.04, 0.02); // a nail plate per tile
     },
 
-    /* a curtain wall run as tall as the stone gate: pale dressed blocks in staggered courses, a walkway slab on top
-       (y = WALK, the same height as the gate's battlement walk and a stone tower's deck) and a merlon on each corner
-       of the tile, so a run in either direction has a crenellated parapet on both sides and a clear walk down the middle */
+    /* a curtain wall run: pale dressed blocks in staggered courses, a walkway slab and one merlon per tile */
     stone_wall(k) {
-      const H = WALK - 0.08;
-      k.box('stoneDark', 0, 0, 0, 0.5, 0.2, 0.5);                                          // footing
-      k.box('stoneDark', 0, 0.2, 0, 0.44, H - 0.2, 0.44);                                   // mortar core
-      const tone = ['stoneLight', 'whitewash', 'stoneLight', 'stoneLight', 'whitewash'];
-      for (let c = 0, y = 0.2; y < H - 0.05; c++, y += 0.39) {
-        const h = Math.min(0.37, H - y), m = tone[c % tone.length], n = tone[(c + 2) % tone.length];
-        const row = c % 2 ? [[0, 0.25, m], [0.19, 0.12, n], [-0.19, 0.12, n]] : [[-0.125, 0.245, m], [0.125, 0.245, n]];
-        for (const [x, w, mat] of row) for (const s of [-1, 1]) { k.box(mat, x, y, s * 0.23, w, h, 0.04); k.box(mat, s * 0.23, y, x, 0.04, h, w); }
+      const H = 1.5;
+      k.box('stoneDark', 0, 0, 0, 0.5, 0.18, 0.5);                                         // footing
+      k.box('stoneDark', 0, 0.18, 0, 0.5, H - 0.18, 0.4);                                   // mortar core
+      const tone = ['stoneLight', 'whitewash', 'stoneLight', 'stoneLight', 'whitewash', 'stoneLight', 'stoneLight'];
+      for (let c = 0; c * 0.19 + 0.18 < H - 0.02; c++) {
+        const y = 0.18 + c * 0.19, h = Math.min(0.175, H - y);
+        const row = c % 2 ? [[0, 0.235], [0.19125, 0.1175], [-0.19125, 0.1175]] : [[-0.125, 0.235], [0.125, 0.235]];
+        row.forEach(([x, w], i) => { const m = tone[(c * 3 + i * 2) % tone.length]; for (const s of [-1, 1]) k.box(m, x, y, s * 0.215, w, h, 0.04); });
       }
       k.box('stoneMid', 0, H, 0, 0.5, 0.08, 0.5);                                           // walkway slab
-      for (const x of [-0.18, 0.18]) for (const z of [-0.18, 0.18]) k.box('stoneLight', x, WALK, z, 0.14, 0.32, 0.14);   // corner merlons
-    },
-
-    /* a stone corner tower, 1.5 m square: a hollow shell with an arched doorway in every face (a wall joined to a face
-       hides that door), a stair that climbs one and a half turns round the inside, and an open deck at y = WALK with a
-       merlon on each corner, so wall walks and the gate walk join it on any face */
-    stone_tower(k) {
-      const flames = [], T = 0.2, O = 0.75, DH = 1.15, DW = 0.46;
-      k.box('stoneDark', 0, 0, 0, 1.56, 0.16, 1.56);
-      for (const f of [0, 1, 2, 3]) {                                                       // four walls, each with a door gap
-        const rot = f * Math.PI / 2, c = Math.cos(rot), sn = Math.sin(rot);
-        const put = (mat, lx, y, lz, w, h, d) => k.box(mat, lx * c + lz * sn, y, -lx * sn + lz * c, f % 2 ? d : w, h, f % 2 ? w : d);
-        const side = (O * 2 - DW) / 2, sx = DW / 2 + side / 2;
-        for (const s of [-1, 1]) put('stoneLight', s * sx, 0.16, O - T / 2, side, WALK - 0.24, T);
-        put('stoneLight', 0, DH, O - T / 2, DW, WALK - 0.08 - DH, T);
-        put('stoneMid', 0, DH - 0.06, O - T / 2 + 0.01, DW + 0.08, 0.1, T + 0.02);           // lintel
-        for (const y of [1.3, 2.0, 2.7]) put('stoneMid', 0, y, O - 0.005, 1.5, 0.02, 0.012);   // mortar courses
-        put('ironDark', 0.42, 2.2, O + 0.002, 0.07, 0.4, 0.01);                                // arrow slit
-      }
-      // the stair: steps up the inside, one and a half turns, from the foot (-0.38, -0.38) to the deck
-      const P = StoneTower.STAIR;
-      for (let s = 0; s + 1 < P.length; s++) {
-        const [x0, z0, y0] = P[s], [x1, z1, y1] = P[s + 1], n = 5;
-        for (let q = 0; q < n; q++) { const u = (q + 0.5) / n, x = x0 + (x1 - x0) * u, z = z0 + (z1 - z0) * u, y = y0 + (y1 - y0) * u; k.box(q % 2 ? 'stoneMid' : 'stoneLight', x, y - 0.12, z, 0.3, 0.12, 0.3); }
-      }
-      k.box('stoneMid', 0, WALK - 0.08, 0, 1.5, 0.08, 1.5);                                  // the deck
-      k.box('woodDark', 0.38, WALK - 0.075, 0.38, 0.36, 0.08, 0.36);                          // the hatch over the stair head
-      k.box('stoneMid', 0, WALK - 0.16, 0, 1.6, 0.1, 1.6);                                   // corbel band
-      for (const x of [-0.6, 0.6]) for (const z of [-0.6, 0.6]) k.box('stoneLight', x, WALK, z, 0.3, 0.4, 0.3);   // corner merlons
-      for (const x of [-0.6, 0.6]) for (const z of [-0.6, 0.6]) k.box('stoneMid', x, WALK + 0.4, z, 0.34, 0.05, 0.34);
-      k.box('woodDark', 0.6, WALK + 0.45, 0.6, 0.04, 0.9, 0.04);                              // a pennant pole on one merlon
-      k.box('paintRed', 0.6, WALK + 1.12, 0.75, 0.02, 0.2, 0.28);
-      return { flames };
+      k.box('stoneLight', 0, H + 0.08, 0.16, 0.32, 0.34, 0.18);                              // merlon (crenel gaps between tiles)
+      k.box('stoneLight', 0, H + 0.08, -0.2, 0.5, 0.14, 0.1);                                // low inner lip
     },
 
     /* the wooden gate frame: tall square posts on stone feet, braced lintel with a red painted header, a little
