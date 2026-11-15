@@ -22,7 +22,7 @@
       if (this.repath <= 0 || !a.path) { this.repath = 0.5; a.path = P.nav.find(a.x, a.z, x, z, { range, maxNodes: 5000, blocked: this.blocker(), maxStep: this.breach.climb }) || null; }
       this.noWay = !a.path; const moved = a.path ? P.move(a, dt, a.speed) : false; this.anim(moved, a.speed); return moved;
     }
-    retreat() { this.mode = 'leave'; this.leave = this.g.L.outside.slice().sort((p, q) => dist(q, this.a) - dist(p, this.a))[0]; this.a.path = null; }
+    retreat() { this.mode = 'leave'; this.leave = this.g.wild.leavePoint(this.a); this.a.path = null; }
     pickFood() {
       const a = this.a, now = this.P.t;
       return this.g.home.stores.filter((s) => (s.res === 'food' || s.res === 'bread') && s.present && s.amount >= 1 && !(this.bad.get(s) > now)).sort((p, q) => dist(p.ent, a) - dist(q.ent, a))[0] || null;

@@ -28,7 +28,7 @@
       for (const q of others) nav.blockProp(q.obj);
     }
     /** a tree or boulder is gone: free the ground, and (for a tree) plan its regrowth somewhere else */
-    cleared(e) { this.free(e); if (e.type === 'c_tree') this.queue.push({ e, at: this.play.t + rnd(60, 140) }); }
+    cleared(e) { if (this.g.mp) this.g.mp.op({ k: 'node', id: e.id, st: 'felled' }); this.free(e); if (e.type === 'c_tree') this.queue.push({ e, at: this.play.t + rnd(60, 140) }); }
     /** knock one down without a harvest (a building is going up on it) */
     wipe(e) {
       if (!this.live(e)) return; const st = this.play.nodeState(e); st.charges = 0; st.respawnAt = Infinity;
@@ -39,7 +39,7 @@
       const L = this.g.L, d = this.doc, me = this.play.me, wu = L.size.w * TILE, hu = L.size.h * TILE, trees = this.nodes.filter((q) => this.live(q));
       for (let n = 0; n < 60; n++) {
         const x = rnd(6, wu - 6), z = rnd(6, hu - 6), [i, j] = d.tileOf(x, z), k = j * d.w + i;
-        if (Math.hypot(x - L.keep.x, z - L.keep.z) < 16 || Math.hypot(x - me.x, z - me.z) < 9) continue;
+        if (L.plots.some((q) => Math.hypot(x - q.x, z - q.z) < 14) || Math.hypot(x - me.x, z - me.z) < 9) continue;   // never on anyone's plot
         if (d.terrain[k] === T.ROCK || d.terrain[k] === T.CHASM || d.terrain[k] === T.WATER || !this.nav.walk[k] || this.g.occ[k] || this.g.R.buildings.at(i, j)) continue;
         if (this.g.pieceAt(x, z, 1.5) || trees.some((q) => Math.hypot(q.x - x, q.z - z) < 1.9)) continue;
         return { x, z };
@@ -52,6 +52,7 @@
       o.x = p.x; o.z = p.z; this.moved[e.id] = [p.x, p.z]; e.x = p.x; e.z = p.z; e.y = this.nav.y(p.x, p.z);
       const st = this.play.nodeState(e); st.charges = st.max; st.respawnAt = 0; R.propState.delete(e.id);
       R.objectsChanged(false);   // the old and the new patch of forest both rebuild
+      if (this.g.mp) this.g.mp.op({ k: 'node', id: e.id, st: 'moved', x: p.x, z: p.z });
       this.nav.blockProp(o); return true;
     }
     update(dt) {
@@ -140,7 +141,7 @@
       const spec = this.specAt(ti, tj, turns, 'smithy'); play.doc.objects.push(spec);
       R.syncBuildings(true); play.nav.applyBuildings(R.buildings); play.bplay.dirty(); play.refreshProps(); g.home.door.apply();
       const me = play.me; if (!play.nav.standable(me.x, me.z)) { const q = play.nav.nearestOk(...play.nav.tile(me.x, me.z), 10); if (q) { [me.x, me.z] = play.nav.centre(...q); me.path = null; } }
-      g.xp.built('blacksmith'); g.smithy = spec; g.smithyTurns = turns; g.forge = g.forge || new K.Forge(g); this.clearGhost(); g.cui.stopPlacing();
+      g.xp.built('blacksmith'); g.smithy = spec; g.smithyTurns = turns; if (g.mp) g.mp.op({ k: 'bld+', id: 'smithy:' + g.mp.net.id, spec }); g.forge = g.forge || new K.Forge(g); this.clearGhost(); g.cui.stopPlacing();
       const cx = (ti + w / 2) * TILE, cz = (tj + h / 2) * TILE; g.sound.play('whump'); g.shake(0.2); g.puff(cx, cz); g.cui.toast('Blacksmith built. Click the anvil to forge new weapons.'); g.changed(); return true;
     }
     /** put a saved blacksmith back (no cost, no ceremony) */

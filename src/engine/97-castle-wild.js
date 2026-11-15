@@ -70,7 +70,7 @@
     /** wolves also never plan a route through the house */
     blocker() { const g = this.g, T = K.TILE; return (i, j) => g.gateTiles.has(i + ',' + j) || g.insideBuilding((i + 0.5) * T, (j + 0.5) * T); }
     /** dawn: go back to the dark */
-    retreat() { this.mode = 'retreat'; this.leave = this.g.L.outside.slice().sort((p, q) => dist(q, this.a) - dist(p, this.a))[0]; this.a.path = null; }
+    retreat() { this.mode = 'retreat'; this.leave = this.g.wild.leavePoint(this.a); this.a.path = null; }
     update(dt) {
       const g = this.g, P = this.P, a = this.a, me = P.me; if (!this.tickDead(dt)) return;
       this.cd -= dt; const d = dist(a, me);
@@ -188,7 +188,7 @@
       g.home.take(t.slot); this.carry = { kind: 'furn', slot: t.slot, label: t.slot.def.name.toLowerCase() };
       this.loot = new K.Loot(g.tools.effects.group, g.tools.effects.materials, 'furn'); this.announce();
     }
-    edgeFar() { const a = this.a; return this.g.L.outside.slice().sort((p, q) => dist(q, a) - dist(p, a))[0]; }
+    edgeFar() { return this.g.wild.leavePoint(this.a); }
     escape() { if (this.carry) this.g.cui.toast(`The raider got away with your ${this.carry.label}.`); if (this.loot) this.loot.dispose(); this.g.removeActor(this.a); }
     /** killed: whatever he carried drops where he fell */
     onDeath() {
@@ -230,13 +230,18 @@
     }
     /** a spot on the map's rim (inside the fog) that you can walk to */
     edgePoint() {
-      const L = this.g.L, nav = this.P.nav, keys = Object.keys(L.frostEdges);
-      for (let k = 0; k < 20; k++) {
-        const e = L.frostEdges[keys[Math.floor(Math.random() * keys.length)]];
-        const x = e.x != null ? e.x : rnd(e.x0, e.x1), z = e.z != null ? e.z : rnd(e.z0, e.z1);
+      const L = this.g.L, nav = this.P.nav, k0 = L.keep, wu = L.size.w * K.TILE, hu = L.size.h * K.TILE;
+      for (let k = 0; k < 30; k++) {
+        const a = rnd(0, 6.283), r = rnd(46, 58), x = k0.x + Math.cos(a) * r, z = k0.z + Math.sin(a) * r;   // out in the dark, a good way from your homestead
+        if (x < 6 || z < 6 || x > wu - 6 || z > hu - 6) continue;
         if (nav.standable(x, z)) return { x, z };
       }
       return null;
+    }
+    /** where a creature heads when it gives up and goes home: away from your homestead */
+    leavePoint(a) {
+      const L = this.g.L, k = L.keep, dx = a.x - k.x, dz = a.z - k.z, d = Math.hypot(dx, dz) || 1, wu = L.size.w * K.TILE, hu = L.size.h * K.TILE;
+      return { x: Math.max(6, Math.min(wu - 6, k.x + dx / d * 85)), z: Math.max(6, Math.min(hu - 6, k.z + dz / d * 85)) };
     }
     /** do the animals have a reason to come? Food left outside, you outside, or a way in to you. Walls up and nothing outside: they stop coming. */
     attracted() {

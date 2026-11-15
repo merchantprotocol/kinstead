@@ -339,7 +339,7 @@
       const cam = this.app.camera, r = this.app.renderer3.domElement.getBoundingClientRect(), W = r.width, H = r.height, cp = cam.position;
       let best = null, bd = 1e9;
       for (const a of this.actors) {
-        if (!a.view.visible || (!a.alive && a !== this.me)) continue;
+        if (!a.view.visible || (!a.alive && a !== this.me) || a.remote) continue;   // other players are not click targets
         const q = a.view.screenRect(cam, W, H); if (!q.front) continue;
         if (sx >= q.x0 - 3 && sx <= q.x1 + 3 && sy >= q.y0 - 3 && sy <= q.y1 + 3) { const d = Math.hypot(cp.x - a.x, cp.y - a.y, cp.z - a.z) - 0.6; if (d < bd) { bd = d; best = a; } }
       }

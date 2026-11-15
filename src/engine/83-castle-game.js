@@ -166,7 +166,7 @@
   class CastleGame {
     /* play: K.PlayMode; opts: { storage, resume } */
     constructor(play, opts = {}) {
-      this.play = play; this.data = new K.CastleData(K.CASTLE_DATA); this.L = new K.HutLayout(); this.survival = true; this.noRegen = true;
+      this.play = play; this.data = new K.CastleData(K.CASTLE_DATA); this.L = opts.layout || new K.HutLayout(); this.net = opts.net || null; this.survival = true; this.noRegen = true;
       this.slot = new K.CastleSave(opts.storage || K.CastleSave.defaultStorage()); this.resume = !!opts.resume; this.sound = new CastleSound();
       this.castle = new K.Castle(this.data); this.day = new K.DayCycle(this.data); this.calendar = new K.Calendar(this); this.playTime = 0;
       this.saved = this.resume ? this.slot.read() : null;
@@ -213,12 +213,13 @@
       if (this.day.isNight) this.startRaid();
       play.app.rig.set({ dist: 11, pitch: 0.78 }); play.app.rig.maxDist = 44;   // you can never zoom out far enough to see the edge of the world
       this.persist = new K.Persist(this); if (this.saved && this.saved.extras) { try { this.persist.restore(this.saved.extras); } catch (err) { console.warn('could not restore the homestead', err); } }
+      if (this.net) { try { this.mp = new K.Multiplayer(this, this.net); this.mp.uploadMine(); } catch (err) { console.warn('multiplayer failed to start; playing alone', err); this.mp = null; } }   // after your own save is back, so the shared world wins
       this.cui.toast(this.saved ? 'Welcome back.' : 'You wake in your hut. Eat, sleep, chop wood, and watch for wolves.');
       G.castle = this;   // test hook (and the console's best friend)
     }
     exit() {
       this.play.app.rig.maxDist = null; if (this.minimap) this.minimap.dispose(); if (this.vitals) this.vitals.dispose(); if (this.home) this.home.dispose();
-      this.save(); if (this.tools) this.tools.dispose(); if (this.sweep) this.sweep.dispose(); if (this.demolisher) this.demolisher.dispose(); if (this.site) this.site.dispose(); if (this.brush) this.brush.dispose(); if (this.purse) this.purse.dispose();
+      this.save(); if (this.tools) this.tools.dispose(); if (this.sweep) this.sweep.dispose(); if (this.demolisher) this.demolisher.dispose(); if (this.site) this.site.dispose(); if (this.brush) this.brush.dispose(); if (this.mp) this.mp.dispose(); if (this.purse) this.purse.dispose();
       if (this.origPlace) this.R.placeDynamics = this.origPlace;
       this.R.scene.remove(this.group); this.cui && this.cui.dispose(); document.body.classList.remove('castle');
     }
@@ -315,6 +316,7 @@
     /* take a piece down: it comes apart, the ground clears, and half its cost drops as pickups to collect */
     demolishPiece(p, opts = {}) {
       const c = this.castle; if (!c.canDemolish(p)) { this.cui.toast('Restored ruins stay standing.'); return false; }
+      if (this.mp) this.mp.op({ k: 'piece-', id: this.mp.pieceId(p) });
       const r = c.demolish(p), m = this.meshes.get('p' + p.uid), [w, d] = CastleArt.size(p.type), fx = this.tools.effects, y = this.play.nav.y(p.x, p.z);
       if (m) { this.group.remove(m); this.meshes.delete('p' + p.uid); }
       if (p.bridge) { p.bridge.dispose(); p.bridge = null; }
@@ -443,7 +445,7 @@
       let bad = null;
       if (type === 'dirt') return this.dirtOk(x, z);
       if (type === 'blacksmith') return null;
-      this.rectTiles(x, z, w + 0.2, d + 0.2, rot, (i, j) => { const k = j * nav.w + i; if (this.occ[k]) bad = 'something is in the way'; else if (!nav.walk[k] || nav.deck[k]) bad = bad || 'the ground is not clear'; });
+      this.rectTiles(x, z, w + 0.2, d + 0.2, rot, (i, j) => { const k = j * nav.w + i; if (this.occ[k] || this.R.buildings.at(i, j)) bad = 'something is in the way'; else if (!nav.walk[k] || nav.deck[k]) bad = bad || 'the ground is not clear'; });
       const me = this.play.me; if (!bad && Math.hypot(me.x - x, me.z - z) < Math.min(w, d) / 2 + 0.2) bad = 'you are standing there';
       if (!bad && !K.Breacher.GATES.has(type) && this.wouldWallOffKeep(type, x, z, rot)) bad = 'that would wall off the Keep';
       return bad;
@@ -477,7 +479,7 @@
       const m = this.addPieceMesh(r.piece); this.pop(m); this.sound.play('thunk'); this.puff(x, z); this.shake(0.08);
       const pr = this.data.piece(type).produces;
       if (!quiet) this.cui.toast(pr ? `${this.data.piece(type).name}: ${K.CastleUI.prodLine(this.castle, type)}.` : `${this.data.piece(type).name} built.`);
-      this.xp.built(type); this.changed(); return true;
+      this.xp.built(type); if (this.mp) this.mp.op({ k: 'piece+', id: this.mp.pieceId(r.piece), type, x, z, rot }); this.changed(); return true;
     }
     upgrade(p) {
       const r = this.castle.upgrade(p); if (!r.ok) { this.cui.toast(`Upgrade: ${r.why}.`); this.sound.play('clank'); return; }
@@ -802,7 +804,7 @@
       for (const m of this.meshes.values()) if (m.userData.shake > 0) { m.userData.shake -= dt; m.position.x += (Math.random() - 0.5) * 0.04; }
       for (const m of this.meshes.values()) m.traverse((o) => { if (o.userData.flame) o.scale.y = 0.85 + 0.25 * Math.sin(play.t * 11 + o.id); });
       { const fog = this.R.scene.fog, dd = this.app.rig.cur.dist; if (fog) { fog.near = dd + 8; fog.far = dd + 32; } }   // the far edge of the world always fades out, at any zoom
-      this.updateArrow(dt); this.minimap.update(dt); this.forest.update(dt); for (const p of this.castle.pieces) if (p.bridge) p.bridge.update(dt); this.tools.update(dt); this.sweep.update(dt); this.home.update(dt); this.vitals.update(dt); this.wild.update(dt);
+      this.updateArrow(dt); this.minimap.update(dt); this.forest.update(dt); if (this.mp) this.mp.update(dt); for (const p of this.castle.pieces) if (p.bridge) p.bridge.update(dt); this.tools.update(dt); this.sweep.update(dt); this.home.update(dt); this.vitals.update(dt); this.wild.update(dt);
       this.updateOcclusion(dt);
       if (this.shakeT > 0) { this.shakeT -= dt; const g = play.app.rig.goal; g.tx += (Math.random() - 0.5) * this.shakeT * 0.6; g.tz += (Math.random() - 0.5) * this.shakeT * 0.6; }
       if (this.thawSnow) { const s = this.R.snow.points; s.material.opacity = (s.material.opacity == null ? 1 : s.material.opacity); s.visible = this.endT == null || this.endT < 3; }
@@ -860,6 +862,7 @@
     key(e) {
       this.sound.unlock();
       if (e.key === 'Escape') { if (!this.dismissTop()) { if (this.onLeave) this.onLeave(); } return true; }   // Esc closes what is open, else leaves the game
+      if (this.mp && this.mp.key(e)) return true;
       if (e.key.toLowerCase() === 'i' && !e.ctrlKey && !e.metaKey && !e.altKey) { this.purse.toggle(); return true; }
       return this.cui.key(e) || this.tools.key(e);
     }

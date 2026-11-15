@@ -8,19 +8,44 @@
   const K = G.K;
   const { TILE } = K, HQ = 0.25;
 
-  class HutLayout {
+  /** The shared map: the same for everyone, whatever plot they have. A big snowfield with 30 homestead plots on a grid
+      (slot 0 is the most central), hills to mine and, far from everything, the Iron Hills. */
+  class WorldPlan {
     constructor() {
-      this.size = { w: 280, h: 200 };                                  // tiles -> 140 x 100 m
-      this.keep = { x: 70, z: 50, r: 2.3 };                           // the hut (the game still calls it "keep" in places)
-      this.hearth = { x: 68.4, z: 49.6 };                             // the fireplace: warmth and light
-      this.home = { x: 135, z: 97, w: 10, h: 7 };                    // the cottage's north-west tile and size (tiles)
-      this.start = { x: 69.75, z: 50.75 };                           // you wake up inside
+      this.size = { w: 560, h: 400 };                                   // tiles -> 280 x 200 m
+      const wm = this.size.w * TILE, hm = this.size.h * TILE; this.metres = { w: wm, h: hm };
+      const plots = []; for (let r = 0; r < 5; r++) for (let c = 0; c < 6; c++) plots.push({ x: 30 + c * 44, z: 30 + r * 35 });
+      const mid = { x: wm / 2, z: hm / 2 }; plots.sort((a, b) => Math.hypot(a.x - mid.x, a.z - mid.z) - Math.hypot(b.x - mid.x, b.z - mid.z));
+      this.plots = plots.map((p, slot) => Object.assign(p, { slot }));
+      const R = new K.RNG(4411), hills = [];
+      for (let k = 0; k < 600 && hills.length < 22; k++) {
+        const x = R.range(14, wm - 14), z = R.range(14, hm - 14), r = R.range(4, 7);
+        if (this.plots.some((p) => Math.hypot(p.x - x, p.z - z) < r + 16) || hills.some((h) => Math.hypot(h.x - x, h.z - z) < h.r + r + 8)) continue;
+        hills.push({ x, z, r, h: r > 5.5 ? 3.5 : 3 });
+      }
+      for (const [x, z] of [[104, 12], [204, 12], [152, 190], [44, 186], [236, 186]]) hills.push({ x, z, r: 5, h: 3.5, iron: true });   // the Iron Hills: the only iron, far from every plot
+      this.hills = hills;
+      this.outside = [{ x: wm / 2, z: 6 }, { x: wm / 2, z: hm - 6 }, { x: 6, z: hm / 2 }, { x: wm - 6, z: hm / 2 }];
+    }
+    /** distance to the nearest plot centre */
+    plotDist(x, z) { let d = 1e9; for (const p of this.plots) d = Math.min(d, Math.hypot(p.x - x, p.z - z)); return d; }
+  }
+
+  /** What one player sees as theirs: the shared plan plus their own plot (where their cottage, stores and fire are). */
+  class HutLayout {
+    constructor(plan = new WorldPlan(), slot = 0) {
+      this.plan = plan; this.slot = slot; this.size = plan.size; this.plots = plan.plots;
+      const p = plan.plots[slot] || plan.plots[0];
+      this.keep = { x: p.x, z: p.z, r: 2.3 };                          // the hut (the game still calls it "keep" in places)
+      this.hearth = { x: p.x - 1.6, z: p.z - 0.4 };                    // the fireplace: warmth and light
+      this.home = { x: Math.round(p.x / TILE) - 5, z: Math.round(p.z / TILE) - 3, w: 10, h: 7 };   // the cottage's north-west tile and size (tiles)
+      this.start = { x: p.x - 0.25, z: p.z + 0.75 };                  // you wake up inside
       this.ruins = {}; this.kin = {}; this.barriers = {}; this.outcrop = null; this.troll = null;
-      this.hills = [{ x: 96, z: 36, r: 6, h: 3.5 }, { x: 42, z: 66, r: 5, h: 3 }, { x: 56, z: 22, r: 5, h: 3 }, { x: 104, z: 70, r: 6, h: 3.5 }, { x: 34, z: 34, r: 5, h: 3 },
-        { x: 128, z: 14, r: 5, h: 3.5, iron: true }];   // the Iron Hills: the only iron on the map, a long walk from home
-      this.outside = [{ x: 70, z: 12 }, { x: 70, z: 88 }, { x: 14, z: 50 }, { x: 126, z: 50 }];
-      // where wolves and thieves walk in from: just beyond what the camera can show
-      this.frostEdges = { north: { x0: 40, x1: 100, z: 9 }, south: { x0: 40, x1: 100, z: 91 }, west: { x: 10, z0: 30, z1: 70 } };
+      this.hills = plan.hills; this.outside = plan.outside; this.frostEdges = {};
+    }
+    /** a cottage for another settler's plot (drawn only: their door, stores and furniture are theirs to run) */
+    cottageAt(slot, id) {
+      const p = this.plan.plots[slot], mine = this.homeSpec(), o = JSON.parse(JSON.stringify(mine)); o.id = id; o.x = Math.round(p.x / TILE) - 5; o.z = Math.round(p.z / TILE) - 3; o.noDoorLeaves = false; return K.BuildingSpec.normalize(o);
     }
     /** the cottage: the same kind of house the World Builder makes (timber, thatch, kitchen and bedroom) */
     homeSpec() {
@@ -45,33 +70,39 @@
   }
 
   class HutWorldBuilder extends K.CastleWorldBuilder {
-    constructor(layout = new HutLayout(), seed = 2207) { super(layout, seed); }
+    constructor(layout = new HutLayout(), seed = 2207) { super(layout, seed); }   // the seed is the map: every player builds the same land
     heightAt(x, z) {
       const L = this.L, n = this.n, wu = L.size.w * TILE, hu = L.size.h * TILE;
       const rim = Math.min(x, z, wu - x, hu - z);
       if (rim < 3) return { h: 2.5 + Math.round(n.fbm(x * 0.4, z * 0.4, 3) * 5) * 0.5, rock: true };   // far beyond the fog: just a horizon
       for (const H of L.hills) { const d = Math.hypot(x - H.x, z - H.z); if (d < H.r) return { h: Math.round(H.h * Math.pow(1 - d / H.r, 0.85) * 4) / 4 + 0.25, rock: true }; }
-      const dk = Math.hypot(x - L.keep.x, z - L.keep.z); if (dk < 9) return { h: 0 };
+      const dk = L.plan.plotDist(x, z); if (dk < 9) return { h: 0 };   // every plot is flat ground, so any player can build on theirs
       return { h: Math.max(0, Math.round((n.fbm(x * 0.06, z * 0.06, 3) - 0.45) * 2.0 * Math.min(1, (dk - 9) / 10) * 4) / 4) };
     }
     objects() {
-      const L = this.L, R = this.R, n = this.n, wu = L.size.w * TILE, hu = L.size.h * TILE;
+      const L = this.L, R = this.R, n = this.n, wu = L.size.w * TILE, hu = L.size.h * TILE, plan = L.plan;
       this.prop('start', L.start.x, L.start.z, { hero: 'warden' });
-      this.doc.objects.push(L.homeSpec());   // the house
-      const near = (x, z, m) => this.doc.objects.some((o) => o.kind === 'prop' && Math.hypot(o.x - x, o.z - z) < m);
-      let trees = 0, tries = 0;
-      while (trees < 760 && tries++ < 5200) {
-        const x = R.range(5, wu - 5), z = R.range(5, hu - 5), dk = Math.hypot(x - L.keep.x, z - L.keep.z); if (dk < 7.5) continue;
+      this.doc.objects.push(L.homeSpec());   // my house; other settlers' houses are added as they arrive
+      /* a spatial hash, so "is anything within m metres?" stays quick with thousands of props */
+      const cell = 2.5, grid = new Map(), cellOf = (v) => Math.floor(v / cell);
+      const put = (x, z) => { const k = cellOf(x) + ',' + cellOf(z); let a = grid.get(k); if (!a) grid.set(k, (a = [])); a.push([x, z]); };
+      const near = (x, z, m) => { const r = Math.ceil(m / cell), cx = cellOf(x), cz = cellOf(z); for (let dx = -r; dx <= r; dx++) for (let dz = -r; dz <= r; dz++) { const a = grid.get((cx + dx) + ',' + (cz + dz)); if (a) for (const q of a) if (Math.hypot(q[0] - x, q[1] - z) < m) return true; } return false; };
+      const put1 = (type, x, z, extra) => { this.prop(type, x, z, extra); put(x, z); };
+      put(L.start.x, L.start.z);
+      const k4 = (plan.size.w * plan.size.h) / (280 * 200);   // how much bigger than the first, small map this one is
+      let trees = 0, tries = 0; const wantTrees = Math.round(760 * k4);
+      while (trees < wantTrees && tries++ < wantTrees * 7) {
+        const x = R.range(5, wu - 5), z = R.range(5, hu - 5); if (plan.plotDist(x, z) < 10) continue;
         const r = this.heightAt(x, z); if (r.rock) continue;
         const forest = Math.max(0.1, Math.min(1, (n.fbm(x * 0.05, z * 0.05, 2) - 0.36) * 3.2)); if (R.next() > forest) continue;
         if (near(x, z, 1.9)) continue;
-        const dead = R.next() >= 0.88; this.prop(dead ? 'c:deadtree' : 'c:pine', x, z, { s: R.range(0.85, 1.25), name: dead ? 'Dead tree' : 'Snow pine' }); trees++;
+        const dead = R.next() >= 0.88; put1(dead ? 'c:deadtree' : 'c:pine', x, z, { s: R.range(0.85, 1.25), name: dead ? 'Dead tree' : 'Snow pine' }); trees++;
       }
-      for (let k = 0, got = 0; got < 34 && k < 900; k++) { const x = R.range(8, wu - 8), z = R.range(8, hu - 8); if (Math.hypot(x - L.keep.x, z - L.keep.z) < 8 || this.heightAt(x, z).rock || near(x, z, 2.2)) continue; this.prop('c:boulder', x, z, { name: 'Boulder', rot: R.range(0, 6) }); got++; }
-      for (const H of L.hills.filter((q) => q.iron)) for (let k = 0; k < 14; k++) { const a = this.R.range(0, 6.28), x = H.x + Math.cos(a) * (H.r + 1.2), z = H.z + Math.sin(a) * (H.r + 1.2); if (!this.heightAt(x, z).rock && !near(x, z, 1.6)) this.prop('c:iron', x, z, { name: 'Iron rock', rot: this.R.range(0, 6) }); }   // iron to forge with, on the edge of every hill
-      for (let k = 0, got = 0; got < 24 && k < 600; k++) { const x = R.range(8, wu - 8), z = R.range(8, hu - 8); if (Math.hypot(x - L.keep.x, z - L.keep.z) < 7 || this.heightAt(x, z).rock || near(x, z, 1.8)) continue; this.prop('rock', x, z, { s: R.range(0.8, 1.4) }); got++; }
+      for (let k = 0, got = 0; got < Math.round(34 * k4) && k < 900 * k4; k++) { const x = R.range(8, wu - 8), z = R.range(8, hu - 8); if (plan.plotDist(x, z) < 8 || this.heightAt(x, z).rock || near(x, z, 2.2)) continue; put1('c:boulder', x, z, { name: 'Boulder', rot: R.range(0, 6) }); got++; }
+      for (const H of L.hills.filter((q) => q.iron)) for (let k = 0; k < 26; k++) { const a = this.R.range(0, 6.28), x = H.x + Math.cos(a) * (H.r + 1.2), z = H.z + Math.sin(a) * (H.r + 1.2); if (!this.heightAt(x, z).rock && !near(x, z, 1.6)) put1('c:iron', x, z, { name: 'Iron rock', rot: this.R.range(0, 6) }); }   // the only iron on the map
+      for (let k = 0, got = 0; got < Math.round(24 * k4) && k < 600 * k4; k++) { const x = R.range(8, wu - 8), z = R.range(8, hu - 8); if (plan.plotDist(x, z) < 7 || this.heightAt(x, z).rock || near(x, z, 1.8)) continue; put1('rock', x, z, { s: R.range(0.8, 1.4) }); got++; }
     }
   }
 
-  Object.assign(K, { HutLayout, HutWorldBuilder });
+  Object.assign(K, { WorldPlan, HutLayout, HutWorldBuilder });
 })(typeof window !== 'undefined' ? window : globalThis);

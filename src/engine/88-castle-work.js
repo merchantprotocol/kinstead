@@ -56,15 +56,17 @@
       const R = this.g.play.R; if (R.buildings && R.buildings.at && R.buildings.at(i, j)) return false;
       return true;
     }
+    /** tell everyone else this tile changed */
+    share(i, j) { const mp = this.g.mp; if (mp) { const d = this.doc, k = j * d.w + i; mp.op({ k: 'tile', i, j, h: d.height[k], te: d.terrain[k] }); } }
     /** put one block of dirt on a tile: the ground rises a cube and turns to dirt */
     raise(i, j) {
-      const d = this.doc, k = j * d.w + i; d.height[k] = Math.min(MAX_Q, d.height[k] + BLOCK); d.terrain[k] = T.DIRT;
+      const d = this.doc, k = j * d.w + i; d.height[k] = Math.min(MAX_Q, d.height[k] + BLOCK); d.terrain[k] = T.DIRT; this.share(i, j);
       this.nav.S[k] = this.nav.surface((i + 0.5) * TILE, (j + 0.5) * TILE, d.hy(i, j)); this.g.play.R.tilesChanged(i, j, i + 1, j + 1); this.version++;
     }
     /** take one block off a tile; mined rock turns to dirt once it is level with the ground */
     lower(i, j, mining) {
       const d = this.doc, k = j * d.w + i, q = d.height[k], nq = mining ? Math.max(0, q - BLOCK) : Math.max(MIN_Q, q - BLOCK);
-      d.height[k] = nq; if (!mining || nq <= 0) d.terrain[k] = T.DIRT;
+      d.height[k] = nq; if (!mining || nq <= 0) d.terrain[k] = T.DIRT; this.share(i, j);
       this.nav.S[k] = this.nav.surface((i + 0.5) * TILE, (j + 0.5) * TILE, d.hy(i, j));   // paths and hero height follow at once
       this.g.play.R.tilesChanged(i, j, i + 1, j + 1); this.version++;                      // the mesh and the paint follow next frame
     }
