@@ -69,6 +69,7 @@ class EngineManifest {
     '119-castle-economy.js',
     '120-castle-workers.js',
     '121-castle-wildgame.js',
+    '122-castle-inspector.js',
   ];
   /* game data inlined as K.CASTLE_DATA (src/data is the single source; tests read the same file) */
   static DATA = { '@castle-data': ['data/game-data-castle.json', 'CASTLE_DATA'] };
