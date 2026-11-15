@@ -1,12 +1,12 @@
 /* Copyright (c) 2026 Merchant Protocol. All rights reserved. */
-/* Detail views for placed castle pieces and the resource bar. */
+/* BuildingPanel: the detail panel for a placed building or a material. It opens and closes; the sections
+   (BuildingPieceSection and its parts, BuildingMaterialSection) render the content and answer their own buttons. */
 (function (G) {
   const K = G.K;
 
   class BuildingPanel {
     constructor(game) {
       this.g = game;
-      this.c = game.castle;
       this.selected = null;
       this.root = document.createElement('div');
       this.root.id = 'cInspector';
@@ -16,10 +16,12 @@
       this.materials = new K.BuildingMaterialSection(game, this);
       this.click = (event) => this.onClick(event);
       this.root.addEventListener('click', this.click);
-      this.key = (event) => {
-        if (event.key === 'Escape' && !this.root.hidden) this.close();
-      };
+      this.key = (event) => this.onKey(event);
       document.addEventListener('keydown', this.key);
+    }
+
+    onKey(event) {
+      if (event.key === 'Escape' && !this.root.hidden) this.close();
     }
 
     close() {
@@ -48,68 +50,13 @@
     }
 
     onClick(event) {
-      if (event.target.closest('[data-close]')) return this.close();
-      if (this.handleOrder(event)) return;
-      if (this.handleBuildingAction(event)) return;
+      if (event.target.closest('[data-close]')) {
+        this.close();
+        return;
+      }
+      if (this.pieces.handle(event, this.selected)) return;
       const material = event.target.closest('[data-material]');
-      if (material) return this.material(material.dataset.material);
-      if (event.target.closest('[data-upgrade]')) this.upgradeSelected();
-      if (event.target.closest('[data-takedown]')) this.confirmDemolition();
-    }
-
-    handleOrder(event) {
-      const toggle = event.target.closest('[data-order-toggle]');
-      const target = event.target.closest('[data-order-target]');
-      const selected = this.selected;
-      if ((!toggle && !target) || !selected || selected.remote) return false;
-      const orders = this.g.economy.stock.orders;
-      const order = orders.get(selected.p);
-      const change = toggle
-        ? { enabled: !order.enabled }
-        : { target: +target.dataset.orderTarget };
-      orders.configure(selected.p, change);
-      this.piece(selected.e);
-      this.g.changed();
-      return true;
-    }
-
-    handleBuildingAction(event) {
-      const button = event.target.closest('[data-building-action]');
-      if (!button || !this.selected) return false;
-      const action = this.selected.available.find(
-        (item) => item.id === button.dataset.buildingAction
-      );
-      if (action) this.g.play.doAction(this.selected.e, action, false);
-      return true;
-    }
-
-    upgradeSelected() {
-      const selected = this.selected;
-      if (!selected || selected.remote) return;
-      this.g.upgrade(selected.p);
-      this.piece(selected.e);
-    }
-
-    confirmDemolition() {
-      const selected = this.selected;
-      if (!selected || selected.remote) return;
-      const refund = this.c.refundFor(selected.p);
-      const text = Object.entries(refund)
-        .map(([resource, amount]) => `${amount} ${K.CastleData.resName(resource)}`)
-        .join(', ') || 'nothing';
-      const title = K.PanelText.escape(this.g.data.piece(selected.p.type).name);
-      this.g.cui.modal(
-        `<h2>Take down ${title}?</h2><p>Refund: ${K.PanelText.escape(text)}. This cannot be undone.</p>`,
-        [
-          { label: 'Keep it', pri: true },
-          {
-            label: 'Yes, take it down',
-            run: () => {
-              if (this.g.demolishPiece(selected.p)) this.close();
-            }
-          }
-        ]
-      );
+      if (material) this.material(material.dataset.material);
     }
 
     dispose() {

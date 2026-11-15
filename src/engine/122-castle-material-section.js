@@ -1,10 +1,13 @@
 /* Copyright (c) 2026 Merchant Protocol. All rights reserved. */
+/* BuildingMaterialSection: the material guide: what you hold, where to get more, and what it is used for. */
 (function (G) {
   const K = G.K;
   class BuildingMaterialSection {
-    constructor(game) { this.g = game;
-       this.c = game.castle;
-      }
+    constructor(game) {
+      this.g = game;
+      this.c = game.castle;
+    }
+
     render(id) {
       const definition = this.c.data;
       const name = K.CastleData.resName(id);
