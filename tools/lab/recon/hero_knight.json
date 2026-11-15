@@ -11,5 +11,112 @@
     0.98
   ],
   "edgeErode": 3,
-  "glowBand": 24
+  "glowBand": 24,
+  "rig": {
+    "centreBand": [
+      14,
+      35
+    ],
+    "neck": 47,
+    "headX": 8,
+    "headCX": 1,
+    "belt": 35,
+    "crotch": 14,
+    "forkX": -5,
+    "shoulderX": 9,
+    "armDrop": 12,
+    "capeZ": -5,
+    "sword": {
+      "hilt": [
+        -17,
+        29,
+        6
+      ],
+      "tip": [
+        -24,
+        9,
+        22
+      ],
+      "r": 2.6,
+      "grip": 5
+    },
+    "shield": {
+      "c": [
+        15,
+        27,
+        9
+      ],
+      "n": [
+        0.92,
+        -0.3,
+        0.25
+      ],
+      "depth": 3,
+      "r": 14
+    },
+    "pivots": {
+      "hips": [
+        0,
+        24,
+        0
+      ],
+      "torso": [
+        0,
+        35,
+        0
+      ],
+      "head": [
+        1,
+        47,
+        2
+      ],
+      "armR": [
+        -10,
+        50,
+        0
+      ],
+      "armL": [
+        11,
+        50,
+        0
+      ],
+      "weapon": [
+        -17,
+        29,
+        6
+      ],
+      "shield": [
+        14,
+        40,
+        4
+      ],
+      "cape": [
+        0,
+        47,
+        -6
+      ],
+      "legR": [
+        -8,
+        16,
+        2
+      ],
+      "legL": [
+        5,
+        16,
+        3
+      ]
+    },
+    "parents": {
+      "hips": null,
+      "torso": "hips",
+      "head": "torso",
+      "armR": "torso",
+      "weapon": "armR",
+      "armL": "torso",
+      "shield": "armL",
+      "cape": "torso",
+      "legR": "hips",
+      "legL": "hips"
+    }
+  }
 }

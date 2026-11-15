@@ -194,6 +194,24 @@
     dispose() { if (this.geo) { this.geo.body.dispose(); if (this.geo.glow) this.geo.glow.dispose(); } this.geo = null; }
   }
 
+  /* ---------------- reconstructed models (tools/lab/recon.mjs + rig-split.mjs -> src/models/<id>.data.js) ---------------- */
+  class ReconModel {
+    /* base64 of int8 x, y, z + uint8 palette index per voxel -> [[x, y, z, i], ...] */
+    static unpack(b64) {
+      const bin = typeof atob === 'function' ? atob(b64) : Buffer.from(b64, 'base64').toString('binary'), out = [];
+      for (let i = 0; i + 3 < bin.length; i += 4) { const s = (c) => (c > 127 ? c - 256 : c); out.push([s(bin.charCodeAt(i)), s(bin.charCodeAt(i + 1)), s(bin.charCodeAt(i + 2)), bin.charCodeAt(i + 3)]); }
+      return out;
+    }
+    static data(id) { return (K.ModelData && K.ModelData[id]) || null; }
+    /* a rigged hero from its data: one VoxelPart per bone, pivots in voxels, size = height / voxels */
+    static rig(id, ctx, opts = {}) {
+      const D = ReconModel.data(id); if (!D) throw new Error(`no reconstruction data for ${id} (src/models/${id}.data.js)`);
+      const pal = D.palette.map((h) => ctx.Colour.hex(h)), M = new ctx.VoxelModel('hd_' + id, { size: D.height / D.voxels, height: D.height, style: opts.style || 'swing', mesher: new ctx.GreedyMesher(), rest: opts.rest || {} });
+      for (const [name, p] of Object.entries(D.parts)) { const part = M.part(name, p.pivot, p.parent, { jitter: 0 }); for (const [x, y, z, i] of ReconModel.unpack(p.data)) part.set(x, y, z, pal[i]); }
+      return M;
+    }
+  }
+
   /* ---------------- the registry ---------------- */
   class ModelRegistry {
     constructor() { this.defs = new Map(); this.cache = new Map(); this.errors = new Map(); }
@@ -237,5 +255,5 @@
   }
 
   K.Models = new ModelRegistry();
-  Object.assign(KV, { GreedyMesher, StaticVoxelModel, ModelRegistry });
+  Object.assign(KV, { GreedyMesher, StaticVoxelModel, ModelRegistry, ReconModel });
 })(typeof window !== 'undefined' ? window : globalThis);
