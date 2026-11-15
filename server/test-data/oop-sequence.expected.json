@@ -1,0 +1,385 @@
+{
+  "alice": [
+    {
+      "t": "welcome",
+      "id": "alice-cl",
+      "slot": 0,
+      "evicted": false,
+      "max": 30,
+      "players": [],
+      "claimed": [],
+      "world": {
+        "pieces": {},
+        "tiles": {},
+        "nodes": {},
+        "buildings": {},
+        "houses": {},
+        "doors": {}
+      },
+      "teams": [],
+      "gates": {},
+      "ver": {
+        "p": 1,
+        "s": 1,
+        "t": 1
+      },
+      "save": null,
+      "invites": [],
+      "banners": {
+        "alice-cl": {
+          "name": "",
+          "color": 10,
+          "logo": 10,
+          "team": null
+        }
+      },
+      "clock": {
+        "day": 210,
+        "night": 100
+      },
+      "weather": {
+        "kind": "clear",
+        "period": 0
+      },
+      "respawn": null,
+      "stores": [],
+      "markets": [],
+      "sales": []
+    },
+    {
+      "t": "banners",
+      "map": {
+        "alice-cl": {
+          "name": "",
+          "color": 10,
+          "logo": 10,
+          "team": null
+        }
+      }
+    },
+    {
+      "t": "join",
+      "p": {
+        "id": "bobby-cl",
+        "name": "Bobby",
+        "slot": 1,
+        "team": null,
+        "x": 162,
+        "z": 100,
+        "y": 0,
+        "f": 0,
+        "s": "idle",
+        "tool": ""
+      }
+    },
+    {
+      "t": "banners",
+      "map": {
+        "bobby-cl": {
+          "name": "",
+          "color": 10,
+          "logo": 10,
+          "team": null
+        }
+      }
+    },
+    {
+      "t": "teams",
+      "list": [
+        {
+          "id": "<team-id>",
+          "name": "Alice's company",
+          "members": [
+            "alice-cl"
+          ],
+          "banner": {
+            "name": "Alice's company",
+            "color": 10,
+            "logo": 10
+          }
+        }
+      ]
+    },
+    {
+      "t": "banners",
+      "map": {
+        "alice-cl": {
+          "name": "Alice's company",
+          "color": 10,
+          "logo": 10,
+          "team": "<team-id>"
+        }
+      }
+    },
+    {
+      "t": "teams",
+      "list": [
+        {
+          "id": "<team-id>",
+          "name": "Alice's company",
+          "members": [
+            "alice-cl",
+            "bobby-cl"
+          ],
+          "banner": {
+            "name": "Alice's company",
+            "color": 10,
+            "logo": 10
+          }
+        }
+      ]
+    },
+    {
+      "t": "banners",
+      "map": {
+        "alice-cl": {
+          "name": "Alice's company",
+          "color": 10,
+          "logo": 10,
+          "team": "<team-id>"
+        },
+        "bobby-cl": {
+          "name": "Alice's company",
+          "color": 10,
+          "logo": 10,
+          "team": "<team-id>"
+        }
+      }
+    },
+    {
+      "t": "market",
+      "m": {
+        "owner": "alice-cl",
+        "name": "Alice",
+        "x": 118,
+        "z": 100,
+        "stock": {
+          "wood": 5
+        },
+        "prices": {
+          "wood": 3
+        }
+      }
+    },
+    {
+      "t": "sold",
+      "good": "wood",
+      "n": 2,
+      "gold": 0,
+      "by": "Bobby"
+    },
+    {
+      "t": "market",
+      "m": {
+        "owner": "alice-cl",
+        "name": "Alice",
+        "x": 118,
+        "z": 100,
+        "stock": {
+          "wood": 3
+        },
+        "prices": {
+          "wood": 3
+        }
+      }
+    },
+    {
+      "t": "leave",
+      "id": "bobby-cl"
+    }
+  ],
+  "bobby": [
+    {
+      "t": "welcome",
+      "id": "bobby-cl",
+      "slot": 1,
+      "evicted": false,
+      "max": 30,
+      "players": [
+        {
+          "id": "alice-cl",
+          "name": "Alice",
+          "slot": 0,
+          "team": null,
+          "x": 118,
+          "z": 100,
+          "y": 0,
+          "f": 0,
+          "s": "idle",
+          "tool": ""
+        }
+      ],
+      "claimed": [],
+      "world": {
+        "pieces": {},
+        "tiles": {},
+        "nodes": {},
+        "buildings": {},
+        "houses": {},
+        "doors": {}
+      },
+      "teams": [],
+      "gates": {},
+      "ver": {
+        "p": 1,
+        "s": 1,
+        "t": 1
+      },
+      "save": null,
+      "invites": [],
+      "banners": {
+        "alice-cl": {
+          "name": "",
+          "color": 10,
+          "logo": 10,
+          "team": null
+        },
+        "bobby-cl": {
+          "name": "",
+          "color": 10,
+          "logo": 10,
+          "team": null
+        }
+      },
+      "clock": {
+        "day": 210,
+        "night": 100
+      },
+      "weather": {
+        "kind": "clear",
+        "period": 0
+      },
+      "respawn": null,
+      "stores": [],
+      "markets": [],
+      "sales": []
+    },
+    {
+      "t": "banners",
+      "map": {
+        "bobby-cl": {
+          "name": "",
+          "color": 10,
+          "logo": 10,
+          "team": null
+        }
+      }
+    },
+    {
+      "t": "teams",
+      "list": [
+        {
+          "id": "<team-id>",
+          "name": "Alice's company",
+          "members": [
+            "alice-cl"
+          ],
+          "banner": {
+            "name": "Alice's company",
+            "color": 10,
+            "logo": 10
+          }
+        }
+      ]
+    },
+    {
+      "t": "banners",
+      "map": {
+        "alice-cl": {
+          "name": "Alice's company",
+          "color": 10,
+          "logo": 10,
+          "team": "<team-id>"
+        }
+      }
+    },
+    {
+      "t": "invite",
+      "team": "<team-id>",
+      "from": "alice-cl",
+      "name": "Alice",
+      "teamName": "Alice's company",
+      "banner": {
+        "name": "Alice's company",
+        "color": 10,
+        "logo": 10
+      }
+    },
+    {
+      "t": "invites",
+      "list": []
+    },
+    {
+      "t": "teams",
+      "list": [
+        {
+          "id": "<team-id>",
+          "name": "Alice's company",
+          "members": [
+            "alice-cl",
+            "bobby-cl"
+          ],
+          "banner": {
+            "name": "Alice's company",
+            "color": 10,
+            "logo": 10
+          }
+        }
+      ]
+    },
+    {
+      "t": "banners",
+      "map": {
+        "alice-cl": {
+          "name": "Alice's company",
+          "color": 10,
+          "logo": 10,
+          "team": "<team-id>"
+        },
+        "bobby-cl": {
+          "name": "Alice's company",
+          "color": 10,
+          "logo": 10,
+          "team": "<team-id>"
+        }
+      }
+    },
+    {
+      "t": "market",
+      "m": {
+        "owner": "alice-cl",
+        "name": "Alice",
+        "x": 118,
+        "z": 100,
+        "stock": {
+          "wood": 5
+        },
+        "prices": {
+          "wood": 3
+        }
+      }
+    },
+    {
+      "t": "bought",
+      "owner": "alice-cl",
+      "good": "wood",
+      "n": 2,
+      "cost": 0
+    },
+    {
+      "t": "market",
+      "m": {
+        "owner": "alice-cl",
+        "name": "Alice",
+        "x": 118,
+        "z": 100,
+        "stock": {
+          "wood": 3
+        },
+        "prices": {
+          "wood": 3
+        }
+      }
+    }
+  ]
+}

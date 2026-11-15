@@ -32,7 +32,7 @@
 
   const ICON = { wood: 'log', stone: 'stone', dirt: 'dirt', food: 'food', arrow: 'arrow', iron: 'ore', gold: 'coin', ember_shard: 'ember', troll_heart: 'heart', stoneblade: 'stoneblade', iron_sword: 'sword', ember_brand: 'brand' };
   const RES_ORDER = ['wood', 'stone', 'dirt', 'food', 'arrow', 'iron', 'gold', 'ember_shard'];
-  const PIECE_ICON = { cottage: 'bed', fire_pot: 'ember', farm: 'hammer', field: 'food', silo: 'bag', coop: 'food', barn: 'food', market: 'coin', stable: 'hand', bakery: 'food', butcher: 'food', library: 'book', bunkhouse: 'bed', palisade: 'log', stone_wall: 'stone', stone_gate: 'stone', gate: 'log', gatehouse: 'hammer', watchtower: 'eye', ember_brazier: 'ember', woodcutter: 'axe', quarry: 'pickaxe', mine: 'ore', great_hall: 'coin', chapel: 'ember', storehouse: 'bag', smithy: 'hammer', ember_forge: 'brand', barracks: 'shield', heartfire_hearth: 'heart' };
+  const PIECE_ICON = { cottage: 'bed', fire_pot: 'ember', farm: 'hammer', field: 'food', silo: 'bag', coop: 'food', barn: 'food', market: 'coin', stable: 'hand', bakery: 'food', butcher: 'food', library: 'book', bunkhouse: 'bed', palisade: 'log', stone_wall: 'stone', stone_gate: 'stone', stone_tower: 'stone', gate: 'log', gatehouse: 'hammer', watchtower: 'eye', ember_brazier: 'ember', woodcutter: 'axe', quarry: 'pickaxe', mine: 'ore', great_hall: 'coin', chapel: 'ember', storehouse: 'bag', smithy: 'hammer', ember_forge: 'brand', barracks: 'shield', heartfire_hearth: 'heart' };
   const SHORT = {
     palisade: 'Blocks raiders; they must chop through it.', stone_wall: 'Blocks raiders. 2.5x a palisade’s HP.', gatehouse: 'The way in. Walls joined to it make the courtyard.',
     watchtower: 'Shoots raiders within 6 m for 4/s (6 with a hero on it).', ember_brazier: 'At night, burns frost creatures within 3 m.', storehouse: '+100 storage. Guards half your stores from raids.',
@@ -69,8 +69,13 @@
         <div id="cRadial" hidden></div><div id="cPlace" class="cp" hidden></div><div id="cBanner" hidden></div><div id="cBook" class="cp" hidden></div><div id="cModal" hidden></div>`;
       document.body.appendChild(root);
       this.$ = (id) => root.querySelector('#' + id);
+      this.buildDetails = new K.BuildDetailsDialog(this);
       this.$('cBar').addEventListener('click', (e) => { const b = e.target.closest('[data-a]'); if (!b) return; this.g.sound.unlock(); const a = b.dataset.a; if (a === 'build') this.toggleRadial(); else if (a === 'book') this.toggleBook(); else if (a === 'bell') this.g.ringBell(); });
-      this.$('cRadial').addEventListener('click', (e) => { const b = e.target.closest('[data-card]'); if (b) this.pickCard(+b.dataset.card); else if (e.target.id === 'cRadial' || e.target.closest('[data-close]')) this.toggleRadial(false); });
+      this.$('cRadial').addEventListener('click', (event) => {
+        const card = event.target.closest('[data-card]');
+        if (card) this.pickCard(+card.dataset.card);
+        else if (event.target.id === 'cRadial' || event.target.closest('[data-close]')) this.toggleRadial(false);
+      });
       this.$('cBook').addEventListener('click', (e) => { if (e.target.closest('[data-close]')) this.toggleBook(false); });
       this.$('cPlace').addEventListener('click', (e) => { if (e.target.closest('[data-close]')) this.stopPlacing(); if (e.target.closest('[data-rot]')) this.rotate(); });
       this.render();
@@ -79,7 +84,7 @@
       const d = castle.data.piece(type); if (!d || !d.produces) return '';
       return castle.payback.line(castle.buildCost(type, opts), d.produces);
     }
-    dispose() { this.stopPlacing(); this.root.remove(); }
+    dispose() { this.buildDetails.dispose(); this.stopPlacing(); this.root.remove(); }
     toast(m) { this.g.app.toast(m); }
 
     /* ---------- HUD ---------- */
@@ -236,16 +241,48 @@
       this.radialHtml = html; this.$('cRadial').innerHTML = html;
     }
     pickCard(i) {
-      const x = this.cardList && this.cardList[i]; if (!x) return; const g = this.g, play = g.play;
-      this.toggleRadial(false);
-      if (x.kind === 'upgrade') { g.upgrade(x.piece); return; }
-      if (x.kind === 'place') { this.startPlacing(x.id); return; }
-      const walk = (ent, actId) => { const act = g.actionsFor(ent).find((a) => a.id === actId); if (act) play.doAction(ent, act); };
-      if (x.kind === 'ruin') walk(g.ruinEnts[x.id], 'repair');
-      else if (x.kind === 'site') walk(g.outcropEnt, 'mine');
-      else if (x.kind === 'heart') walk(g.keepEnt, 'bind');
-      else if (x.kind === 'craft') { const st = this.c.data.recipe(x.rid).station; if (st === 'keep') walk(g.keepEnt, 'craft'); else { const p = this.c.pieces.find((q) => q.type === st); if (p) walk(g.pieceEnt(p), 'craft'); } }
+      const x = this.cardList && this.cardList[i];
+      if (x) this.activateCard(x);
     }
+    activateCard(x) {
+      if (!x) return;
+      const g = this.g, play = g.play;
+      this.toggleRadial(false);
+      if (x.kind === 'upgrade') {
+        g.upgrade(x.piece);
+        return;
+      }
+      if (x.kind === 'place') {
+        this.startPlacing(x.id);
+        return;
+      }
+      const walk = (entity, actionId) => {
+        const action = g.actionsFor(entity).find((item) => item.id === actionId);
+        if (action) play.doAction(entity, action);
+      };
+      if (x.kind === 'ruin') {
+        walk(g.ruinEnts[x.id], 'repair');
+        return;
+      }
+      if (x.kind === 'site') {
+        walk(g.outcropEnt, 'mine');
+        return;
+      }
+      if (x.kind === 'heart') {
+        walk(g.keepEnt, 'bind');
+        return;
+      }
+      if (x.kind === 'craft') {
+        const station = this.c.data.recipe(x.rid).station;
+        if (station === 'keep') {
+          walk(g.keepEnt, 'craft');
+          return;
+        }
+        const piece = this.c.pieces.find((item) => item.type === station);
+        if (piece) walk(g.pieceEnt(piece), 'craft');
+      }
+    }
+    showBuildDetails(card) { this.buildDetails.open(card); }
 
     /* ---------- placement ---------- */
     startPlacing(type) {
@@ -256,11 +293,19 @@
     }
     stopPlacing() { if (!this.placing) return; if (this.g.site) this.g.site.clearGhost(); this.g.group.remove(this.placing.ghost); this.placing = null; this.$('cPlace').hidden = true; this.g.play.ui.tip(null); }
     rotate() { if (this.g.site.active) { this.g.site.turn(); if (this.lastP) this.moveGhost(this.lastP.sx, this.lastP.sy); return; } this.g.rotExtra = ((this.g.rotExtra || 0) + Math.PI / 2) % (Math.PI * 2); if (this.lastP) this.moveGhost(this.lastP.sx, this.lastP.sy); }
+    /* where a piece snaps for the pointer at p: walls to the square, gates to a wall run, stone towers to the tile grid; null = free */
+    snapSpot(type, p) {
+      const g = this.g;
+      if (g.walls.handles(type)) return g.walls.edgeAt(type, p);
+      if (K.Breacher.GATES.has(type)) return g.gateSpot(p);
+      if (type === 'stone_tower' && g.ramparts) return g.ramparts.towerSpot(p);
+      return null;
+    }
     moveGhost(sx, sy) {
       this.lastP = { sx, sy }; if (this.g.site.active) { this.g.site.hover(sx, sy); return; }   // a building: the site draws it
       const P = this.placing, g = this.g, p = g.app.pickGround(sx, sy);
       if (!p) { P.ghost.visible = false; return; }
-      const e = g.walls.handles(P.type) ? g.walls.edgeAt(P.type, p) : K.Breacher.GATES.has(P.type) ? g.gateSpot(p) : null;
+      const e = this.snapSpot(P.type, p);
       const x = e ? e.x : Math.round(p.x * 4) / 4, z = e ? e.z : Math.round(p.z * 4) / 4, rot = e ? e.rot : g.autoRot(x, z), why = g.placementOk(P.type, x, z, rot);
       P.ghost.visible = true; P.ghost.position.set(x, g.play.nav.y(x, z), z); P.ghost.rotation.y = rot; CastleArt.tintGhost(P.ghost, !why); P.at = { x, z, rot, why };
       g.play.ui.tip(why ? `<b>Can’t build here</b> · ${esc(why)}` : `<b>${esc(this.c.data.piece(P.type).name)}</b> · ${g.walls.handles(P.type) ? 'click to build, or drag to draw a wall' : 'press, hold and swing the mouse to turn it, let go to build'} (${esc(Object.entries(this.c.buildCost(P.type)).map(([r, n]) => n + ' ' + K.CastleData.resName(r)).join(', '))})`, sx, sy);
@@ -277,6 +322,7 @@
     pointerMove(sx, sy) { if (!this.placing) return false; this.moveGhost(sx, sy); return true; }
     key(e) {
       const k = e.key.toLowerCase();
+      if (this.buildDetails.handleKey(e)) return true;
       if (!this.$('cModal').hidden) { if (e.key === 'Escape' || e.key === 'Enter') { const b = this.$('cModal').querySelector('.cb.pri'); if (b) b.click(); } return true; }
       if (e.key === 'Escape') { if (this.g.demolisher && this.g.demolisher.selling) { this.g.demolisher.setSelling(false); return true; } if (this.placing) { this.stopPlacing(); return true; } if (this.radialOpen) { this.toggleRadial(false); return true; } if (this.bookOpen) { this.toggleBook(false); return true; } return false; }
       if (k === 'b') { this.g.tools.toggleHammer(); return true; }

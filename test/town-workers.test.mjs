@@ -20,7 +20,7 @@ class TownSandbox {
     const K = { TILE: 0.5, VoxKit, CastleArt: { size: (t) => ({ farm: [3, 2.5], silo: [1.6, 1.6], market: [1, 1], coop: [1.6, 1.4] }[t] || [2, 2]) } };
     this.ctx = vm.createContext({ console, Math, Object, Map, Set, JSON, K, THREE: { Group } });
     this.ctx.globalThis = this.ctx; this.ctx.window = this.ctx;
-    for (const f of ['82e-workshop-layout.js', '120d-work-spots.js', '120c-work-errands.js', '119a-castle-cart.js', '120e-worker-job.js',
+    for (const f of ['82h-workshop-layout.js', '120d-work-spots.js', '120c-work-errands.js', '119a-castle-cart.js', '120e-worker-job.js',
       '120g-worker-cook.js', '120n-town-night.js', '120p-haulage.js']) vm.runInContext(fs.readFileSync(path.join(ENGINE, f), 'utf8'), this.ctx, { filename: f });
   }
   get K() { return this.ctx.K; }

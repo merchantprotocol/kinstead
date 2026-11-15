@@ -214,7 +214,8 @@
       play.spawn = { x: this.L.start.x, z: this.L.start.z };
       { const rs = (this.net && this.net.welcome.respawn) || (this.saved && this.saved.extras && this.saved.extras.respawn);   // you always wake where you last slept
         if (rs) { play.spawn = { x: rs.x, z: rs.z }; this.respawn = rs; }
-        play.me.x = play.spawn.x; play.me.z = play.spawn.z; play.me.y = play.nav.y(play.spawn.x, play.spawn.z); }
+        play.me.x = play.spawn.x; play.me.z = play.spawn.z; play.me.y = play.nav.y(play.spawn.x, play.spawn.z);
+        play.me.layer = 'ground'; play.me.leg = null; }
       // your hut: the fire, the furniture, the barrels. No keep, ruins, outcrop or zone barriers.
       this.walls = new K.WallDrawer(this);   // before any saved pieces come back: placing and blocking a piece asks it what it is
       this.gateTiles = new Set(); this.smithy = null; this.marketHall = null; this.halls = {}; this.forge = null; this.home = new K.Home(this); this.castle.extraHas = (t) => (t === 'blacksmith' && !!this.smithy) || (t === 'cottage' && this.home.built) || (t === 'market' && !!this.marketHall) || !!this.halls[t]; this.keepMesh = null; this.ruinEnts = {}; this.outcropEnt = null;
@@ -235,6 +236,7 @@
       this.restoreNodes();
       this.raid = null;
       this.cui = new K.CastleUI(this); this.vitals = new K.Vitals(this); this.wild = new K.Wild(this); this.calendar.on((ev) => this.onCalendar(ev)); this.tools = new K.CastleTools(this); this.minimap = new K.Minimap(this); this.xp = this.xp || new K.Experience(this); this.weather = new K.Weather(this); this.towers = new K.Towers(this); this.economy = new K.Economy(this); this.workers = new K.Workers(this); this.wildGame = new K.WildGame(this); this.banners = new K.BannerBook(this, this.net); this.flags = new K.Flags(this); this.banners.on(() => this.applyLook()); this.applyLook(); this.forest = new K.Forest(this); this.brush = new K.GroundBrush(this); this.steer = new K.PieceSteer(this); this.purse = new K.Purse(this); this.stash = new K.Stash(this); this.site = new K.BuildingSite(this); this.sweep = new K.SweepAttack(this); this.demolisher = new K.Demolisher(this); this.play.refreshProps();
+      this.ramparts = new K.Ramparts(this);   // the walk along your stone walls, towers and gate (127-castle-ramparts.js)
       if (this.day.isNight) this.startRaid();
       play.app.rig.set({ dist: 11, pitch: 0.78 }); play.app.rig.maxDist = 44;   // you can never zoom out far enough to see the edge of the world
       this.persist = new K.Persist(this); if (this.saved && this.saved.extras) { try { this.persist.restore(this.saved.extras); } catch (err) { console.warn('could not restore the homestead', err); } }
@@ -254,7 +256,8 @@
       if ((this.occT = (this.occT || 0) - dt) > 0) return; this.occT = 0.1;
       const me = this.play.me, cam = this.app && this.app.camera; if (!me || !cam) return;
       const V = this.occV || (this.occV = { o: new THREE.Vector3(), h: new THREE.Vector3(), d: new THREE.Vector3(), hit: new THREE.Vector3(), ray: new THREE.Ray() });
-      cam.getWorldPosition(V.o); V.h.set(me.x, this.play.nav.y(me.x, me.z) + 0.9, me.z);
+      const heroY = this.ramparts && this.ramparts.onRamparts(me) ? me.y : this.play.nav.y(me.x, me.z);   // up on the walls: the hero's own height
+      cam.getWorldPosition(V.o); V.h.set(me.x, heroY + 0.9, me.z);
       const far = V.o.distanceTo(V.h) - 0.4; V.ray.set(V.o, V.d.subVectors(V.h, V.o).normalize());
       for (const m of [...this.meshes.values(), this.keepMesh]) {
         if (!m || !m.parent) continue;
@@ -291,7 +294,11 @@
     blockRect(x, z, w, d, rot, gate) {
       const nav = this.play.nav;
       this.rectTiles(x, z, w, d, rot, (i, j, lx) => { const k = j * nav.w + i; this.occ[k] = 1; if (!gate || Math.abs(lx) > 0.75) nav.walk[k] = 0; });
-      const me = this.play.me; if (me && !nav.standable(me.x, me.z)) { const q = nav.nearestOk(...nav.tile(me.x, me.z), 8); if (q) { [me.x, me.z] = nav.centre(...q); me.path = null; } }
+      const me = this.play.me, aloft = !!this.ramparts && this.ramparts.onRamparts(me);   // up on the walls: a new piece below never moves you
+      if (me && !aloft && !nav.standable(me.x, me.z)) {
+        const q = nav.nearestOk(...nav.tile(me.x, me.z), 8);
+        if (q) { [me.x, me.z] = nav.centre(...q); me.path = null; }
+      }
     }
     unblockRect(x, z, w, d, rot) { const nav = this.play.nav; this.rectTiles(x, z, w, d, rot, (i, j) => { const k = j * nav.w + i; this.occ[k] = 0; nav.walk[k] = 1; }); }
 
@@ -303,7 +310,7 @@
       return out;
     }
     pieceEnt(p) {
-      if (!p.ent) { const [w, d] = CastleArt.size(p.type); p.ent = { id: 'c-p' + p.uid, type: 'c_piece', piece: p, x: p.x, z: p.z, y: 0, r: K.Breacher.GATES.has(p.type) ? Math.max(w, d) / 2 : Math.max(0.5, Math.min(w, d) / 2 + 0.2), h: { watchtower: 4.6, great_hall: 2.8, gatehouse: 3, stone_gate: 3.2 }[p.type] || 1.8 }; }
+      if (!p.ent) { const [w, d] = CastleArt.size(p.type); p.ent = { id: 'c-p' + p.uid, type: 'c_piece', piece: p, x: p.x, z: p.z, y: 0, r: K.Breacher.GATES.has(p.type) ? Math.max(w, d) / 2 : Math.max(0.5, Math.min(w, d) / 2 + 0.2), h: { watchtower: 4.6, great_hall: 2.8, gatehouse: 3, stone_gate: 3.2, stone_wall: 3.4, stone_tower: 4 }[p.type] || 1.8 }; }
       p.ent.name = this.data.piece(p.type).name + (p.level >= 2 ? ' · Level 2' : ''); return p.ent;
     }
     pieceRadius(p) { const [w, d] = CastleArt.size(p.type); return Math.max(w, d) / 2; }
@@ -867,6 +874,7 @@
       for (const m of this.meshes.values()) m.traverse((o) => { if (o.userData.flame) o.scale.y = 0.85 + 0.25 * Math.sin(play.t * 11 + o.id); });
       { const fog = this.R.scene.fog, dd = this.app.rig.cur.dist, ws = this.weather.fogScale; if (fog) { fog.near = dd + 8 * ws; fog.far = dd + 32 * ws; } }   // the far edge of the world always fades out, at any zoom
       this.updateArrow(dt); this.minimap.update(dt); this.weather.update(dt); this.flags.update(dt); this.towers.update(dt); this.economy.update(dt); this.workers.update(dt); this.wildGame.update(dt); this.forest.update(dt); if (this.mp) this.mp.update(dt); for (const p of this.castle.pieces) if (p.bridge) p.bridge.update(dt); this.tools.update(dt); this.sweep.update(dt); this.home.update(dt); this.vitals.update(dt); this.wild.update(dt);
+      this.ramparts.update(dt);
       this.updateOcclusion(dt);
       if (this.shakeT > 0) { this.shakeT -= dt; const g = play.app.rig.goal; g.tx += (Math.random() - 0.5) * this.shakeT * 0.6; g.tz += (Math.random() - 0.5) * this.shakeT * 0.6; }
       if (this.thawSnow) { const s = this.R.snow.points; s.material.opacity = (s.material.opacity == null ? 1 : s.material.opacity); s.visible = this.endT == null || this.endT < 3; }

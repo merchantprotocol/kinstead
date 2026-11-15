@@ -219,13 +219,38 @@
     snapshot() { return this.bplay.snapshot(); }
 
     /* ---------- commands ---------- */
-    walkTo(x, z, run) {
+    walkTo(x, z, run, up = false) {
       this.cancelChannel(); this.intent = null; this.target = null;
-      const path = this.nav.find(this.me.x, this.me.z, x, z);
-      if (!path) { this.ov.mark(x, z, true); this.toast("You can't get there from here."); this.float({ x, z, y: this.nav.y(x, z), h: 0.3 }, '✕', 'miss'); return false; }
+      const path = this.findMe(x, z, up);
+      if (!path) {
+        this.ov.mark(x, z, true);
+        this.toast(up ? 'No stair up to there: join the wall to a stone tower.' : "You can't get there from here.");
+        this.float({ x, z, y: this.nav.y(x, z), h: 0.3 }, '✕', 'miss');
+        return false;
+      }
       const end = path[path.length - 1] || [x, z];
       this.me.path = path; this.me.run = run; this.ov.mark(end[0], end[1]); this.ov.path([this.me.x, this.me.z], path);
       return true;
+    }
+    /* the hero's path to (x, z): on the ground, or (up) on the ramparts; stairs join the two (127-castle-ramparts.js) */
+    findMe(x, z, up = false) {
+      const ramp = this.ramparts();
+      if (ramp && (up || ramp.onRamparts(this.me))) return ramp.route(this.me, x, z, up);
+      return this.nav.find(this.me.x, this.me.z, x, z);
+    }
+    /* the walkable point under the cursor: a rampart top first (it stands in front of the ground), then open ground */
+    pickWalk(sx, sy) {
+      const ramp = this.ramparts(), r = ramp && ramp.pick(sx, sy);
+      if (r) return { x: r.x, z: r.z, up: true };
+      const p = this.app.pickGround(sx, sy);
+      return p && this.nav.standable(p.x, p.z) ? { x: p.x, z: p.z, up: false } : null;
+    }
+    /* a click on a wall top walks you up there, unless the hammer is out (it takes walls down) or something else is in front */
+    rampartClick(sx, sy, e) {
+      const ramp = this.ramparts(), tools = this.ext && this.ext.tools;
+      if (!ramp || (tools && tools.tool.id === 'hammer')) return null;
+      if (e && !(e.type === 'c_piece' && K.Ramparts.handles(e.piece.type))) return null;
+      return ramp.pick(sx, sy);
     }
     /* walk into range (if the action has one), then run it */
     doAction(e, act, run) {
@@ -266,12 +291,12 @@
       this.holdT -= dt; if (this.holdT > 0) return; this.holdT = 0.1;
       if (!d.held && (this.pick(d.sx, d.sy) || (this.ext && this.ext.tools && this.ext.tools.claims(d.sx, d.sy)))) d.cancel = true;   // pressed on a thing or a tool target: a click, not a walk   // pressed on a thing: that is a click, not a walk
       if (d.cancel) return;
-      const p = this.app.pickGround(d.cx, d.cy); if (!p || !this.nav.standable(p.x, p.z)) return;
+      const p = this.pickWalk(d.cx, d.cy); if (!p) return;
       if (Math.hypot(p.x - this.me.x, p.z - this.me.z) < 0.35) return;
-      d.held = true; this.holdGo(p.x, p.z);
+      d.held = true; this.holdGo(p.x, p.z, p.up);
     }
-    holdGo(x, z) {
-      const path = this.nav.find(this.me.x, this.me.z, x, z); if (!path) return;
+    holdGo(x, z, up = false) {
+      const path = this.findMe(x, z, up); if (!path) return;
       this.cancelChannel(); this.intent = null; this.target = null; this.ui.close('ctx'); this.ui.close('card');
       this.me.path = path; this.me.run = true; this.ov.mark(x, z);
     }
@@ -289,8 +314,12 @@
       const now = performance.now(), last = this.lastClick, dbl = last && now - last.t < 340 && Math.hypot(sx - last.sx, sy - last.sy) < 26;
       this.lastClick = dbl ? null : { t: now, sx, sy };
       this.ui.close('ctx'); this.ui.close('card'); this.ui.tip(null);
-      const e = this.pick(sx, sy);
+      let e = this.pick(sx, sy);
       if (e === this.me) { this.ui.toggleHud(); return; }
+      const up = this.rampartClick(sx, sy, e);
+      if (up) e = null;
+      if (up && dbl && this.me.path) { this.me.run = true; return; }
+      if (up) { this.walkTo(up.x, up.z, dbl, true); return; }
       if (e) {
         const acts = this.reg.actions(e, this);
         if (acts.length) { this.doAction(e, acts[0], dbl); return; }   // Diablo: one click does the main action (walk over, then chop / mine / attack / talk)
@@ -390,16 +419,37 @@
     /* walk an actor along its path; returns true while moving */
     move(a, dt, speed) {
       if (!a.path || !a.path.length) { a.path = null; return false; }
+      const ramp = a === this.me ? this.ramparts() : null;
+      if (ramp) ramp.adopt(a);   // up on the walls: a plain ground path goes down a tower first
+      if (!a.path || !a.path.length) { a.path = null; return false; }
+      const walker = ramp && ramp.walker;
       let step = speed * dt;
       while (step > 0 && a.path.length) {
-        const [tx, tz] = a.path[0], dx = tx - a.x, dz = tz - a.z, d = Math.hypot(dx, dz);
+        const wp = a.path[0], [tx, tz] = wp, dx = tx - a.x, dz = tz - a.z, d = Math.hypot(dx, dz);
         if (d > 1e-4) a.view.setFacing(dx, dz);
-        if (d <= step) { a.x = tx; a.z = tz; step -= d; a.path.shift(); } else { a.x += dx / d * step; a.z += dz / d * step; step = 0; }
+        if (walker) walker.begin(a, wp, d);
+        if (d <= step) {
+          a.x = tx; a.z = tz; step -= d; a.path.shift();
+          if (walker) walker.arrive(a, wp);
+        } else {
+          a.x += dx / d * step; a.z += dz / d * step;
+          if (walker) walker.along(a, wp, d - step);
+          step = 0;
+        }
       }
-      const gy = this.nav.y(a.x, a.z); a.y += (gy - a.y) * Math.min(1, dt * 14); if (Math.abs(gy - a.y) > 0.6) a.y = gy;
+      this.settle(a, dt, walker);
       if (!a.path.length) a.path = null;
       return true;
     }
+    /* ease the actor's height to what it stands on: its rampart walk up top, else the ground (a stair leg sets its own) */
+    settle(a, dt, walker) {
+      if (a.layer === 'stair') return;
+      const up = walker ? walker.rest(a) : null, gy = up != null ? up : this.nav.y(a.x, a.z);
+      a.y += (gy - a.y) * Math.min(1, dt * 14);
+      if (Math.abs(gy - a.y) > 0.6) a.y = gy;
+    }
+    /* the castle's ramparts (123-127-castle-ramp*.js), when this game mode has them */
+    ramparts() { return this.ext && this.ext.ramparts ? this.ext.ramparts : null; }
     updatePlayer(dt) {
       const me = this.me; me.cdT -= dt;
       if (this.ch) { this.ch.t += dt; if (this.ch.t >= this.ch.time) { const c = this.ch; this.ch = null; c.onDone(); } return; }
@@ -501,7 +551,7 @@
       for (const a of this.actors) if (a !== me) a.aggro = false;
     }
     respawnPlayer() {
-      const me = this.me; me.x = this.spawn.x; me.z = this.spawn.z; me.y = this.nav.y(me.x, me.z); me.alive = true;
+      const me = this.me; me.x = this.spawn.x; me.z = this.spawn.z; me.y = this.nav.y(me.x, me.z); me.layer = 'ground'; me.leg = null; me.alive = true;
       this.player.healFull(); me.view.setState('idle'); this.app.rig.set({ tx: me.x, tz: me.z }, true); this.toast(this.ext ? 'You wake by the Keep.' : 'You wake at the start, a little wiser.');
     }
   }
