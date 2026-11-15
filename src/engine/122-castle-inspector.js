@@ -32,4 +32,13 @@
     dispose(){document.removeEventListener('keydown',this.key);this.root.remove();}
   }
   K.CastleInspector=CastleInspector;
+  const old=K.CastleGame.prototype.inspect;
+  K.CastleGame.prototype.inspect=function(e){if(e.type==='c_piece'||e.type==='c_rpiece'){if(!this.inspector)this.inspector=new CastleInspector(this);return this.inspector.piece(e);}return old.call(this,e);};
+  const oldDispose=K.CastleGame.prototype.dispose; if(oldDispose) K.CastleGame.prototype.dispose=function(){if(this.inspector)this.inspector.dispose();return oldDispose.apply(this,arguments);};
+  const oldRender=K.BuildDrawer.prototype.resourcesHtml;
+  K.BuildDrawer.prototype.resourcesHtml=function(){return oldRender.call(this).replace(/class="res ([^"]*)" data-r="([^"]+)"/g,'class="res $1" data-r="$2" role="button" tabindex="0"');};
+  const oldCtor=K.BuildDrawer.prototype.constructor;
+  // Attach delegation without modifying the build-list click path.
+  const onDrawerClick=K.BuildDrawer.prototype.onClick;
+  K.BuildDrawer.prototype.onClick=function(e){const r=e.target.closest('.res[data-r]'); if(r){this.g.inspector=this.g.inspector||new CastleInspector(this.g);this.g.inspector.material(r.dataset.r);return;}return onDrawerClick.call(this,e);};
 })(typeof window !== 'undefined' ? window : globalThis);

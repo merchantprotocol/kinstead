@@ -233,7 +233,7 @@
       this.kinActors = {}; this.troll = null;
       this.restoreNodes();
       this.raid = null;
-      this.cui = new K.CastleUI(this); this.inspector = new K.CastleInspector(this); this.vitals = new K.Vitals(this); this.wild = new K.Wild(this); this.calendar.on((ev) => this.onCalendar(ev)); this.tools = new K.CastleTools(this); this.minimap = new K.Minimap(this); this.xp = this.xp || new K.Experience(this); this.weather = new K.Weather(this); this.towers = new K.Towers(this); this.economy = new K.Economy(this); this.workers = new K.Workers(this); this.wildGame = new K.WildGame(this); this.banners = new K.BannerBook(this, this.net); this.flags = new K.Flags(this); this.banners.on(() => this.applyLook()); this.applyLook(); this.forest = new K.Forest(this); this.brush = new K.GroundBrush(this); this.steer = new K.PieceSteer(this); this.purse = new K.Purse(this); this.stash = new K.Stash(this); this.site = new K.BuildingSite(this); this.sweep = new K.SweepAttack(this); this.demolisher = new K.Demolisher(this); this.play.refreshProps();
+      this.cui = new K.CastleUI(this); this.vitals = new K.Vitals(this); this.wild = new K.Wild(this); this.calendar.on((ev) => this.onCalendar(ev)); this.tools = new K.CastleTools(this); this.minimap = new K.Minimap(this); this.xp = this.xp || new K.Experience(this); this.weather = new K.Weather(this); this.towers = new K.Towers(this); this.economy = new K.Economy(this); this.workers = new K.Workers(this); this.wildGame = new K.WildGame(this); this.banners = new K.BannerBook(this, this.net); this.flags = new K.Flags(this); this.banners.on(() => this.applyLook()); this.applyLook(); this.forest = new K.Forest(this); this.brush = new K.GroundBrush(this); this.steer = new K.PieceSteer(this); this.purse = new K.Purse(this); this.stash = new K.Stash(this); this.site = new K.BuildingSite(this); this.sweep = new K.SweepAttack(this); this.demolisher = new K.Demolisher(this); this.play.refreshProps();
       if (this.day.isNight) this.startRaid();
       play.app.rig.set({ dist: 11, pitch: 0.78 }); play.app.rig.maxDist = 44;   // you can never zoom out far enough to see the edge of the world
       this.persist = new K.Persist(this); if (this.saved && this.saved.extras) { try { this.persist.restore(this.saved.extras); } catch (err) { console.warn('could not restore the homestead', err); } }
@@ -245,7 +245,7 @@
       this.play.app.rig.maxDist = null; if (this.minimap) this.minimap.dispose(); if (this.vitals) this.vitals.dispose(); if (this.home) this.home.dispose();
       this.save(); if (this.tools) this.tools.dispose(); if (this.sweep) this.sweep.dispose(); if (this.demolisher) this.demolisher.dispose(); if (this.site) this.site.dispose(); if (this.brush) this.brush.dispose(); if (this.mp) this.mp.dispose(); if (this.weather) this.weather.dispose(); if (this.towers) this.towers.dispose(); if (this.economy) this.economy.dispose(); if (this.workers) this.workers.dispose(); if (this.wildGame) this.wildGame.dispose(); if (this.flags) this.flags.dispose(); if (this.purse) this.purse.dispose();
       if (this.origPlace) this.R.placeDynamics = this.origPlace;
-      this.R.scene.remove(this.group); this.inspector && this.inspector.dispose(); this.cui && this.cui.dispose(); document.body.classList.remove('castle');
+      this.R.scene.remove(this.group); this.cui && this.cui.dispose(); document.body.classList.remove('castle');
     }
     place(obj, x, z, rot) { obj.position.set(x, this.play.nav.y(x, z) - 0.02, z); obj.rotation.y = rot || 0; this.group.add(obj); return obj; }
     /* see-through: any castle mesh between the camera and the hero fades, so the hero is never lost behind a wall */
@@ -425,8 +425,7 @@
     }
     inspect(e) {
       const c = this.castle;
-      if (e.type === 'c_piece' || e.type === 'c_rpiece') {
-        if (this.inspector) this.inspector.piece(e);
+      if (e.type === 'c_piece') {
         const p = e.piece, d = this.data.piece(p.type), pr = c.producesOf(p), rows = [['Level', p.level]];
         if (pr) rows.push(['Makes', Object.entries(pr).map(([r, n]) => `+${n} ${K.CastleData.resName(r)}/min`).join(', ')]);
         if (c.isFrosted(p)) rows.push(['State', 'FROSTED (no production)']); else if (pr && c.isFull(p)) rows.push(['State', 'FULL: build a Storehouse or spend']);
