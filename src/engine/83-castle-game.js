@@ -10,164 +10,12 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const fmtCost = (c) => Object.entries(c || {}).map(([r, n]) => `${n} ${K.CastleData.resName(r)}`).join(', ') || 'free';
 
-  /* the hero: level is Castle Level, attack is the best weapon + CL bonus (no XP) */
-  class CastleHero extends K.PlayerState {
-    constructor(items, castle) { super(items, { name: 'Hearthguard', outfit: 'warden' }); this.castle = castle; this.hp = this.stats().hpMax; }
-    stats() {
-      if (!this.castle) return super.stats();
-      const h = this.castle.heroStats(), L = this.xp ? this.xp.level : 1;   // each level: +10 strength, +1 attack
-      return { atk: h.atk + (L - 1), def: 0, hpMax: h.hpMax + 10 * (L - 1), speed: 1, level: L, cd: this.castle.data.swingSec };
-    }
-    gainXp() { return false; }
-  }
-
-  /* tiny WebAudio synth: chimes, thunks, the horn. Silent (never throws) when audio is unavailable. */
-  class CastleSound {
-    constructor() { this.ctx = null; this.vol = 0.35; }
-    unlock() { try { if (!this.ctx) { const AC = G.AudioContext || G.webkitAudioContext; if (AC) this.ctx = new AC(); } if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); } catch (e) { this.ctx = null; } }
-    tone(freq, dur, { type = 'sine', vol = 1, at = 0, slide = 0 } = {}) {
-      const c = this.ctx; if (!c || c.state !== 'running') return;
-      try {
-        const t = c.currentTime + at, o = c.createOscillator(), g = c.createGain();
-        o.type = type; o.frequency.setValueAtTime(freq, t); if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(20, freq * slide), t + dur);
-        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(this.vol * vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-        o.connect(g).connect(c.destination); o.start(t); o.stop(t + dur + 0.05);
-      } catch (e) { /* audio is decoration */ }
-    }
-    noise(dur, { vol = 1, at = 0, freq = 800 } = {}) {
-      const c = this.ctx; if (!c || c.state !== 'running') return;
-      try {
-        const n = Math.floor(c.sampleRate * dur), b = c.createBuffer(1, n, c.sampleRate), d = b.getChannelData(0);
-        for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
-        const s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain(), t = c.currentTime + at;
-        f.type = 'lowpass'; f.frequency.value = freq; g.gain.value = this.vol * vol; s.buffer = b; s.connect(f).connect(g).connect(c.destination); s.start(t);
-      } catch (e) { /* decoration */ }
-    }
-    play(name) {
-      switch (name) {
-        case 'pop': this.tone(880, 0.09, { type: 'triangle', vol: 0.5, slide: 1.4 }); break;
-        case 'gather': this.noise(0.08, { vol: 0.5, freq: 1400 }); this.tone(520, 0.07, { type: 'triangle', vol: 0.3 }); break;
-        case 'thunk': this.noise(0.18, { vol: 1.2, freq: 260 }); this.tone(110, 0.2, { type: 'sine', vol: 0.9, slide: 0.6 }); break;
-        case 'whump': this.noise(0.6, { vol: 1.3, freq: 500 }); this.tone(70, 0.5, { vol: 0.8, slide: 1.8 }); this.chime(0.25); break;
-        case 'chime': this.chime(0); break;
-        case 'fanfare': [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.45, { type: 'triangle', vol: 0.5, at: i * 0.12 })); break;
-        case 'horn': this.tone(147, 1.4, { type: 'sawtooth', vol: 0.25 }); this.tone(220, 1.2, { type: 'sawtooth', vol: 0.15, at: 0.15 }); break;
-        case 'clank': this.tone(1250, 0.15, { type: 'square', vol: 0.15 }); this.noise(0.12, { vol: 0.6, freq: 3000 }); break;
-        case 'hit': this.noise(0.07, { vol: 0.6, freq: 1800 }); break;
-        case 'swish': this.noise(0.16, { vol: 0.55, freq: 3200 }); this.tone(420, 0.14, { type: 'sawtooth', vol: 0.12, slide: 0.4 }); break;
-        case 'roar': this.tone(90, 1.1, { type: 'sawtooth', vol: 0.4, slide: 0.6 }); this.noise(0.9, { vol: 0.8, freq: 400 }); break;
-        case 'crack': this.noise(0.35, { vol: 1, freq: 4200 }); this.tone(1800, 0.2, { type: 'triangle', vol: 0.3, slide: 0.5 }); break;
-        case 'thaw': [392, 523, 659, 784, 988, 1175].forEach((f, i) => this.tone(f, 1.2, { vol: 0.35, at: i * 0.18 })); break;
-      }
-    }
-    chime(at) { [784, 988, 1175].forEach((f, i) => this.tone(f, 0.6, { vol: 0.4, at: at + i * 0.09 })); }
-  }
-
-  /* ---------- brains: raiders, kin, the troll ---------- */
-  class RaiderBrain {
-    constructor(game, a, goal) { this.g = game; this.a = a; this.goal = goal; this.cd = 0; this.burnT = 0; }
-    update(dt) {
-      const g = this.g, a = this.a;
-      if (!a.alive) { a.deadT += dt; if (a.deadT > 0.8 && a.view.visible) a.view.setVisible(false); if (a.deadT > 1.2) g.removeActor(a); return; }
-      if (this.burnT > 0) { this.burnT -= dt; g.hurtEnemy(a, 3 * dt, 'burn'); if (!a.alive) return; }
-      this.cd -= dt;
-      // fight a hero or kin standing in the way
-      const foe = g.nearestAlly(a, 1.3);
-      if (foe) { this.face(foe); if (this.cd <= 0) this.strike(foe); return this.anim(false); }
-      // walk at the goal (a producer to frost, then the Keep) in a straight line
-      let tgt = this.goal;
-      if (tgt && tgt.piece && (tgt.piece.frosted || !g.castle.pieces.includes(tgt.piece))) tgt = this.goal = g.keepGoal();
-      const dx = tgt.x - a.x, dz = tgt.z - a.z, d = Math.hypot(dx, dz);
-      const reach = tgt.piece ? g.pieceRadius(tgt.piece) + 0.4 : g.L.keep.r + 0.7;
-      if (d <= reach) {
-        if (tgt.piece) { if (g.castle.frost(tgt.piece)) g.onFrosted(tgt.piece); this.goal = g.keepGoal(); return this.anim(false); }
-        this.face(tgt); if (this.cd <= 0) { this.cd = a.cd; a.view.setState('attack'); g.hurtKeep(a.atk); } return this.anim(false);
-      }
-      const step = a.speed * dt, nx = a.x + dx / d * step, nz = a.z + dz / d * step;
-      const wall = g.blockingPiece(nx, nz, a.r);
-      if (wall) { this.face(wall); if (this.cd <= 0) { this.cd = a.cd; a.view.setState('attack'); g.hurtPiece(wall, a.atk); } return this.anim(false); }
-      for (const p of g.castle.producers()) if (!p.frosted && Math.hypot(p.x - nx, p.z - nz) < g.pieceRadius(p) + 0.3) { if (g.castle.frost(p)) g.onFrosted(p); }
-      a.x = nx; a.z = nz; a.y = g.play.nav.y(a.x, a.z); a.view.setFacing(dx, dz); this.anim(true);
-    }
-    face(t) { this.a.view.setFacing(t.x - this.a.x, t.z - this.a.z); }
-    strike(foe) { const a = this.a; this.cd = a.cd; if (foe === this.g.play.me) this.g.play.swing(a, foe); else { a.view.setState('attack'); this.g.hurtAlly(foe, a.atk); } }
-    anim(moving) { const v = this.a.view; if (moving) { if (v.state !== 'attack' && v.state !== 'hurt' && v.state !== 'walk') v.setState(this.a.fast ? 'run' : 'walk'); } else if (v.state === 'walk' || v.state === 'run') v.setState('idle'); }
-  }
-
-  class KinBrain {
-    constructor(game, a, id) { this.g = game; this.a = a; this.id = id; this.cd = 0; this.repathT = 0; this.downT = 0; this.offset = { pinewarden: [-1.4, 0.9], emberwright: [1.3, 1.1], rime_brute: [0.2, -1.5] }[id] || [1, 1]; }
-    get joined() { return this.g.castle.kin.has(this.id); }
-    update(dt) {
-      const g = this.g, a = this.a, me = g.play.me;
-      if (!this.joined) { if (a.view.state !== 'idle') a.view.setState('idle'); return; }
-      if (!a.alive) { this.downT -= dt; if (this.downT <= 0) { a.alive = true; a.hp = a.hpMax; a.view.setState('idle'); g.play.float(a, 'Up again', 'heal'); } return; }
-      this.cd -= dt;
-      const st = g.kinStats(this.id); a.hpMax = st.hp;
-      // dusk: the Pinewarden climbs a watchtower
-      const tower = this.id === 'pinewarden' && g.isNightish() ? g.towerFor(a) : null;
-      if (tower) {
-        a.manning = tower; a.path = null; a.x = tower.x; a.z = tower.z; a.y = g.play.nav.y(tower.x, tower.z) + 3.2;
-        const foe = g.nearestEnemy(a, 6.5); if (foe && this.cd <= 0) this.shoot(foe, st); else if (foe) a.view.setFacing(foe.x - a.x, foe.z - a.z);
-        return;
-      }
-      if (a.manning) { a.manning = null; a.y = g.play.nav.y(a.x, a.z); }
-      const range = st.ranged ? 4.5 : 1.2, foe = g.nearestEnemy(a, st.ranged ? 5 : 3.2);
-      if (foe) {
-        const d = Math.hypot(foe.x - a.x, foe.z - a.z);
-        if (d <= range) { a.path = null; a.view.setFacing(foe.x - a.x, foe.z - a.z); if (this.cd <= 0) this.shoot(foe, st); return this.anim(false); }
-        if ((this.repathT -= dt) <= 0) { this.repathT = 0.4; a.path = g.play.nav.find(a.x, a.z, foe.x, foe.z, { range: range * 0.9, maxNodes: 1500 }); }
-        return this.anim(g.play.move(a, dt, a.speed * 1.2));
-      }
-      // follow the hero
-      const tx = me.x + this.offset[0], tz = me.z + this.offset[1], d = Math.hypot(tx - a.x, tz - a.z);
-      if (d > 3.4 || (a.path && d > 0.6)) {
-        if ((this.repathT -= dt) <= 0 || !a.path) { this.repathT = 0.6; a.path = g.play.nav.find(a.x, a.z, tx, tz, { range: 0.5, maxNodes: 2500 }); }
-        if (d > 14) { a.x = me.x - 1; a.z = me.z + 1; a.y = g.play.nav.y(a.x, a.z); a.path = null; }
-        return this.anim(g.play.move(a, dt, a.speed * (d > 6 ? 1.8 : 1)));
-      }
-      a.path = null; this.anim(false);
-    }
-    shoot(foe, st) {
-      const g = this.g, a = this.a; this.cd = st.cd; a.view.setState('attack'); a.view.setFacing(foe.x - a.x, foe.z - a.z);
-      if (st.ranged) g.tracer(a, foe, st.color); g.hurtEnemy(foe, st.atk, this.id, true);
-    }
-    knock() { const a = this.a; a.alive = false; a.view.setState('dead'); this.downT = 5; a.path = null; }
-    anim(moving) { const v = this.a.view; if (moving) { if (v.state !== 'attack' && v.state !== 'hurt') v.setState('walk'); } else if (v.state === 'walk' || v.state === 'run') v.setState('idle'); }
-  }
-
-  /* the Rime Troll at the bridge: a slow swing every 2 s, every third a ground slam with a 1 s ring telegraph */
-  class TrollBrain {
-    constructor(game, a) { this.g = game; this.a = a; this.cd = 1.5; this.swings = 0; this.slam = null; this.roared = false; this.home = { x: a.x, z: a.z }; }
-    update(dt) {
-      const g = this.g, a = this.a, me = g.play.me;
-      if (!a.alive) { a.deadT += dt; if (a.deadT > 1.6 && a.view.visible) a.view.setVisible(false); return; }
-      if (!g.castle.zoneOpen('troll_bridge')) return;
-      if (this.slam) {
-        this.slam.t += dt; const k = this.slam.t / 1.0; g.slamRing(this.slam, k);
-        if (k >= 1) { g.slamHit(this.slam, a.atk * 1.6); this.slam = null; }
-        return;
-      }
-      if (!this.roared && a.hp <= a.hpMax / 2) { this.roared = true; a.view.setState('attack'); g.play.float(a, 'ROAR!', 'hurt'); g.sound.play('roar'); g.shake(0.5); g.ui.toast('The troll roars. Frost wisps fall off its hide.'); }
-      const dm = me.alive ? Math.hypot(me.x - a.x, me.z - a.z) : 99, dh = Math.hypot(this.home.x - a.x, this.home.z - a.z);
-      const foe = dm < 7 && dh < 9 ? me : g.nearestAlly(a, 2.2);
-      this.cd -= dt;
-      if (!foe) { if (dh > 0.4) { a.path = a.path || g.play.nav.find(a.x, a.z, this.home.x, this.home.z, { range: 0.3 }); g.play.move(a, dt, a.speed); a.view.setState('walk'); } else if (a.view.state === 'walk') a.view.setState('idle'); return; }
-      const d = Math.hypot(foe.x - a.x, foe.z - a.z), reach = a.reach + 0.4;
-      if (d > reach) { a.path = g.play.nav.find(a.x, a.z, foe.x, foe.z, { range: reach * 0.8, maxNodes: 800 }); if (g.play.move(a, dt, a.speed)) { if (a.view.state !== 'attack') a.view.setState('walk'); } return; }
-      a.path = null; a.view.setFacing(foe.x - a.x, foe.z - a.z);
-      if (this.cd > 0) return;
-      this.cd = 2; this.swings++;
-      if (this.swings % 3 === 0) { this.slam = { x: foe.x, z: foe.z, r: 2.2, t: 0 }; a.view.setState('attack'); g.slamStart(this.slam); return; }
-      if (foe === me) g.play.swing(a, me); else { a.view.setState('attack'); g.hurtAlly(foe, a.atk); }
-    }
-  }
-
   /* ---------- the game ---------- */
   class CastleGame {
     /* play: K.PlayMode; opts: { storage, resume } */
     constructor(play, opts = {}) {
       this.play = play; this.data = new K.CastleData(K.CASTLE_DATA); this.L = opts.layout || new K.HutLayout(); this.net = opts.net || null; this.survival = true; this.noRegen = true;
-      this.slot = new K.CastleSave(opts.storage || K.CastleSave.defaultStorage()); this.resume = !!opts.resume; this.sound = new CastleSound();
+      this.slot = new K.CastleSave(opts.storage || K.CastleSave.defaultStorage()); this.resume = !!opts.resume; this.sound = new K.CastleSound();
       this.castle = new K.Castle(this.data); this.day = new K.DayCycle(this.data); this.calendar = new K.Calendar(this); this.playTime = 0;
       this.saved = this.resume ? this.slot.read() : null;
       if (opts.net && opts.net.welcome.save && this.resume) { try { this.saved = JSON.parse(opts.net.welcome.save); } catch (e) { console.warn('the saved game on the server could not be read', e); } }   // the server's copy wins: a refresh never loses progress
@@ -199,7 +47,7 @@
     get app() { return this.play.app; }
     get R() { return this.play.R; }
     get ui() { return this.cui; }
-    makePlayer() { this.xp = this.xp || new K.Experience(this); const p = new CastleHero(this.play.items, this.castle); p.xp = this.xp; p.addItem('ember_lantern', 1); if (this.freshStart) p.addItem('bread', 10); /* you arrive with food to last a while */ for (const w of this.castle.weapons) { p.addItem(w, 1); } this.equipBest(p); p.healFull(); return p; }
+    makePlayer() { this.xp = this.xp || new K.Experience(this); const p = new K.CastleHero(this.play.items, this.castle); p.xp = this.xp; p.addItem('ember_lantern', 1); if (this.freshStart) p.addItem('bread', 10); /* you arrive with food to last a while */ for (const w of this.castle.weapons) { p.addItem(w, 1); } this.equipBest(p); p.healFull(); return p; }
     equipBest(p) { const w = this.castle.bestWeapon(); if (w && p.count(w.id)) p.equip(w.id); }
 
     /* ---------- enter / exit ---------- */
@@ -604,7 +452,7 @@
       const a = this.addActor({ id: 'kin:' + id, role: 'npc', spriteId: sprite, name: h.name, x: pos.x, z: pos.z, hpMax: 80, atk: 6, def: 0, speed: id === 'rime_brute' ? 2.0 : 2.3, cd: 1.4, reach: 1, scale: id === 'rime_brute' ? (v3 ? 0.75 : 0.95) : 1, level: 1 });
       a.type = 'c_kin'; a.kinId = id; a.hostile = false;
       if (id === 'pinewarden' && !v3) a.view.setTint(0x9fdc8a); if (id === 'rime_brute' && !v3) a.view.setTint(0xa8d8ff);   // the voxel troll is already ice-blue: a tint only washes it out
-      a.brain = new KinBrain(this, a, id); this.kinActors[id] = a;
+      a.brain = new K.KinBrain(this, a, id); this.kinActors[id] = a;
       if (!joined && id !== 'rime_brute') { const ice = this.art.ice(1.1, 1.9, 0.9, id.length); this.place(ice, at.x, at.z, 0); a.ice = ice; }
       if (id === 'rime_brute' && !joined) a.walkIn = true;
       return a;
@@ -640,7 +488,7 @@
     spawnTroll() {
       const e = this.data.enemy('rime_troll'), at = this.L.troll;
       const a = this.addActor({ id: 'troll', role: 'enemy', spriteId: 'troll', name: e.name, x: at.x, z: at.z, hpMax: e.hp, atk: e.atk, def: e.defense, speed: 1.5, cd: 2, reach: 1.25, r: 0.7, scale: K.ActorViews && K.ActorViews.enabled ? 1.15 : 1.55,   /* the voxel troll is 2.9 m at scale 1 */ level: 4, flip: true, info: { xp: 0, loot: [], desc: 'Bridge-keeper. Every third swing is a ground slam: step out of the glowing ring.' } });
-      a.enemy = e; a.boss = true; a.hostile = true; a.brain = new TrollBrain(this, a); this.troll = a;
+      a.enemy = e; a.boss = true; a.hostile = true; a.brain = new K.TrollBrain(this, a); this.troll = a;
     }
     slamStart(s) { this.ring = this.art.ring(); this.ring.scale.setScalar(s.r); this.place(this.ring, s.x, s.z, 0); this.ring.position.y += 0.08; this.cui.toast('Ground slam! Step out of the ring!'); }
     slamRing(s, k) { if (this.ring) { this.ring.material.opacity = 0.35 + 0.6 * k; this.ring.scale.setScalar(s.r * (0.6 + 0.4 * k)); } }
@@ -724,7 +572,7 @@
       const prods = this.castle.producers().filter((p) => !p.frosted);
       let goal = this.keepGoal();
       if (prods.length && Math.random() < 0.35) { prods.sort((p1, p2) => Math.hypot(p1.x - x, p1.z - z) - Math.hypot(p2.x - x, p2.z - z)); goal = { x: prods[0].x, z: prods[0].z, piece: prods[0] }; }
-      a.brain = new RaiderBrain(this, a, goal); this.raid.alive++; this.raid.spawned++;
+      a.brain = new K.RaiderBrain(this, a, goal); this.raid.alive++; this.raid.spawned++;
     }
     pieceHpMax(p) { const d = this.data.piece(p.type); return Math.round((typeof d.hp === 'number' ? d.hp : 100) * (d.category === 'defense' && this.castle.kin.has('rime_brute') ? 1.5 : 1)); }
     /* the first standing defense piece whose footprint the point (x,z) with radius r touches */
@@ -993,27 +841,6 @@
     debugGive(o) { for (const [r, n] of Object.entries(o)) this.castle.add(r, n); this.changed(); }
   }
 
-  /* ---------- interaction types for castle entities ---------- */
-  const reg = K.Interactions, castleOf = (game) => game.ext;
-  const spec = (color, cursor) => ({ color, cursor: () => cursor, name: (e) => e.name, actions: (e, game) => castleOf(game).actionsFor(e), inspect: (e, game) => castleOf(game).inspect(e) });
-  reg.register('c_keep', spec(0xffc070, 'hand'));
-  reg.register('c_ruin', spec(0xffd27a, 'hammer'));
-  reg.register('c_site', spec(0xffd27a, 'pickaxe'));
-  reg.register('c_piece', spec(0x9fd8ff, 'hand'));
-  reg.register('c_rpiece', spec(0xffb4a0, 'hand')); reg.register('c_rstore', spec(0xffd27a, 'hand')); reg.register('c_rdoor', spec(0xffb4a0, 'hand'));
-  reg.register('c_barrel', spec(0xffd27a, 'hand'));
-  reg.register('c_door', spec(0xffd27a, 'hand'));
-  reg.register('c_rack', spec(0xffd27a, 'hand'));
-  reg.register('c_kin', Object.assign(spec(0x8fe0a0, 'bubble'), { name: (e) => e.name }));
-  reg.register('c_worker', Object.assign(spec(0xffe0a0, 'bubble'), { name: (e) => e.name }));
-  const node = (verb, cursor, charges, respawn) => ({ color: 0x9fd8ff, cursor: (e, game) => (game.nodeState(e).charges > 0 ? cursor : 'no'), node: { charges, respawn },
-    actions: (e) => [{ id: 'gather', label: verb, icon: cursor, range: e.r + 0.55, run: (game, x) => castleOf(game).tools.engage(x) }, { id: 'inspect', label: 'Inspect', icon: 'eye', run: (game, x) => game.inspect(x) }],
-    inspect: (e, game) => castleOf(game).inspect(e) });
-  const D = K.CASTLE_DATA, N = (id) => D.harvestNodes.find((n) => n.id === id);
-  reg.register('c_tree', node('Chop', 'axe', N('tree').charges, N('tree').respawnSec));
-  reg.register('c_boulder', node('Break', 'pickaxe', N('boulder').charges, N('boulder').respawnSec));
-  reg.register('c_rubble', node('Clear', 'hand', N('rubble').charges, 1e9));
-  reg.register('c_iron', node('Mine', 'pickaxe', N('iron_rock').charges, N('iron_rock').respawnSec));
 
-  Object.assign(K, { CastleGame, CastleHero, CastleSound, RaiderBrain, KinBrain, TrollBrain });
+  K.CastleGame = CastleGame;
 })(typeof window !== 'undefined' ? window : globalThis);
