@@ -251,5 +251,18 @@
       },
       "face": "#7b7a78"
     }
+  },
+  "plate": {
+    "passes": 2,
+    "tol": 15,
+    "minDefault": 3,
+    "minSame": {
+      "black": 9,
+      "gold": 4,
+      "leather": 5
+    },
+    "floor": {
+      "steel": 30
+    }
   }
 }

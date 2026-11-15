@@ -37,6 +37,53 @@ export class MaterialPalette {
   }
 }
 
+/* per-plate clean-up after projection (Grok plates are 2-3 flat tones, not speckle):
+   A. isolation: a voxel whose material has fewer than minSame[mat] same-material voxels in its 3x3x3 neighbourhood
+      takes the dominant neighbouring material (its most common tone there): kills stray black/orange/leather specks
+   B. tone outliers: within a material, a voxel more than tol L* from the median of its same-material neighbours takes
+      the neighbour tone nearest that median (shadow pickup and de-light undershoot read as outliers)
+   C. dark floor: projected tones below floor[mat] (L*) lift to the darkest tone at or above it (no black steel holes) */
+export class PlateFilter {
+  constructor(mats, cfg = {}) {
+    this.m = mats; this.cfg = { passes: 2, tol: 15, minSame: {}, minDefault: 3, floor: {}, ...cfg };
+    this.matIdx = []; mats.mats.forEach((m, i) => { for (let j = m.from; j < m.to; j++) this.matIdx[j] = i; });
+    this.N = []; for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) if (dx || dy || dz) this.N.push([dx, dy, dz]);
+  }
+  around(idx, k) { const [x, y, z] = VoxelGrid.unk(k), out = []; for (const [dx, dy, dz] of this.N) { const j = idx.get(VoxelGrid.k(x + dx, y + dy, z + dz)); if (j != null) out.push(j); } return out; }
+  mode(list) { const c = new Map(); for (const j of list) c.set(j, (c.get(j) || 0) + 1); return [...c].sort((p, q) => q[1] - p[1])[0][0]; }
+  isolation(idx) {
+    let n = 0; const ch = [];
+    for (const [k, j] of idx) {
+      const mi = this.matIdx[j], name = this.m.mats[mi].name, nb = this.around(idx, k); if (nb.length < 6) continue;
+      const cnt = new Map(); for (const q of nb) cnt.set(this.matIdx[q], (cnt.get(this.matIdx[q]) || 0) + 1);
+      const min = this.cfg.minSame[name] == null ? this.cfg.minDefault : this.cfg.minSame[name];
+      if ((cnt.get(mi) || 0) >= min) continue;
+      const [bm] = [...cnt].filter(([m]) => m !== mi).sort((p, q) => q[1] - p[1])[0] || []; if (bm == null) continue;
+      ch.push([k, this.mode(nb.filter((q) => this.matIdx[q] === bm))]);
+    }
+    for (const [k, j] of ch) { idx.set(k, j); n++; } return n;
+  }
+  outliers(idx) {
+    const L = (j) => this.m.labs[j][0]; let n = 0; const ch = [];
+    for (const [k, j] of idx) {
+      const same = this.around(idx, k).filter((q) => this.matIdx[q] === this.matIdx[j]); if (same.length < 5) continue;
+      const ls = same.map(L).sort((a, b) => a - b), med = ls[ls.length >> 1]; if (Math.abs(L(j) - med) <= this.cfg.tol) continue;
+      let b = same[0]; for (const q of same) if (Math.abs(L(q) - med) < Math.abs(L(b) - med)) b = q; ch.push([k, b]);
+    }
+    for (const [k, j] of ch) { idx.set(k, j); n++; } return n;
+  }
+  floor(idx) {
+    let n = 0; const lift = new Map();
+    this.m.mats.forEach((m) => { const f = this.cfg.floor[m.name]; if (f == null) return; let up = -1; for (let j = m.from; j < m.to; j++) if (this.m.labs[j][0] >= f && (up < 0 || this.m.labs[j][0] < this.m.labs[up][0])) up = j; for (let j = m.from; j < m.to; j++) if (this.m.labs[j][0] < f && up >= 0) lift.set(j, up); });
+    for (const [k, j] of idx) if (lift.has(j)) { idx.set(k, lift.get(j)); n++; } return n;
+  }
+  apply(idx) {
+    const r = { isolated: 0, outliers: 0, floored: this.floor(idx) };
+    for (let p = 0; p < this.cfg.passes; p++) { r.isolated += this.isolation(idx); r.outliers += this.outliers(idx); }
+    return r;
+  }
+}
+
 export class Reconstruction {
   constructor(cfg, log = console.log) { this.cfg = { height: 93, palette: 28, pitch: 0.15, fit: 'height', ...cfg }; this.log = log; }
 
@@ -194,6 +241,7 @@ export class Reconstruction {
       }
       for (const [k, b] of ch) idx.set(k, b);
     }
+    if (mats && this.cfg.plate) this.log('plate filter: ' + JSON.stringify(new PlateFilter(mats, this.cfg.plate).apply(idx)));
     this.palette = C.map((c) => Lab.toRgb(c)); this.idx = idx;
     this.log(`colour: ${glow} glow pixels de-lit, ${seen.size} seen voxels, ${unseen} unseen (prior colour prototypes), palette ${C.length}`);
     return idx;
