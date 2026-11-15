@@ -19,11 +19,37 @@
     if (ax === 'x') {
       k.box('woodDark', cx, top - 0.02, cz, w + ends * 2 + 0.04, 0.12, 0.12);
       if (snow) k.box('snow', cx, top + 0.08, cz, w + ends * 2, 0.04, 0.18);
-      if (gableMat) for (const s of [-1, 1]) { const X = cx + s * (w / 2 - 0.005); ProducerArtHelpers.tri(k, gableMat, [X, y0, cz - d / 2], [X, y0, cz + d / 2], [X, top, cz]); }
+      if (gableMat) for (const s of [-1,
+        1]) { const X = cx + s * (w / 2 - 0.005);
+        ProducerArtHelpers.tri(k,
+        gableMat,
+        [X,
+        y0,
+        cz - d / 2],
+        [X,
+        y0,
+        cz + d / 2],
+        [X,
+        top,
+        cz]);
+        }
     } else {
       k.box('woodDark', cx, top - 0.02, cz, 0.12, 0.12, w + ends * 2 + 0.04);
       if (snow) k.box('snow', cx, top + 0.08, cz, 0.18, 0.04, w + ends * 2);
-      if (gableMat) for (const s of [-1, 1]) { const Z = cz + s * (w / 2 - 0.005); ProducerArtHelpers.tri(k, gableMat, [cx - d / 2, y0, Z], [cx + d / 2, y0, Z], [cx, top, Z]); }
+      if (gableMat) for (const s of [-1,
+        1]) { const Z = cz + s * (w / 2 - 0.005);
+        ProducerArtHelpers.tri(k,
+        gableMat,
+        [cx - d / 2,
+        y0,
+        Z],
+        [cx + d / 2,
+        y0,
+        Z],
+        [cx,
+        top,
+        Z]);
+        }
     }
     return top;
   }
@@ -56,13 +82,51 @@
     const hx = x - Math.sin(t) * len / 2, hy = y + Math.cos(t) * len / 2;
     k.box('woodLight', hx, hy - len / 2, z, 0.04, len, 0.04, 0, 0, t);
     const tx = x - Math.sin(t) * len * 0.95, ty = y + Math.cos(t) * len * 0.95;
-    k.box('ironDark', tx, ty - 0.03, z, 0.34, 0.06, 0.05, 0, 0, t + 0.12); k.box('steel', tx - Math.cos(t) * 0.17, ty - 0.06 - Math.sin(t) * 0.17, z, 0.05, 0.08, 0.05, 0, 0, t + 0.5);
+    k.box('ironDark',
+      tx,
+      ty - 0.03,
+      z,
+      0.34,
+      0.06,
+      0.05,
+      0,
+      0,
+      t + 0.12);
+      k.box('steel',
+      tx - Math.cos(t) * 0.17,
+      ty - 0.06 - Math.sin(t) * 0.17,
+      z,
+      0.05,
+      0.08,
+      0.05,
+      0,
+      0,
+      t + 0.5);
   }
   /** a felling axe in the x-y plane: handle base at (x,y), leaning t */
     static axe(k, x, y, z, t = 0.3, len = 0.55) {
     k.box('woodLight', x - Math.sin(t) * len / 2, y + Math.cos(t) * len / 2 - len / 2, z, 0.045, len, 0.045, 0, 0, t);
     const hx = x - Math.sin(t) * len * 0.9, hy = y + Math.cos(t) * len * 0.9;
-    k.box('ironDark', hx + Math.cos(t) * 0.06, hy - 0.05, z, 0.13, 0.1, 0.05, 0, 0, t); k.box('steel', hx + Math.cos(t) * 0.14, hy - 0.08, z, 0.05, 0.16, 0.055, 0, 0, t);
+    k.box('ironDark',
+      hx + Math.cos(t) * 0.06,
+      hy - 0.05,
+      z,
+      0.13,
+      0.1,
+      0.05,
+      0,
+      0,
+      t);
+      k.box('steel',
+      hx + Math.cos(t) * 0.14,
+      hy - 0.08,
+      z,
+      0.05,
+      0.16,
+      0.055,
+      0,
+      0,
+      t);
   }
   /** a sign board facing +z in the current frame, centred at x,y (centre),z with a picture: pix = [[mat, u, v, w, h, rz], ...] */
     static board(k, x, y, z, w, h, bg, pix, sc = 1, frameMat = 'woodDark') {

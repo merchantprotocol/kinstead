@@ -144,7 +144,10 @@
           else if (b >= 0 && b < a && P[b].sep && P[a].line) dark[Y * w + X] = 1;
         }
       }
-      for (let i = 0; i < w * h; i++) if (dark[i]) { const pt = P[this.part[i]]; col[i] = pt.pal[Math.min(this.ri[i] - 1, 1) < 0 ? 0 : (this.ri[i] > 2 ? 1 : 0)]; }
+      for (let i = 0; i < w * h; i++) if (dark[i]) { const pt = P[this.part[i]];
+        col[i] = pt.pal[Math.min(this.ri[i] - 1,
+        1) < 0 ? 0 : (this.ri[i] > 2 ? 1 : 0)];
+        }
       // external selective outline
       const outCol = new Array(w * h).fill(null);
       for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
