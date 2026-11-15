@@ -86,8 +86,13 @@
     }
 
     effect(data, card) {
-      if (!data.effect || data.effect === this.description(card)) return '';
-      return `<p>${this.escape(data.effect)}</p>`;
+      const description = this.description(card);
+      let effect = data.effect || '';
+      if (description && effect.startsWith(description)) {
+        effect = effect.slice(description.length).replace(/^[.\s]+/, '');
+      }
+      if (!effect) return '';
+      return `<p>${this.escape(effect)}</p>`;
     }
 
     materialRows(cost) {
