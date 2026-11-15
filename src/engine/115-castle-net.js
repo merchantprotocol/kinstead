@@ -91,7 +91,7 @@
     /** everything the server holds, applied in one go (join, or coming back after a dropped connection) */
     snapshot(m) {
       const w = m.world || {}, me = this.net.id;
-      for (const c of m.claimed || []) { this.owners[c.id] = c.name; this.owners[c.slot] = c.name; if (c.slot !== this.g.L.slot && c.spec) this.cottage(c.slot, c.spec); }
+      for (const c of m.claimed || []) { this.owners[c.id] = c.name; this.owners[c.slot] = c.name; if (c.slot !== this.g.L.slot && c.spec) this.cottage(c.slot, c.spec, c.id); }
       for (const b of Object.values(w.buildings || {})) if (b.owner !== me) this.building(b.id, b.spec);
       for (const p of Object.values(w.pieces || {})) if (p.owner !== me) this.addPiece(p);
       let box = null; for (const t of Object.values(w.tiles || {})) { this.setTile(t[0], t[1], t[2], t[3], false); box = this.grow(box, t[0], t[1]); }
@@ -110,9 +110,9 @@
       if (op.k === 'piece+' || op.k === 'piece-') this.propsDirty = true;
     }
     /** a settler's cottage on their plot */
-    cottage(slot, given) {
+    cottage(slot, given, owner) {
       const id = 'home:' + slot; if (this.cottages.has(id) || slot === this.g.L.slot || !given) return; this.cottages.add(id);
-      const spec = Object.assign({}, given, { id }); this.building(id, spec);
+      const spec = Object.assign({}, given, { id }); this.building(id, spec); if (owner) this.g.flags.flag('rh' + slot, (spec.x + spec.footprint.w) * TILE + 0.35, spec.z * TILE - 0.3, owner, 3.6);
       const obj = this.play.doc.obj(id); if (obj) { this.remoteDoor(slot, obj, null); this.g.play.refreshProps(); }
     }
     building(id, spec) {
@@ -123,12 +123,12 @@
     addPiece(p) {
       const g = this.g; if (this.pieces.has(p.id) || !g.data.piece(p.type)) return;
       const m = g.art.piece(p.type, { level: 1 }); g.place(m, p.x, p.z, p.rot); const [w, d] = K.CastleArt.size(p.type), rec = { p, mesh: m, w, d, hp: p.hp, hpMax: p.hpMax, gate: null };
-      if (K.Breacher.GATES.has(p.type)) { const o = { x: p.x, z: p.z, rot: p.rot || 0, type: p.type, uid: 'r' + p.id }; rec.gate = p.type === 'gate' ? new K.WoodGate(g, o) : new K.Drawbridge(g, o); rec.gate.remote = true; rec.gate.apply(); }   // their gate: shut to you unless you hold the key
+      if (K.Breacher.GATES.has(p.type)) { const o = { x: p.x, z: p.z, rot: p.rot || 0, type: p.type, uid: 'r' + p.id }; rec.gate = p.type === 'gate' ? new K.WoodGate(g, o) : new K.Drawbridge(g, o); rec.gate.remote = true; rec.gate.apply(); const lx = p.type === 'gate' ? 1.05 : 2.25; g.flags.flag('rg' + p.id, p.x + lx * Math.cos(p.rot || 0), p.z - lx * Math.sin(p.rot || 0), p.owner, p.type === 'gate' ? 2.6 : 3.8); }   // their gate: shut to you unless you hold the key
       else g.blockRect(p.x, p.z, g.walls.handles(p.type) ? w + 0.04 : w, d, p.rot, false);
       this.pieces.set(p.id, rec);
     }
     removePiece(id) {
-      const r = this.pieces.get(id); if (!r) return; this.g.group.remove(r.mesh); this.pieces.delete(id); if (r.gate) r.gate.dispose();
+      const r = this.pieces.get(id); if (!r) return; this.g.group.remove(r.mesh); this.pieces.delete(id); if (r.gate) { r.gate.dispose(); this.g.flags.unflag('rg' + id); }
       const g = this.g, p = r.p; g.unblockRect(p.x, p.z, K.Breacher.GATES.has(p.type) ? r.w : g.walls.handles(p.type) ? r.w + 0.04 : r.w, r.d, p.rot);
       for (const q of g.castle.pieces) if (Math.hypot(q.x - p.x, q.z - p.z) < 6) g.blockPiece(q);
       for (const o of this.pieces.values()) if (!o.gate && Math.hypot(o.p.x - p.x, o.p.z - p.z) < 6) g.blockRect(o.p.x, o.p.z, g.walls.handles(o.p.type) ? o.w + 0.04 : o.w, o.d, o.p.rot, false);
@@ -151,10 +151,13 @@
       d.apply();
     }
     /** things on other people's plots you can click: their walls and gates, and their doors */
+    /** names of other people's things follow their banner (their team's name, once they have one) */
+    relabel() { for (const r of this.pieces.values()) if (r.ent) r.ent.name = this.labelOf(r); for (const r of this.doors.values()) r.door.ent.name = `${this.g.banners.label(r.owner, this.owners[r.slot])}'s door`; }
+    labelOf(r) { return `${this.g.banners.label(r.p.owner, this.owners[r.p.owner])}'s ${this.g.data.piece(r.p.type).name.toLowerCase()}`; }
     entities() {
       const out = [], y = (x, z) => this.play.nav.y(x, z);
       for (const [id, r] of this.pieces) {
-        if (!r.ent) { const p = r.p, own = this.owners[p.owner] || 'a settler'; r.ent = { id: 'rp:' + id, type: 'c_rpiece', rec: r, x: p.x, z: p.z, y: y(p.x, p.z), r: K.Breacher.GATES.has(p.type) ? Math.max(r.w, r.d) / 2 : Math.max(0.5, Math.min(r.w, r.d) / 2 + 0.2), h: 1.8, name: `${own}'s ${this.g.data.piece(p.type).name.toLowerCase()}` }; }
+        if (!r.ent) { const p = r.p, own = this.owners[p.owner] || 'a settler'; r.ent = { id: 'rp:' + id, type: 'c_rpiece', rec: r, x: p.x, z: p.z, y: y(p.x, p.z), r: K.Breacher.GATES.has(p.type) ? Math.max(r.w, r.d) / 2 : Math.max(0.5, Math.min(r.w, r.d) / 2 + 0.2), h: 1.8, name: this.labelOf(r) }; }
         out.push(r.ent);
       }
       for (const r of this.doors.values()) out.push(r.door.ent);
@@ -180,11 +183,14 @@
     add(p) {
       if (this.by.has(p.id)) return this.by.get(p.id); const g = this.g;
       const a = g.addActor({ id: 'pl:' + p.id, role: 'remote', spriteId: 'warden', name: p.name, x: p.x || 0, z: p.z || 0, hpMax: 100, atk: 0, def: 0, speed: 3, cd: 1, reach: 1, r: 0.4, scale: 1, level: 1, info: { xp: 0, loot: [] } });
-      a.remote = true; a.hostile = false; a.view.setTint(TINTS[hash(p.id) % TINTS.length]);
+      a.remote = true; a.pid = p.id; a.hostile = false; a.view.setTint(this.g.banners.hexOf(p.id));
       const rec = { a, tx: p.x || 0, tz: p.z || 0, ty: p.y || 0, f: p.f || 0, s: p.s || 'idle', name: p.name, el: document.createElement('div'), say: null, sayT: 0 };
-      rec.el.className = 'plate'; rec.el.innerHTML = `<b>${esc(p.name)}</b><span></span>`; this.root.appendChild(rec.el);
+      rec.el.className = 'plate'; rec.el.innerHTML = `<i class="tm"></i><b>${esc(p.name)}</b><span></span>`; this.root.appendChild(rec.el); rec.id = p.id; this.look(rec);
       a.brain = { update: (dt) => this.step(rec, dt) }; this.by.set(p.id, rec); return rec;
     }
+    /** their colour, logo and team name, on their clothes and over their head */
+    look(r) { const b = this.g.banners.get(r.id), tm = r.el.querySelector('.tm'); r.a.view.setTint(K.BANNER_COLORS[b.color % 12]); if (tm) tm.innerHTML = `<img src="${K.Emblems.url(b.logo)}" alt="">${esc(b.name)}`; tm.style.background = '#' + K.BANNER_COLORS[b.color % 12].toString(16).padStart(6, '0'); }
+    relook() { for (const r of this.by.values()) this.look(r); }
     remove(id) { const r = this.by.get(id); if (!r) return; this.g.removeActor(r.a); r.el.remove(); this.by.delete(id); }
     clear() { for (const id of [...this.by.keys()]) this.remove(id); }
     /** the server's batch: where everyone is now */
@@ -229,7 +235,7 @@
     constructor(game, net) {
       this.g = game; this.net = net; this.world = new RemoteWorld(game, net); this.avatars = new Avatars(game, net); this.stores = new RemoteStores(game, net); this.lastSave = -1e9; this.t = 0; this.chat = null;
       net.on('join', (m) => { this.avatars.add(m.p); game.cui.toast(`${m.p.name} joined.`); });
-      net.on('house', (m) => this.onHouse(m));
+      net.on('house', (m) => this.onHouse(m)); net.on('pvphit', (m) => this.onPvpHit(m)); game.banners.on(() => { this.avatars.relook(); this.world.relabel(); });
       net.on('leave', (m) => { const r = this.avatars.by.get(m.id); if (r) game.cui.toast(`${r.name} left.`); this.avatars.remove(m.id); });
       net.on('tick', (m) => this.avatars.ticks(m.p));
       net.on('op', (m) => this.onOp(m));
@@ -322,6 +328,13 @@
     gate(p, open) { this.net.send({ t: 'open', id: this.pieceId(p), open }); }
     requestGate(rec) { this.net.send({ t: 'open', id: rec.p.id, open: !rec.gate.open }); }
     requestDoor(rec) { this.net.send({ t: 'open', slot: rec.slot, open: !rec.door.open }); }
+    pvp(target) { this.net.send({ t: 'pvp', to: target, tool: this.g.tools.tool.id }); }
+    /** another player's blow lands on you */
+    onPvpHit(m) {
+      const g = this.g, me = g.play.me; if (!me.alive) return; g.play.float(me, '-' + m.dmg, 'hurt'); me.view.flash && me.view.flash('hit'); g.sound.play('hit');
+      if (g.play.player.hurt(m.dmg)) g.play.defeat();
+      g.xp.taken(); const r = this.avatars.by.get(m.from); if (r) g.sweep.defend(r.a);   // you always fight back
+    }
     /** a swing at someone else's wall, gate or door: the server decides if it lands */
     hit(rec, door) {
       const g = this.g, now = g.play.t; if (now - this.lastHit < 0.35) return; this.lastHit = now; const me = g.play.me;
@@ -360,7 +373,7 @@
       const g = this.g, id = a.id.replace(/^pl:/, ''), mine = this.teamId(this.me), buttons = [];
       if (this.mayUse(id)) buttons.push({ label: 'Leave my team', run: () => this.net.send({ t: 'team', a: 'leave' }) }); else buttons.push({ label: 'Invite to my team', run: () => { this.net.send({ t: 'team', a: 'invite', to: id }); g.cui.toast(`Invited ${a.name}.`); } });
       buttons.push({ label: 'Demand tribute…', run: () => this.demandStep1(id, a.name) }); buttons.push({ label: 'Close', pri: true });
-      g.cui.modal(`<h2>${esc(a.name)}</h2><p>${this.mayUse(id) ? 'On your team: you share every key.' : 'A stranger. Invite them to share keys, or demand tribute if they are close.'}</p>`, buttons);
+      g.cui.modal(`<h2>${esc(a.name)}</h2><p>${this.mayUse(id) ? 'On your team: you share every key.' : 'A stranger. Left-click attacks them; right-click opens this. Invite them to share keys, or demand tribute if they are close.'}</p>`, buttons);
     }
     demandStep1(id, name) { const g = this.g, res = ['wood', 'stone', 'iron', 'food', 'gold']; g.cui.modal(`<h2>Demand tribute from ${esc(name)}</h2><p>What do you want?</p>`, res.map((r) => ({ label: K.CastleData.resName(r), run: () => this.demandStep2(id, name, r) })).concat([{ label: 'Never mind', pri: true }])); }
     demandStep2(id, name, res) { const g = this.g; g.cui.modal(`<h2>How much ${esc(K.CastleData.resName(res).toLowerCase())}?</h2>`, [10, 25, 50, 100].map((n) => ({ label: String(n), run: () => { this.net.send({ t: 'demand', to: id, res, n }); g.cui.toast(`You demand ${n} ${K.CastleData.resName(res).toLowerCase()} from ${name}.`); } })).concat([{ label: 'Never mind', pri: true }])); }

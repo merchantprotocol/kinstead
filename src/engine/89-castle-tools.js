@@ -81,7 +81,12 @@
       const P = this.play; if (!P.me.alive) return false;
       if (this.tool.ranged && this.archery.click(sx, sy)) return true;   // bow: shoot, do not walk
       const e = P.pick(sx, sy);
-      if (e && e.remote && this.g.mp) { this.g.mp.playerMenu(e); return true; }   // click another settler: team and tribute
+      if (e === P.me) { this.g.bannerEd.open(); return true; }   // click yourself: your banner
+      if (e && e.remote && this.g.mp) {   // click another settler: a teammate gets the menu; anyone else, you attack (right-click them for the menu)
+        if (this.g.mp.mayUse(e.pid)) { this.g.mp.playerMenu(e); return true; }
+        if (!this.g.sweep.clickFoe(e, this.tool)) P.walkTo(e.x, e.z, false);
+        return true;
+      }
       if (e && this.g.sweep.clickFoe(e, this.tool)) return true;   // sword + a foe in reach: swing now, as fast as you click
       if (e) { const t = K.WorkTarget.forEntity(this.ctx, e); if (!t) return false; this.engage(t); return true; }
       const p = P.app.pickGround(sx, sy); if (!p) return false;

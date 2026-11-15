@@ -622,7 +622,7 @@
    "requiresCastleLevel": 1,
    "castlePoints": 0,
    "hp": 0,
-   "effect": "Your home. Sleep here, keep your door, and stay out of the cold. Build it on your own plot, and build it first.",
+   "effect": "Your home. Sleep here, keep your door, and stay out of the cold. Build it anywhere you like, whenever you like, but build it first.",
    "artPrompt": "a small timber cottage with a thatched roof",
    "buildRequires": []
   }

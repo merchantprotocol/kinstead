@@ -8,7 +8,7 @@
 const MAX_PLAYERS = 30;           // plots on the map
 const DOOR_HP = 3000;             // a house door takes a crew a good while
 const HP = { palisade: 400, stone_wall: 900, gate: 700, stone_gate: 2500, default: 900 };   // structures other players can break
-const DMG = { sword: 5, stoneblade: 5, ironsword: 9, spear: 7, warhammer: 18, longbow: 2, bow: 2, axe: 8, pickaxe: 8, shovel: 3, hammer: 4, default: 4 };
+const DMG = { sword: 5, stoneblade: 5, ironsword: 9, spear: 7, warhammer: 18, longbow: 9, bow: 6, axe: 8, pickaxe: 8, shovel: 3, hammer: 4, default: 4 };
 const PLOTS = (() => { const a = []; for (let r = 0; r < 5; r++) for (let c = 0; c < 6; c++) a.push({ x: 30 + c * 44, z: 30 + r * 35 }); a.sort((p, q) => Math.hypot(p.x - 140, p.z - 100) - Math.hypot(q.x - 140, q.z - 100)); return a; })();   // must match WorldPlan on the client
 const CYCLE = { day: 210, night: 100 };            // seconds: must match Calendar.PHASES on the client
 const WEATHER_SEC = 150;                            // the weather changes at most this often
@@ -42,14 +42,14 @@ export class GameRoom {
     this.gates = {};                          // piece id -> open (not saved: gates shut when the server restarts)
     this.lastHit = {};
     this.epoch = Date.now(); this.seed = 7; this.respawns = {}; this.stores = {};   // stores: store id -> { id, owner, kind, name, res, x, z, stack, stock }
-    this.lastPeriod = -1;
+    this.lastPeriod = -1; this.banners = {};   // banners: player id -> { name, color, logo } (their own, used when they are on no team)
     this.dirty = false; this.loaded = false; this.timer = null;
     state.blockConcurrencyWhile(async () => {
       this.plots = (await state.storage.get('plots')) || {};
       const w = await state.storage.get('world'); if (w) this.world = Object.assign(this.world, w);
       this.teams = (await state.storage.get('teams')) || {};
       const e = await state.storage.get('epoch'); if (e) { this.epoch = e.epoch; this.seed = e.seed; } else { this.seed = Math.floor(Math.random() * 1e9); await state.storage.put('epoch', { epoch: this.epoch, seed: this.seed }); }
-      this.respawns = (await state.storage.get('respawns')) || {}; this.stores = (await state.storage.get('stores')) || {};
+      this.banners = (await state.storage.get('banners')) || {}; this.respawns = (await state.storage.get('respawns')) || {}; this.stores = (await state.storage.get('stores')) || {};
       this.loaded = true;
     });
   }
@@ -105,8 +105,8 @@ export class GameRoom {
       Object.assign(p, { cid, id: cid.slice(0, 8), name, slot, joined: true });
       const save = await this.state.storage.get('save:' + cid);
       const ev = this.plots[cid].evicted; if (ev) { delete this.plots[cid].evicted; this.state.storage.put('plots', this.plots); }
-      this.send(ws, { t: 'welcome', id: p.id, slot, evicted: !!ev, max: MAX_PLAYERS, players: this.online().filter((q) => q !== p).map((q) => this.pub(q)), claimed: this.claimed(), world: this.world, teams: this.teamList(), gates: this.gates, save: save || null, clock: this.clock(), weather: this.weather(), respawn: this.validRespawn(p), stores: Object.values(this.stores) });
-      this.broadcast({ t: 'join', p: this.pub(p) }, ws); this.startTimer(); return;
+      this.send(ws, { t: 'welcome', id: p.id, slot, evicted: !!ev, max: MAX_PLAYERS, players: this.online().filter((q) => q !== p).map((q) => this.pub(q)), claimed: this.claimed(), world: this.world, teams: this.teamList(), gates: this.gates, save: save || null, banners: this.allBanners(), clock: this.clock(), weather: this.weather(), respawn: this.validRespawn(p), stores: Object.values(this.stores) });
+      this.broadcast({ t: 'join', p: this.pub(p) }, ws); this.pushBanners([p.id]); this.startTimer(); return;
     }
     if (!p.joined) return;
     if (m.t === 'pos') { p.x = +m.x || 0; p.z = +m.z || 0; p.y = +m.y || 0; p.f = +m.f || 0; p.s = String(m.s || 'idle').slice(0, 12); p.tool = String(m.tool || '').slice(0, 14); p.hp = +m.hp || 0; return; }
@@ -121,6 +121,12 @@ export class GameRoom {
     if (m.t === 'stock') { this.onStock(p, m); return; }
     if (m.t === 'take') { this.onTake(p, m); return; }
     if (m.t === 'fx') { this.broadcast({ t: 'fx', from: p.id, fx: m.fx }, this.wsOf(p)); return; }   // pickups: not kept, just shown to everyone
+    if (m.t === 'pvp') {
+      const [ws, q] = this.byId(m.to); if (!ws || q === p || this.sameTeam(p.id, q.id) || !this.near(p, q, 14)) return;   // teammates are safe; the swing must be close (arrows reach further)
+      const now = Date.now(); if (now - (this.lastHit['pvp' + p.id] || 0) < 250) return; this.lastHit['pvp' + p.id] = now;
+      this.send(ws, { t: 'pvphit', from: p.id, name: p.name, dmg: DMG[m.tool] || DMG.default }); return;
+    }
+    if (m.t === 'banner') { this.onBanner(p, m); return; }
     if (m.t === 'team') { this.onTeam(p, m); return; }
     if (m.t === 'open') { this.onOpen(p, m); return; }
     if (m.t === 'hit') { this.onHit(p, m); return; }
@@ -175,22 +181,41 @@ export class GameRoom {
     const [ws] = this.byId(st.owner); if (ws && st.owner !== p.id) this.send(ws, { t: 'raided', by: p.name, res: st.res, n });
   }
 
+  /* ---------- banners: a colour, a logo and a name; a team shares one ---------- */
+  defaultBanner(id) { let h = 0; for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0; return { name: '', color: h % 12, logo: h % 12 }; }
+  clean(b, fallback) { b = b || {}; return { name: String(b.name == null ? fallback.name : b.name).slice(0, 24), color: Math.max(0, Math.min(11, b.color == null ? fallback.color : b.color | 0)), logo: Math.max(0, Math.min(11, b.logo == null ? fallback.logo : b.logo | 0)) }; }
+  /** what a settler (online or not) flies: their team's banner if they are on a team, else their own */
+  resolved(id) { const t = this.teams[this.teamOf(id)]; const b = t && t.banner ? t.banner : this.banners[id] || this.defaultBanner(id); return Object.assign({}, b, { team: t ? t.id : null }); }
+  allBanners() { const ids = new Set([...Object.keys(this.banners), ...Object.values(this.plots).map((v, i) => Object.keys(this.plots)[i].slice(0, 8)), ...Object.values(this.world.houses).map((h) => h.owner), ...Object.values(this.world.pieces).map((q) => q.owner)]); const out = {}; for (const id of ids) if (id) out[id] = this.resolved(id); return out; }
+  pushBanners(ids) { const m = {}; for (const id of ids) m[id] = this.resolved(id); this.broadcast({ t: 'banners', map: m }); this.state.storage.put('banners', this.banners); }
+  onBanner(p, m) {
+    const tid = this.teamOf(p.id), cur = this.resolved(p.id), nb = this.clean(m.b, cur);
+    if (tid) { const t = this.teams[tid]; t.banner = nb; t.name = nb.name || t.name; this.saveTeams(); this.pushBanners(t.members); }
+    else { this.banners[p.id] = nb; this.pushBanners([p.id]); }
+  }
+
   /* ---------- teams: the same team shares every key ---------- */
   teamOf(id) { for (const t of Object.values(this.teams)) if (t.members.includes(id)) return t.id; return null; }
   sameTeam(a, b) { const t = this.teamOf(a); return !!t && t === this.teamOf(b); }
   mayUse(p, owner) { return !owner || owner === p.id || this.sameTeam(p.id, owner); }
-  teamList() { return Object.values(this.teams).map((t) => ({ id: t.id, name: t.name, members: t.members })); }
+  teamList() { return Object.values(this.teams).map((t) => ({ id: t.id, name: t.name, members: t.members, banner: t.banner })); }
   saveTeams() { this.state.storage.put('teams', this.teams); this.broadcast({ t: 'teams', list: this.teamList() }); }
   byId(id) { for (const [ws, q] of this.sockets) if (q.joined && q.id === id) return [ws, q]; return [null, null]; }
   near(a, b, m) { return Math.hypot(a.x - b.x, a.z - b.z) <= m; }
+  leaveTeam(p) { const tid = this.teamOf(p.id); if (!tid) return; const t = this.teams[tid]; t.members = t.members.filter((x) => x !== p.id); if (!t.members.length) delete this.teams[tid]; }
   onTeam(p, m) {
-    if (m.a === 'create') { if (this.teamOf(p.id)) return; const id = 't' + Math.random().toString(36).slice(2, 7); this.teams[id] = { id, name: String(m.name || p.name + "'s company").slice(0, 28), members: [p.id] }; this.saveTeams(); }
+    if (m.a === 'create') { if (this.teamOf(p.id)) return; this.makeTeam(p); this.saveTeams(); this.pushBanners([p.id]); }
     else if (m.a === 'invite') {
-      let tid = this.teamOf(p.id); if (!tid) { tid = 't' + Math.random().toString(36).slice(2, 7); this.teams[tid] = { id: tid, name: p.name + "'s company", members: [p.id] }; this.saveTeams(); }
-      const [ws, q] = this.byId(m.to); if (ws && q !== p) this.send(ws, { t: 'invite', from: p.id, name: p.name, team: tid, teamName: this.teams[tid].name });
-    } else if (m.a === 'accept') { const t = this.teams[m.team]; if (!t || this.teamOf(p.id)) return; t.members.push(p.id); this.saveTeams(); }
-    else if (m.a === 'leave') { const tid = this.teamOf(p.id); if (!tid) return; const t = this.teams[tid]; t.members = t.members.filter((x) => x !== p.id); if (!t.members.length) delete this.teams[tid]; this.saveTeams(); }
+      let tid = this.teamOf(p.id); if (!tid) { tid = this.makeTeam(p); this.saveTeams(); this.pushBanners([p.id]); }
+      const [ws, q] = this.byId(m.to); if (ws && q !== p) this.send(ws, { t: 'invite', from: p.id, name: p.name, team: tid, teamName: this.teams[tid].banner.name || this.teams[tid].name });
+    } else if (m.a === 'accept') {
+      const t = this.teams[m.team]; if (!t || t.members.includes(p.id)) return;
+      const old = this.teamOf(p.id), oldMembers = old ? this.teams[old].members.slice() : []; this.leaveTeam(p);   // a team you were on before is left behind
+      t.members.push(p.id); this.saveTeams(); this.pushBanners([...t.members, ...oldMembers]);   // you now fly the team's name, colour and logo
+    } else if (m.a === 'leave') { const old = this.teamOf(p.id), mem = old ? this.teams[old].members.slice() : []; this.leaveTeam(p); this.saveTeams(); this.pushBanners(mem); }
   }
+  /** a team starts out flying its founder's banner */
+  makeTeam(p) { const id = 't' + Math.random().toString(36).slice(2, 7), b = this.resolved(p.id); this.teams[id] = { id, name: b.name || p.name + "'s company", members: [p.id], banner: { name: b.name || p.name + "'s company", color: b.color, logo: b.logo } }; return id; }
   /* ---------- keys: only the owner (or their team) may open a gate or door ---------- */
   onOpen(p, m) {
     if (m.slot != null) { const d = this.world.doors[m.slot]; if (!d || (!d.broken && !this.mayUse(p, d.owner))) { this.send(this.wsOf(p), { t: 'locked', what: 'door', slot: m.slot }); return; } this.broadcast({ t: 'door', slot: m.slot, open: !!m.open }); return; }

@@ -77,7 +77,7 @@
       this.cd -= dt; const d = dist(a, me);
       if (d > 80 && this.mode !== 'retreat') { if (this.plunder) this.plunder.release(); g.removeActor(a); return; }
       if (this.plunder) this.plunder.follow();
-      if (this.mode === 'retreat') { if (dist(a, g.L.keep) > 66) { if (this.plunder) this.plunder.escape(); g.removeActor(a); return; } const lp = g.wild.leavePoint(a); this.goTo(lp.x, lp.z, a.speed, 1.5, dt); return; }   // it walks away a stretch at a time
+      if (this.mode === 'retreat') { if (dist(a, g.home.center) > 66) { if (this.plunder) this.plunder.escape(); g.removeActor(a); return; } const lp = g.wild.leavePoint(a); this.goTo(lp.x, lp.z, a.speed, 1.5, dt); return; }   // it walks away a stretch at a time
       if (this.nothingHere(d)) { this.idle += dt; if (this.idle > 25) { this.retreat(); return; } this.roam(dt); return; }   // a pack that finds nothing roams on, then leaves
       this.idle = 0;
       if (g.calendar.isNight && this.forage(dt, d)) return;   // at night the smell of your food is what they came for
@@ -245,7 +245,7 @@
     }
     /** a spot on the map's rim (inside the fog) that you can walk to */
     edgePoint() {
-      const L = this.g.L, nav = this.P.nav, k0 = L.keep, wu = L.size.w * K.TILE, hu = L.size.h * K.TILE;
+      const L = this.g.L, nav = this.P.nav, k0 = this.g.home.built ? this.g.home.center : this.P.me, wu = L.size.w * K.TILE, hu = L.size.h * K.TILE;   // out in the dark around where you live (or stand)
       for (let k = 0; k < 30; k++) {
         const a = rnd(0, 6.283), r = rnd(46, 58), x = k0.x + Math.cos(a) * r, z = k0.z + Math.sin(a) * r;   // out in the dark, a good way from your homestead
         if (x < 6 || z < 6 || x > wu - 6 || z > hu - 6) continue;
@@ -255,7 +255,7 @@
     }
     /** where a creature heads when it gives up and goes home: away from your homestead */
     leavePoint(a) {
-      const L = this.g.L, k = L.keep, dx = a.x - k.x, dz = a.z - k.z, d = Math.hypot(dx, dz) || 1, wu = L.size.w * K.TILE, hu = L.size.h * K.TILE;
+      const L = this.g.L, k = this.g.home.center, dx = a.x - k.x, dz = a.z - k.z, d = Math.hypot(dx, dz) || 1, wu = L.size.w * K.TILE, hu = L.size.h * K.TILE;
       return { x: Math.max(6, Math.min(wu - 6, a.x + dx / d * 22)), z: Math.max(6, Math.min(hu - 6, a.z + dz / d * 22)) };   // always a short hop ahead, so the pathfinder can reach it
     }
     /** do the animals have a reason to come? Food left outside, you outside, or a way in to you. Walls up and nothing outside: they stop coming. */

@@ -280,6 +280,7 @@
       if (!this.me.alive) return;
       this.ui.close('ctx'); this.ui.close('card'); this.ui.tip(null);
       const e = this.pick(sx, sy); if (!e || e === this.me) { if (this.ext && this.ext.rightClick) this.ext.rightClick(sx, sy); return; }   // empty ground: a game mode may use it (drop a pile)
+      if (e.remote && this.ext && this.ext.playerMenu) { this.ext.playerMenu(e); return; }   // right-click another player: invite, demand tribute
       const acts = this.reg.actions(e, this); if (acts.length) this.ui.openMenu(e, acts, sx, sy);
     }
     click(sx, sy) {
@@ -462,6 +463,7 @@
       a.cdT = a.cd; a.view.setState('attack'); this.face(a, b); this.pending.push({ t: 0.2, a, b }); }
     resolveHit(a, b, reach) {
       if (!a.alive || !b.alive || this.dist(a, b) > (reach || a.reach) + b.r + 0.6) return;
+      if (b.remote) { if (this.ext && this.ext.pvpHit) this.ext.pvpHit(a, b); return; }   // another player: the server decides what a blow does
       if (!this.ext && Math.random() < 0.08) { this.float(b, 'miss', 'miss'); return; }
       const dmg = this.ext ? this.ext.damage(a, b) : Math.max(1, Math.round(a.atk * rnd(0.7, 1.3) - b.def * 0.5));
       a.lastFight = b.lastFight = this.t; b.view.flash('hit'); if (b.view.state !== 'attack') b.view.setState('hurt');

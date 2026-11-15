@@ -44,7 +44,6 @@
       if (t === T.CHASM || t === T.WATER || t === T.ROCK) return false;
       if (d.height[k] <= MIN_Q || !this.nav.walk[k] || this.g.home.near(x, z, 1.5)) return false;      // never under or beside the house              // a prop, a wall or a building is in the way
       const R = this.g.play.R; if (R.buildings && R.buildings.at && R.buildings.at(i, j)) return false;
-      if (Math.hypot(x - L.keep.x, z - L.keep.z) < 3.6) return false;           // the Keep's footing stays
       for (const b of Object.values(L.barriers || {})) if (x > b.x0 - 1 && x < b.x1 + 1 && z > b.z0 - 1 && z < b.z1 + 1) return false;
       return true;
     }

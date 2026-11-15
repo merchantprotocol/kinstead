@@ -89,7 +89,6 @@
     problem(ti, tj, turns) {
       const d = this.play.doc, R = this.g.R, [w, h] = this.sizeFor(turns);
       const kind = KINDS[this.type]; if (kind.have(this.g)) return kind.haveMsg;
-      if (this.type === 'cottage') { const L = this.g.L; if (Math.hypot((ti + w / 2) * TILE - L.keep.x, (tj + h / 2) * TILE - L.keep.z) > 16) return 'your cottage has to stand on your own plot'; }
       for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
         const ci = ti + i, cj = tj + j; if (ci < 1 || cj < 1 || ci >= d.w - 1 || cj >= d.h - 1) return 'that is off the map';
         const t = d.terrain[cj * d.w + ci]; if (t === T.CHASM || t === T.WATER) return 'there is water or a chasm there';

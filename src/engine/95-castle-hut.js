@@ -152,6 +152,7 @@
     raise(spec) {
       this.spec = spec; this.built = true; this.center = { x: (spec.x + spec.footprint.w / 2) * TILE, z: (spec.z + spec.footprint.h / 2) * TILE };
       this.door = new Door(this); this.rack = new Rack(this);
+      if (this.g.flags) this.g.flags.flag('home', (spec.x + spec.footprint.w) * TILE + 0.35, spec.z * TILE - 0.3, this.g.banners.meId, 3.6);   // your banner flies over your cottage
     }
     get building() { return this.g.R.buildings.get(this.id); }
     get doorPoint() { if (!this.spec) return { x: this.center.x, z: this.center.z + 3 }; const b = this.spec, d = b.doors.find((q) => q.kind === 'exterior'); return { x: (b.x + d.x + d.w / 2) * TILE, z: (b.z + d.z + 1.8) * TILE }; }   // just outside the front door

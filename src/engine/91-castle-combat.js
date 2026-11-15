@@ -35,7 +35,7 @@
     get play() { return this.g.play; }
     /** the tool in hand decides how hard, how fast and how wide you can fight */
     get combat() { return this.g.tools.tool.combat; }
-    isFoe(a) { return !!a && a !== this.play.me && a.alive && a.hostile && this.play.actors.includes(a); }
+    isFoe(a) { return !!a && a !== this.play.me && a.alive && (a.hostile || (a.remote && !!this.g.mp && !this.g.mp.mayUse(a.pid))) && this.play.actors.includes(a); }   // other players are fair game unless they are on your team
     /** is this foe inside the sweep, given where the hero faces? (anything touching the hero counts too) */
     inArc(a, facing) {
       const cb = this.combat, me = this.play.me, dx = a.x - me.x, dz = a.z - me.z, d = Math.hypot(dx, dz) - (a.r || 0.3);
