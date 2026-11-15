@@ -8,7 +8,6 @@
   const { TILE, CastleArt } = K;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const lerp = (a, b, t) => a + (b - a) * t;
-  const fmtCost = (c) => Object.entries(c || {}).map(([r, n]) => `${n} ${K.CastleData.resName(r)}`).join(', ') || 'free';
 
   /* ---------- the game ---------- */
   class CastleGame {
@@ -26,6 +25,7 @@
       this.day.phases = K.Calendar.PHASES;   // looping day and night
       this.noXp = true; this.swingSec = this.data.swingSec;
       this.ground = new K.GroundOccupancy(this); this.pieceSet = new K.PieceManager(this); this.placement = new K.PlacementRules(this);
+      this.menu = new K.ActionMenu(this); this.inspector = new K.InspectCard(this); this.gatherer = new K.Gatherer(this); this.builder = new K.CastleBuilder(this); this.combat = new K.CombatRules(this);
     }
     /** a saved game after your castle was taken: resources, strength and weapons stay; pieces, buildings, stores and ground do not */
     evictedSave(sv) { if (!sv) return null; const keep = sv.extras || {}; sv.castle.pieces = []; sv.hero = null; sv.nodes = {}; sv.extras = { weapons: keep.weapons, held: keep.held, xp: keep.xp }; return sv; }
@@ -75,6 +75,38 @@
     autoRot(x, z) { return this.placement.autoRot(x, z); }
     dirtOk(x, z) { return this.placement.dirtOk(x, z); }
     gateSpot(p) { return this.placement.gateSpot(p); }
+
+    /* ---------- what you can do with an entity (ActionMenu, InspectCard) ---------- */
+    actionsFor(e) { return this.menu.actionsFor(e); }
+    inspect(e) { return this.inspector.inspect(e); }
+
+    /* ---------- gathering (Gatherer) ---------- */
+    nodeSpec(e) { return this.gatherer.nodeSpec(e); }
+    gather(e) { this.gatherer.gather(e); }
+    restoreNodes() { this.gatherer.restoreNodes(this.saved); }
+
+    /* ---------- building (CastleBuilder) ---------- */
+    buildAt(type, x, z, rot, quiet) { return this.builder.buildAt(type, x, z, rot, quiet); }
+    placeDirt(x, z, quiet) { return this.builder.placeDirt(x, z, quiet); }
+    addFreePiece(type, x, z, rot) { return this.builder.addFreePiece(type, x, z, rot); }
+    repair(type) { this.builder.repair(type); }
+    buildAtSite() { this.builder.buildAtSite(); }
+    upgrade(p) { this.builder.upgrade(p); }
+    craft(rid) { this.builder.craft(rid); }
+    lightKeep() { this.builder.lightKeep(); }
+    bindHeart() { this.builder.bindHeart(); }
+
+    /* ---------- combat (CombatRules) ---------- */
+    damage(a, b) { return this.combat.damage(a, b); }
+    onHit(a, b) { this.combat.onHit(a, b); }
+    wakeSec() { return this.combat.wakeSec(); }
+    nearestEnemy(a, range) { return this.combat.nearestEnemy(a, range); }
+    nearestAlly(a, range) { return this.combat.nearestAlly(a, range); }
+    towerFor(a) { return this.combat.towerFor(a); }
+    hurtAlly(k, n) { this.combat.hurtAlly(k, n); }
+    hurtEnemy(a, n, src, show) { this.combat.hurtEnemy(a, n, src, show); }
+    onHurt(a) { this.combat.onHurt(a); }
+    onKill(a) { this.combat.onKill(a); }
 
     /* ---------- enter / exit ---------- */
     enter() {
@@ -182,170 +214,8 @@
     }
     pop(obj, s0 = 0.2) { obj.scale.setScalar(s0); obj.userData.popT = 0; obj.userData.s0 = s0; (this.pops = this.pops || []).push(obj); }
 
-    /* ---------- actions (the interaction registry asks these) ---------- */
-    actionsFor(e) {
-      const c = this.castle, out = [];
-      const act = (id, label, icon, run, extra) => out.push(Object.assign({ id, label, icon, run: (gm, x) => { this.sound.unlock(); run(x); } }, extra || {}));
-      if (e.type === 'c_keep') {
-        if (!c.lit) act('light', 'Light the hearth', 'lantern', () => this.lightKeep(), { range: 0.6 });
-        if (c.lit && c.amount('troll_heart') > 0 && c.hearthCap < 5) act('bind', `Bind the troll’s heart · ${fmtCost(this.data.keepUpgrade.cost)}`, 'heart', () => this.bindHeart(), { range: 0.6 });
-        if (c.lit && !c.weapons.has('stoneblade')) act('craft', `Forge a Stoneblade · ${fmtCost(this.data.recipe('craft_stoneblade').inputs)}`, 'stoneblade', () => this.craft('craft_stoneblade'), { range: 0.6 });
-        if (c.lit && this.day.kind === 'day' && this.day.length() != null && this.day.idx + 1 < this.day.phases.length) act('bell', 'Ring the bell (dusk now)', 'bell', () => this.ringBell());
-        act('book', 'Open the Hearthbook', 'book', () => this.cui.toggleBook(true));
-      } else if (e.type === 'c_ruin') {
-        const t = e.ruinType, cost = c.buildCost(t, { ruin: true }), why = c.blocker(t, { ruin: true });
-        act('repair', `Repair: ${fmtCost(cost)}${why ? ' (' + why + ')' : ''}`, 'hammer', () => this.repair(t), { range: e.r + 0.7 });
-      } else if (e.type === 'c_site') {
-        const why = c.blocker('mine');
-        act('mine', `Build an Iron mine: ${fmtCost(c.buildCost('mine'))}${why ? ' (' + why + ')' : ''}`, 'pickaxe', () => this.buildAtSite(), { range: 1.6 });
-      } else if (e.type === 'c_piece') {
-        const p = e.piece, up = c.upgradeInfo(p);
-        if (this.tools.tool.id === 'hammer' && c.canDemolish(p)) act('demolish', 'Take down…', 'hammer', () => this.demolisher.ask(p), { range: e.r + 0.8 });   // hammer only, and it asks
-        if (p.type === 'coop' || p.type === 'barn') {
-          const st = this.economy.stock, kind = p.type === 'coop' ? 'chicken' : 'cow', sp = K.LIVESTOCK[kind], n = st.herd(p).length;
-          act('buy', `Buy a ${kind} · ${sp.price} wheat (${n}/${sp.max}, you have ${this.economy.wheatHeld()} wheat)`, 'bag', () => st.buy(p), { range: e.r + 1.2 });
-          if (p.type === 'barn' && n) act('butcher', 'Butcher a cow for beef', 'sword', () => st.butcher(p), { range: e.r + 1.2 });
-        }
-        if (p.type === 'market') act('prices', 'Set the clerk’s prices', 'coin', () => this.workers.setPrices(), { range: e.r + 1.6 });
-        if (p.type === 'market' || p.type === 'silo' || p.type === 'farm' || p.type === 'coop' || p.type === 'barn') { const nm = { market: 'Open the marketplace', silo: 'Look in the silo', farm: 'Look in the farm', coop: 'Collect eggs', barn: 'Look in the cattle barn' }[p.type]; act('store', nm, 'bag', () => this.purse.openLedger(p), { range: e.r + 1.2 }); }   // a building's store, as a second purse
-        if (K.Breacher.GATES.has(p.type) && p.bridge) act('bridge', p.type === 'gate' ? (p.bridge.open ? 'Shut the gate' : 'Open the gate') : (p.bridge.open ? 'Raise the drawbridge' : 'Lower the drawbridge'), 'hand', () => p.bridge.toggle(), { range: p.type === 'gate' ? 2.6 : 3.4 });
-        if (up) { const pb = c.upgradePayback(p), why = c.upgradeBlocker(p); act('upgrade', `Upgrade to Level 2: ${fmtCost(c.upgradeCost(p))}${pb != null ? ` · pays back in ${pb.toFixed(1)} min` : ''}${why ? ' (' + why + ')' : ''}`, 'hammer', () => this.upgrade(p), { range: e.r + 0.8 }); }
-        const st = { smithy: 'craft_iron_sword', ember_forge: 'craft_ember_brand' }[p.type];
-        if (st && !c.weapons.has(this.data.recipe(st).id.replace('craft_', ''))) act('craft', `Forge ${this.data.item(st.replace('craft_', '')).name} · ${fmtCost(this.data.recipe(st).inputs)}`, st === 'craft_iron_sword' ? 'sword' : 'brand', () => this.craft(st), { range: e.r + 0.8 });
-      } else if (e.type === 'c_rstore') {
-        const v = e.rec || {}; act('take', `Take from the ${e.name.toLowerCase()}`, 'hand', () => this.mp.takeFrom(e.sid), { range: e.r + 0.8 });
-      } else if (e.type === 'c_rpiece') {
-        const rec = e.rec, mp = this.mp, gate = K.Breacher.GATES.has(rec.p.type), mine = mp.mayUse(rec.p.owner);
-        if (gate) act('open', rec.gate.open ? 'Shut the gate' : (mine ? 'Open the gate' : 'Try the gate (locked)'), 'hand', () => mp.requestGate(rec), { range: 2.8 });
-        if (rec.p.type === 'market') act('trade', 'Trade with the clerk', 'coin', () => this.workers.trade(rec.p.owner), { range: 2.6 });
-        if (!mine) act('break', 'Break it down', 'sword', () => mp.hit(rec), { range: 2.1 });
-      } else if (e.type === 'c_rdoor') {
-        const rec = e.rec, mp = this.mp, mine = mp.mayUse(rec.owner), d = rec.door;
-        if (d.broken) { if (!mine) act('install', 'Hang your own door (3 wood): take the castle', 'hammer', () => mp.installDoor(rec), { range: 2.4 }); }
-        else { act('open', d.open ? 'Shut the door' : (mine ? 'Open the door' : 'Try the door (locked)'), 'hand', () => mp.requestDoor(rec), { range: 2.4 }); if (!mine) act('break', 'Break the door down', 'sword', () => mp.hit(rec, true), { range: 2.1 }); }
-      } else if (e.type === 'c_rack') {
-        const rk = e.rack; act('bow', rk.owned ? 'Put the bow back' : 'Take the bow', 'sword', () => (rk.owned ? rk.putBack() : rk.take()), { range: 1.2 });
-        act('fletch', 'Fletch 4 arrows (1 wood)', 'hand', () => rk.fletch(), { range: 1.2 });
-      } else if (e.type === 'c_door') {
-        const door = this.home.door; act('door', door.broken ? 'Repair the door (3 wood)' : door.open ? 'Shut the door' : 'Open the door', 'hand', () => door.toggle(), { range: 1.3 });
-      } else if (e.type === 'c_barrel') {
-        const rg = e.r + 0.8, st = e.store;
-        if (st.pile) act('take', `Pick up the ${e.name.toLowerCase()} (${st.amount})`, 'hand', () => this.stash.take(st), { range: rg }); else
-        if (e.res === 'bread') { act('eat', `Eat a loaf (+${K.BUILDING_DATA.FOOD.bread.hp} strength · ${st.amount} left)`, 'hand', () => this.home.eatBread(st), { range: rg }); act('take', 'Take a loaf', 'hand', () => this.home.takeBread(st), { range: rg }); }
-        else if (e.res === 'food') act('take', `Take some raw food (${st.amount} left)`, 'hand', () => this.home.takeFood(st), { range: rg });
-        else if (e.res === 'arrow') act('take', `Take arrows (${st.amount} left)`, 'hand', () => this.home.takeArrows(st), { range: rg });
-        else act('look', `${e.name}: ${st.amount} ${K.CastleData.resName(e.res)}`, 'eye', () => this.cui.toast(`${st.amount} ${K.CastleData.resName(e.res)} stored here.`), { range: rg });
-        if (!st.pile && st.stock != null && st.stock > 0) act('pickup', `Pick up everything (${st.stock})`, 'hand', () => this.stash.take(st), { range: rg });   // crates and barrels can be emptied into your purse and put down elsewhere
-      } else if (e.type === 'c_worker') {
-        act('talk', `Talk to the ${e.name.toLowerCase()}`, 'hand', () => this.workers.talk(e), { range: 2.4 });
-      } else if (e.type === 'c_kin') {
-        const id = e.kinId;
-        if (!c.kin.has(id) && id === 'emberwright') act('touch', 'Touch her with the lantern', 'lantern', () => this.touchEmberwright(), { range: 1.4 });
-      }
-      out.push({ id: 'inspect', label: 'Inspect', icon: 'eye', run: (gm, x) => gm.inspect(x) });
-      return out;
-    }
-    inspect(e) {
-      const c = this.castle;
-      if (e.type === 'c_piece') {
-        const p = e.piece, d = this.data.piece(p.type), pr = c.producesOf(p), rows = [['Level', p.level]];
-        if (pr) rows.push(['Makes', Object.entries(pr).map(([r, n]) => `+${n} ${K.CastleData.resName(r)}/min`).join(', ')]);
-        if (c.isFrosted(p)) rows.push(['State', 'FROSTED (no production)']); else if (pr && c.isFull(p)) rows.push(['State', 'FULL: build a Storehouse or spend']);
-        if (d.category === 'defense') rows.push(['HP', `${Math.ceil(p.hp)} / ${this.pieceHpMax(p)}`]);
-        return { title: d.name, sub: d.category, body: d.effect, rows };
-      }
-      if (e.type === 'c_barrel') return { title: e.name, sub: 'Outside your home', body: 'Your stores. A raider can walk off with some of it.', rows: [] };
-      if (e.type === 'c_keep') return { title: 'The Keep', sub: `Castle Level ${c.cl()}`, body: c.lit ? 'Your castle’s heart. Raiders walk at it. Its workbench forges the Stoneblade.' : 'Cold and roofless. Your ember lantern could light its hearth.', rows: [['Keep HP', this.raid ? `${Math.ceil(this.raid.keepHp)} / ${c.keepHpMax()}` : c.keepHpMax()], ['Glow', c.glowRadius() + ' m']] };
-      if (e.type === 'c_ruin') return { title: e.name, sub: 'Ruin', body: this.data.piece(e.ruinType).effect, rows: [['Repair', fmtCost(c.buildCost(e.ruinType, { ruin: true }))]] };
-      if (e.type === 'c_site') return { title: 'Iron outcrop', sub: 'Iron Hills', body: 'Rust-red rock: the one place an Iron mine can stand. It is outside the walls, so raiders can frost it.', rows: [] };
-      if (e.type === 'c_kin') { const h = this.data.hero(e.kinId); return { title: h.name, sub: h.role, body: c.kin.has(e.kinId) ? h.perk : h.found + '. Joins when ' + h.joinsWhen + '.', rows: [] }; }
-      const n = this.nodeSpec(e); if (n) { const st = this.play.nodeState(e); return { title: e.name, sub: 'Resource', body: `Yields ${Object.entries(n.yields).map(([r, v]) => v + ' ' + r).join(', ')} per action (+${c.row().gatherBonus} from Castle Level).`, rows: [['Left', st.charges > 0 ? `${st.charges} / ${st.max}` : 'spent']] }; }
-      return { title: e.name, body: '' };
-    }
 
-    /* ---------- gathering ---------- */
-    nodeSpec(e) { return this.data.node({ c_tree: 'tree', c_boulder: 'boulder', c_rubble: 'rubble', c_iron: 'iron_rock' }[e.type]); }
-    gather(e) {
-      const play = this.play, n = this.nodeSpec(e), st = play.nodeState(e); this.sound.unlock();
-      if (st.charges <= 0) { this.cui.toast(`This ${e.name.toLowerCase()} is spent. ${n.respawnSec ? 'It regrows soon.' : 'It is gone.'}`); return; }
-      const [r, base] = Object.entries(n.yields)[0];
-      if (this.castle.amount(r) >= this.castle.caps()[r]) { this.cui.toast(`Your ${K.CastleData.resName(r)} store is full (${this.castle.caps()[r]}). Spend it or build a Storehouse.`); this.cui.flashRes(r); return; }
-      play.face(play.me, e);
-      play.channel({ label: { c_tree: 'Chopping…', c_iron: 'Mining…' }[e.type] || 'Gathering…', time: 1.5, onDone: () => {
-        const got = Math.round(this.castle.gather(r, base));
-        if (got > 0) { play.float(play.me, `+${got}`, 'loot', K.CastleUI.ICON[r]); this.cui.bump(r); this.sound.play('gather'); }
-        st.charges--;
-        if (e.type === 'c_tree' && st.charges > 0) this.R.setPropState(e.id, 'cut' + Math.min(4, st.max - st.charges));   // the tree visibly shrinks with every swing
-        if (st.charges <= 0) { st.respawnAt = n.respawnSec ? play.t + n.respawnSec : Infinity; this.R.setPropState(e.id, 'depleted'); this.forest.cleared(e); play.me.view.setState('idle'); }
-        else if (this.castle.amount(r) < this.castle.caps()[r]) this.gather(e); else { play.me.view.setState('idle'); this.cui.toast(`${K.CastleData.resName(r)[0].toUpperCase() + K.CastleData.resName(r).slice(1)} is full.`); this.cui.flashRes(r); }
-        this.changed();
-      } });
-    }
 
-    /* ---------- building ---------- */
-    lightKeep() {
-      if (!this.castle.light()) return;
-      const p = this.play; p.face(p.me, this.keepEnt); p.me.view.setState('action');
-      p.player.removeItem('ember_lantern', 1);
-      this.sound.play('whump'); this.redrawKeep(); this.pop(this.keepMesh, 0.6); this.flareT = 2.5; this.shake(0.25);
-      this.meltTo(this.castle.glowRadius(), 1.4); this.glowR = 0.5;
-      this.cui.banner('The hearth roars', 'CL 1 · the glow pushes the frost back 6 m', 'fire');
-      this.changed();
-    }
-    repair(type) {
-      const r = this.castle.build(type, this.L.ruins[type], { ruin: true });
-      if (!r.ok) { this.cui.toast(`${this.data.piece(type).name}: ${r.why}.`); this.sound.play('clank'); return; }
-      const at = this.L.ruins[type], old = this.meshes.get('ruin:' + type); if (old) { this.group.remove(old); this.meshes.delete('ruin:' + type); }
-      r.piece.rot = at.rot; const m = this.addPieceMesh(r.piece); this.pop(m);
-      this.sound.play(type === 'gatehouse' ? 'clank' : 'thunk'); this.puff(at.x, at.z);
-      const done = Object.entries(this.castle.ruins).filter(([, v]) => v).length;
-      this.cui.toast(`${this.data.piece(type).name} restored. Ruins ${done}/4.`); this.changed();
-    }
-    buildAtSite() {
-      const at = this.L.outcrop, r = this.castle.build('mine', { x: at.x, z: at.z, rot: 0 });
-      if (!r.ok) { this.cui.toast(`Iron mine: ${r.why}.`); this.sound.play('clank'); return; }
-      const old = this.meshes.get('outcrop'); if (old) this.group.remove(old);
-      this.pop(this.addPieceMesh(r.piece)); this.sound.play('thunk'); this.puff(at.x, at.z);
-      this.cui.toast(`Iron mine: ${K.CastleUI.prodLine(this.castle, 'mine')}.`); this.changed();
-    }
-    placeDirt(x, z, quiet) {
-      const why = this.dirtOk(x, z), c = this.castle; if (why) { if (!quiet) { this.cui.toast(why[0].toUpperCase() + why.slice(1) + '.'); this.sound.play('clank'); } return false; }
-      if (c.amount('dirt') < 1) { if (!quiet) this.cui.toast('You need dirt. Dig some with the shovel.'); return false; }
-      c.spend({ dirt: 1 }); const [i, j] = this.play.doc.tileOf(x, z); this.tools.editor.raise(i, j); this.xp.built('dirt');
-      this.tools.effects.burst('dirt', x, this.play.nav.y(x, z) + 0.2, z, 5, 2.2); this.sound.play('thunk'); this.changed(); return true;
-    }
-    /** a piece that comes with something already paid for (the marketplace's street stalls): no cost, no placement check */
-    addFreePiece(type, x, z, rot) {
-      const c = this.castle, d = this.data.piece(type), p = { uid: c.nextUid++, type, level: 1, x, z, rot, hp: (d && d.hp) || 100, ruin: false }; c.pieces.push(p);
-      this.addPieceMesh(p); if (this.mp) this.mp.op({ k: 'piece+', id: this.mp.pieceId(p), type, x, z, rot }); this.changed(); return p;
-    }
-    buildAt(type, x, z, rot = this.autoRot(x, z), quiet = false) {
-      if (type === 'dirt') return this.placeDirt(x, z, quiet);
-      if (type === 'field') return this.economy.plant(x, z, quiet);   // a square of wheat field
-      const why = this.placementOk(type, x, z, rot); if (why) { if (!quiet) { this.cui.toast(why[0].toUpperCase() + why.slice(1) + '.'); this.sound.play('clank'); } return false; }
-      const r = this.castle.build(type, { x, z, rot }); if (!r.ok) { if (!quiet) this.cui.toast(`${this.data.piece(type).name}: ${r.why}.`); return false; }
-      const m = this.addPieceMesh(r.piece); this.pop(m); this.sound.play('thunk'); this.puff(x, z); this.shake(0.08); if (type === 'fire_pot') this.R.placeDynamics();
-      const pr = this.data.piece(type).produces;
-      if (!quiet) this.cui.toast(pr ? `${this.data.piece(type).name}: ${K.CastleUI.prodLine(this.castle, type)}.` : `${this.data.piece(type).name} built.`);
-      this.xp.built(type); if (this.mp) this.mp.op({ k: 'piece+', id: this.mp.pieceId(r.piece), type, x, z, rot }); this.changed(); return true;
-    }
-    upgrade(p) {
-      const r = this.castle.upgrade(p); if (!r.ok) { this.cui.toast(`Upgrade: ${r.why}.`); this.sound.play('clank'); return; }
-      this.pop(this.redrawPiece(p), 0.7); this.sound.play('fanfare'); this.puff(p.x, p.z);
-      this.cui.toast(`${this.data.piece(p.type).name} is Level 2.`); this.changed();
-    }
-    craft(rid) {
-      const r = this.castle.craft(rid); if (!r.ok) { this.cui.toast(`${this.data.item(rid.replace('craft_', '')).name}: ${r.why}.`); this.sound.play('clank'); return; }
-      const id = r.items[0], pl = this.play.player; pl.addItem(id, 1); this.equipBest(pl);
-      this.play.float(this.play.me, this.data.item(id).name + '!', 'heal', K.CastleUI.ICON[id]); this.play.me.view.flash('heal');
-      this.sound.play('clank'); setTimeout(() => this.sound.play('chime'), 180);
-      this.cui.banner(this.data.item(id).name, `Attack ${this.data.item(id).atk}${id === 'ember_brand' ? ' · frost creatures burn' : ''} · your kin’s weapons follow`, id);
-      this.changed();
-    }
-    bindHeart() {
-      const r = this.castle.build(this.data.keepUpgrade.id); if (!r.ok) { this.cui.toast(`Heartfire hearth: ${r.why}.`); return; }
-      this.sound.play('whump'); this.flareT = 4; this.shake(0.6); this.changed(); this.ending();
-    }
     ringBell() { const ev = this.day.ringBell(); if (ev) { this.sound.play('horn'); this.onDayEvent(ev); } }
     touchEmberwright() {
       const c = this.castle; c.flags.add('touched:emberwright');
@@ -419,51 +289,6 @@
       for (const a of Object.values(this.kinActors)) if (a.alive && this.castle.kin.has(a.kinId) && Math.hypot(a.x - s.x, a.z - s.z) < s.r) this.hurtAlly(a, dmg * 0.5);
     }
 
-    /* ---------- combat glue ---------- */
-    damage(a, b) { return Math.max(1, Math.round((a.atk - (b.def || 0)) * (a.dmgScale || 1) * (a === this.play.me && this.workers ? this.workers.strengthMul : 1))); }   // a.dmgScale: the hero is weaker with a work tool than with a sword
-    onHit(a, b) { if (a === this.play.me) { this.sound.play('hit'); this.xp.dealt(); } if (b.raider && b.brain && this.castle.weapons.has('ember_brand') && a === this.play.me) b.brain.burnT = 3; }
-    wakeSec() { return this.castle.has('chapel') ? 2 : 5; }
-    nearestEnemy(a, range) { let best = null, bd = range; for (const e of this.play.actors) if (e.alive && (e.raider || (e.boss && this.castle.zoneOpen('troll_bridge')))) { const d = Math.hypot(e.x - a.x, e.z - a.z); if (d < bd) { bd = d; best = e; } } return best; }
-    /* the watchtower the Pinewarden climbs at dusk: the nearest one still standing and not frosted */
-    towerFor(a) {
-      let best = null, bd = Infinity;
-      for (const p of this.castle.pieces) {
-        if (p.type !== 'watchtower' || p.hp <= 0 || this.castle.isFrosted(p)) continue;
-        const d = Math.hypot(p.x - a.x, p.z - a.z); if (d < bd) { bd = d; best = p; }
-      }
-      return best;
-    }
-    nearestAlly(a, range) {
-      let best = null, bd = range; const me = this.play.me;
-      if (me.alive) { const d = Math.hypot(me.x - a.x, me.z - a.z); if (d < bd) { bd = d; best = me; } }
-      for (const k of Object.values(this.kinActors)) if (k.alive && this.castle.kin.has(k.kinId) && !k.manning) { const d = Math.hypot(k.x - a.x, k.z - a.z); if (d < bd) { bd = d; best = k; } }
-      return best;
-    }
-    hurtAlly(k, n) { k.hp -= n; k.view.flash('hit'); this.play.float(k, '-' + Math.round(n), 'hurt'); if (k.hp <= 0 && k.brain && k.brain.knock) k.brain.knock(); }
-    /* damage to a frost creature from anything that isn't the hero's own swing; fractions add up */
-    hurtEnemy(a, n, src, show) {
-      if (!a.alive) return; a.hp -= n; a.dmgAcc = (a.dmgAcc || 0) + n;
-      if (show || a.dmgAcc >= 4) { this.play.float(a, String(Math.round(a.dmgAcc)), src === 'glow' || src === 'burn' ? 'loot' : 'dealt'); a.dmgAcc = 0; a.view.flash('hit'); }
-      if (a.hp <= 0) this.play.kill(a);
-    }
-    onHurt(a) { this.xp.taken(); this.sweep.defend(a); }
-    onKill(a) {
-      const c = this.castle; this.wild.onKill(a); this.xp.killed(a); if (a.gameKind) this.wildGame.onKill(a);
-      if (a.raider) {
-        const drops = {};
-        for (const [r, lo, hi, p] of a.enemy.drops) if (Math.random() < p) drops[r] = (drops[r] || 0) + lo + Math.floor(Math.random() * (hi - lo + 1));
-        if (c.kin.has('emberwright')) drops.ember_shard = (drops.ember_shard || 0) + 1;
-        let y = 0; for (const [r, n] of Object.entries(drops)) { const got = Math.round(c.add(r, n)); if (got > 0) { this.play.ui.float(a.x, a.y + 1.2 + y, a.z, `+${got}`, 'loot', K.CastleUI.ICON[r]); y += 0.35; this.cui.bump(r); if (this.raid) this.raid.drops[r] = (this.raid.drops[r] || 0) + got; } }
-        if (this.raid) this.raid.killed++;
-        this.sound.play('pop');
-      }
-      if (a.boss) {
-        for (const [r, lo] of a.enemy.drops) c.add(r, lo);
-        c.flags.add('killed:rime_troll'); this.sound.play('fanfare'); this.shake(0.5); this.puff(a.x, a.z); this.puff(a.x + 0.6, a.z - 0.3);
-        this.cui.banner('The Rime Troll falls', 'It drops 10 gold, 4 iron and its warm heart. Carry the heart home to the Keep’s hearth.', 'heart');
-      }
-      this.changed();
-    }
     tracer(a, b, color) {
       const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(a.x, a.y + 1.1, a.z), new THREE.Vector3(b.x, b.y + 0.7, b.z)]);
       const l = new THREE.Line(g, new THREE.LineBasicMaterial({ color: color || 0xffe6a0, transparent: true, opacity: 1 })); l.userData.t = 0; this.group.add(l); this.tracers.push(l);
@@ -750,10 +575,6 @@
     /** the homestead extras (piles, chests, terrain...); a problem here must never stop the main save */
     safeExtras() { try { return this.persist ? this.persist.capture() : null; } catch (err) { console.warn('could not capture the homestead', err); return null; } }
     save(force) { if (!this.castle.lit) return false; const snap = this.snapshot(); if (this.mp) this.mp.saveRemote(snap, !!force); return this.slot.write(snap); }   // to this browser, and (on a server) to the server
-    restoreNodes() {
-      const s = this.saved; if (!s || !s.nodes) return;
-      for (const [id, n] of Object.entries(s.nodes)) { if (!this.play.doc.obj(id)) continue; this.play.nodes.set(id, { charges: n.charges, max: n.max, respawnAt: n.respawnIn < 0 ? Infinity : n.respawnIn ? this.play.t + n.respawnIn : 0 }); if (n.charges <= 0) this.R.setPropState(id, 'depleted'); }
-    }
 
     /* ---------- test / demo hooks ---------- */
     debugSkip(sec) { this.day.t = Math.min(this.day.t + sec, (this.day.length() || 1e9) - 0.01); }
