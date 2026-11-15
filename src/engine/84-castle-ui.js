@@ -95,10 +95,22 @@
       const next = !c.lit ? 'Light the Keep’s hearth to begin' : nx ? (nx.capped ? (cl >= 4 ? esc(c.data.raw.castleLevel.capMessage) : '') : `Next: CL ${nx.cl} at ${nx.need} castle points (${nx.have}/${nx.need})`) : 'The castle burns at its brightest';
       const w = c.bestWeapon();
       const pct = Math.max(0, Math.min(100, 100 * hp / hpMax));
-      this.$('cHud').innerHTML = `<div class="hp ${pct < 30 ? 'low' : ''}" title="Strength: eat to recover fast; rest in your house to recover slowly"><i style="width:${pct.toFixed(1)}%"></i><span>♥ ${Math.ceil(hp)}</span></div>${this.xpBar()}`;
+      const food = g.economy && g.economy.food ? g.economy.food.snapshot() : { made: 0, eaten: 1, minutesLeft: 0 };
+      this.$('cHud').innerHTML = this.healthBar(pct, hp) + this.xpBar() + this.foodSummary(food);
+
       if (this.g.tools) this.g.tools.drawer.update();
       if (this.radialOpen) this.renderRadial();
       if (this.bookOpen) this.renderBook();
+    }
+    healthBar(pct, hp) {
+      return `<div class="hp ${pct < 30 ? 'low' : ''}"
+        title="Strength: eat to recover fast; rest in your house to recover slowly">
+        <i style="width:${pct.toFixed(1)}%"></i><span>♥ ${Math.ceil(hp)}</span></div>`;
+    }
+    foodSummary(food) {
+      const tone = food.made - food.eaten < 0 ? 'low' : '';
+      const left = Number.isFinite(food.minutesLeft) ? food.minutesLeft.toFixed(0) : '∞';
+      return `<div class="food ${tone}">Food: +${food.made}/min made, −${food.eaten}/min eaten, ${left} min left</div>`;
     }
     renderGoals() {
       const goals = this.c.currentGoals(3), warn = this.g.day.kind === 'day' && this.g.day.warned;

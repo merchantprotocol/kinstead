@@ -354,6 +354,8 @@
 #castleui #cLeft #cHud{width:210px;padding:6px 8px}
 #cHud .hp{margin:0;height:18px}#cHud .hp span{line-height:18px;font-weight:700;letter-spacing:.02em}
 #cHud .hp.low i{background:linear-gradient(#ff8a7a,#c8402f)}
+#cHud .food{margin-top:4px;font:11px/1.25 system-ui;color:#c9d4e6}
+#cHud .food.low{color:#ff8a7a}
 #cDrawer:not(.open){display:none}
 
 /* sleeping: the screen fades to black */

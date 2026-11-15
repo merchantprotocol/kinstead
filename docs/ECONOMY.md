@@ -77,3 +77,20 @@ from it. Everything you own flies your banner.
   barn, woodcutter, quarry, storehouse, silo and watchtower. Talk to any of them for a report.
 - **Food:** wheat is not food. Bread, meals from the cook and roast meat are. Click bread or a potion in your purse.
 - **Wild game:** deer, elk, bison and wild horses graze in herds by day and leave at dusk. Hunt them for raw meat.
+
+## Food demand and hunger
+
+The town spends one ration per person per game-minute from stores, including the player's hero. Rations are taken in order:
+bread, beef, eggs, milk, prepared food, then raw wheat. Each whole item counts as one ration. The food HUD estimates production
+from bakeries (up to 12 loaves/minute), chickens (1 egg/minute each), cows (1 milk/2 minutes), fields (1 wheat/3 minutes per
+field square), and any direct food production. Its remaining-time estimate sums all ration goods in the purse and building
+ledgers; treat it as a planning estimate because production may be blocked by missing ingredients or full storage.
+
+When stores cannot cover a ration, workers slow after one missed minute and stop after two. They say they are hungry when
+talked to. Replenishing food restores work. Starvation causes no deaths; this is an intentional first release design choice.
+A representative mid-game town with a bakery, 24 wheat field squares and a full chicken coop (12 hens) makes about
+17.3 food units/minute: 8 wheat/minute, enough wheat for about 5.3 bread/minute, and 12 eggs/minute. The listed
+cottage/woodcutter/quarry/farm/storehouse/bakery/coop/barn/market town plus the hero is about 10 mouths (10/min), so
+this setup feeds itself. A bakery with 24 field squares but no livestock makes only about 5.3 bread/minute and needs
+more fields or animals. Cows' milk is counted against their wheat consumption. A town with 16 mouths and no
+bakery, livestock or fields has 0/minute production against 16/minute demand and will starve once stores run out.

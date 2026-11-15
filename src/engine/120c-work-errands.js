@@ -19,6 +19,14 @@
     state(s) { const v = this.a.view; if (v.state !== s && v.state !== 'hurt') v.setState(s); }
     update(dt) {
       const a = this.a, v = a.view;
+      const food = this.g.economy.food;
+      if (food && food.emptyFor >= 120) {
+        this.steps = []; a.path = null; v.carry = null; this.state('idle');
+        if (!a.hungryStopped) this.job.w.say(a, 'I am hungry.', 3);
+        a.hungryStopped = true; return;
+      }
+      a.hungryStopped = false;
+      a.speed = (this.job.opts.speed || 1.6) * (food && food.emptyFor >= 60 ? 0.5 : 1);
       if (a.chatT > 0) { this.chat(dt); return; }
       if (!this.steps.length) { this.job.next(this, dt); if (!this.steps.length) { v.work = null; this.state('idle'); return; } }
       const s = this.steps[0];

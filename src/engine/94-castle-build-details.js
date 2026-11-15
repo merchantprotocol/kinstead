@@ -70,10 +70,20 @@
         <h3>Materials</h3>${this.materialRows(cost)}
         <p class="detail-verdict ${verdictClass}">${this.escape(verdict)}</p>
         <h3>What it does</h3>${this.production(data)}${this.payback(card)}${this.durability(data)}
-        ${this.effect(data, card)}${this.castlePoints(data)}
+        ${this.effect(data, card)}${this.populationImpact(card)}${this.castlePoints(data)}
         <p><b>Requirements:</b> ${requirements}</p>${priceRule}
         <button class="cb pri detail-build" data-detail-build ${canBuild ? '' : 'disabled'}>${button}</button>
       </div>`;
+    }
+
+    populationImpact(card) {
+      const mouths = { cottage: 1, bunkhouse: 0, woodcutter: 1, quarry: 1, farm: 1, mill: 1, storehouse: 1,
+        bakery: 1, coop: 1, barn: 1, market: 1 }[card.id];
+      if (!mouths) return '';
+      const demand = mouths;
+      const feeds = { bakery: 'Bread feeds up to 12 people', coop: 'Each chicken feeds 1 person',
+        barn: 'Each cow produces milk for 1 person', farm: 'Every 3 wheat fields feed 1 person' }[card.id] || '';
+      return `<p>+${mouths} mouths (−${demand} food/min)${feeds ? ` · ${feeds}` : ''}</p>`;
     }
 
     art(card) {

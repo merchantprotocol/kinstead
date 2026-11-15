@@ -188,7 +188,7 @@
   }
 
   class Economy {
-    constructor(game) { this.g = game; this.ledgers = new Map(); this.listeners = new Set(); this.ownerId = null; this.carts = []; this.piles = new Map(); this.fields = new Fields(this); this.t = 0; this.drawT = 0; this.vaults = new Map(); this.stock = new K.Livestock(this); }
+    constructor(game) { this.g = game; this.ledgers = new Map(); this.listeners = new Set(); this.ownerId = null; this.carts = []; this.piles = new Map(); this.fields = new Fields(this); this.t = 0; this.drawT = 0; this.vaults = new Map(); this.stock = new K.Livestock(this); this.food = new K.FoodDemand(this); }
     onChange(listener) { this.listeners.add(listener); return () => this.listeners.delete(listener); }
     changed(kind) { for (const listener of this.listeners) listener(kind); }
     get pieces() { return this.g.castle.pieces; }
@@ -227,7 +227,7 @@
       this.t -= dt; this.drawT -= dt;
       this.carts = this.carts.filter((c) => c.update(dt));
       if (this.t <= 0) { this.t = 1; this.fields.grow(1); this.stock.tick(1); this.dispatch(); this.tidy(); }
-      this.stock.update(dt);
+      this.stock.update(dt); this.food.update(dt);
       if (this.drawT <= 0) { this.drawT = 1; this.fields.draw(); this.dress(); }
     }
     /** send a cart from any farm with a load waiting (to a silo with room, else the market) */
