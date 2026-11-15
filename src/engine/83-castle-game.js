@@ -246,6 +246,7 @@
       G.castle = this;   // test hook (and the console's best friend)
     }
     exit() {
+      if (this.entitySources) for (const id of this.entitySources.keys()) this.removeEntitySource(id);
       this.play.app.rig.maxDist = null; if (this.minimap) this.minimap.dispose(); if (this.vitals) this.vitals.dispose(); if (this.home) this.home.dispose();
       this.save(); if (this.tools) this.tools.dispose(); if (this.sweep) this.sweep.dispose(); if (this.demolisher) this.demolisher.dispose(); if (this.site) this.site.dispose(); if (this.brush) this.brush.dispose(); if (this.mp) this.mp.dispose(); if (this.weather) this.weather.dispose(); if (this.towers) this.towers.dispose(); if (this.economy) this.economy.dispose(); if (this.workers) this.workers.dispose(); if (this.wildGame) this.wildGame.dispose(); if (this.flags) this.flags.dispose(); if (this.purse) this.purse.dispose(); if (this.buildingPanel) this.buildingPanel.dispose();
       if (this.origPlace) this.R.placeDynamics = this.origPlace;
@@ -308,7 +309,21 @@
       const out = this.home ? this.home.entities() : [];
       for (const p of this.castle.pieces) out.push(this.pieceEnt(p));
       if (this.mp) for (const e of this.mp.world.entities().concat(this.mp.stores.entities())) out.push(e);   // other settlers' walls, gates and doors
+      for (const source of this.entitySources ? this.entitySources.values() : []) out.push(...source.entities());
       return out;
+    }
+    addEntitySource(source) {
+      if (!this.entitySources) this.entitySources = new Map();
+      if (this.entitySources.has(source.id)) this.removeEntitySource(source.id);
+      this.entitySources.set(source.id, source);
+      return source;
+    }
+    removeEntitySource(id) {
+      const source = this.entitySources && this.entitySources.get(id);
+      if (!source) return false;
+      this.entitySources.delete(id);
+      source.dispose();
+      return true;
     }
     pieceEnt(p) {
       if (!p.ent) { const [w, d] = CastleArt.size(p.type); p.ent = { id: 'c-p' + p.uid, type: 'c_piece', piece: p, x: p.x, z: p.z, y: 0, r: K.Breacher.GATES.has(p.type) ? Math.max(w, d) / 2 : Math.max(0.5, Math.min(w, d) / 2 + 0.2), h: { watchtower: 4.6, great_hall: 2.8, gatehouse: 3, stone_gate: 3.2, stone_wall: 3.4, stone_tower: 4 }[p.type] || 1.8 }; }
