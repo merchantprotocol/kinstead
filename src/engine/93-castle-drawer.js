@@ -8,7 +8,7 @@
   const K = G.K;
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const GROUPS = [['terrain', 'Land'], ['defense', 'Walls'], ['producer', 'Workshops'], ['storage', 'Storage'], ['building', 'Buildings']];
-const BUILDABLE = new Set(['dirt', 'palisade', 'gate', 'stone_wall', 'stone_gate', 'woodcutter', 'quarry', 'storehouse', 'blacksmith']);   // what you can place by the square
+const BUILDABLE = new Set(['dirt', 'palisade', 'gate', 'stone_wall', 'stone_gate', 'woodcutter', 'quarry', 'storehouse', 'cottage', 'blacksmith']);   // what you can place by the square
 
   /** Replace an element's HTML only if it changed; keep its scroll. */
   const patch = (el, html) => { if (el._h === html) return; const top = el.scrollTop; el._h = html; el.innerHTML = html; el.scrollTop = top; };
@@ -47,7 +47,7 @@ const BUILDABLE = new Set(['dirt', 'palisade', 'gate', 'stone_wall', 'stone_gate
       for (const id of d.pieceIds()) {
         if (!BUILDABLE.has(id)) continue;
         const ruin = c.ruinOpen(id), p = d.piece(id), why = c.blocker(id, { ruin, ignoreCost: true }); if (why && /already/.test(why)) continue;
-        const mine = id === 'blacksmith' && this.g.smithy ? 'already built' : why, cost = c.buildCost(id, { ruin }), state = mine ? 'locked' : c.canAfford(cost) ? 'ok' : 'poor';
+        const mine = (id === 'blacksmith' && this.g.smithy) || (id === 'cottage' && this.g.home.built) ? 'already built' : why, cost = c.buildCost(id, { ruin }), state = mine ? 'locked' : c.canAfford(cost) ? 'ok' : 'poor';
         rows.push({ id, kind: ruin ? 'ruin' : id === 'mine' ? 'site' : 'place', group: p.category, name: ruin ? `Restore the ${p.name}` : p.name, cost, state, why: mine, icon: S.PIECE_ICON[id], art: id, line: p.effect || '' });
       }
       const html = [];

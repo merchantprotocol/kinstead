@@ -282,7 +282,7 @@
    "requiresCastleLevel": 1,
    "castlePoints": 4,
    "hp": 80,
-   "effect": "A woodcutter's hut. It brings in wood on its own. The first thing to build.",
+   "effect": "A woodcutter's hut. It brings in wood on its own. Needs your cottage first.",
    "artPrompt": "a small log lodge with a chopping block, a stacked woodpile and a big axe in a stump",
    "produces": {
     "wood": 6
@@ -303,7 +303,9 @@
      "paybackMinWithSmithy": 4.5
     }
    ],
-   "buildRequires": [],
+   "buildRequires": [
+    "cottage"
+   ],
    "paybackMin": 1.7
   },
   "quarry": {
@@ -608,6 +610,21 @@
    "buildRequires": [
     "blacksmith"
    ]
+  },
+  "cottage": {
+   "id": "cottage",
+   "name": "Cottage",
+   "category": "building",
+   "cost": {
+    "wood": 40,
+    "stone": 20
+   },
+   "requiresCastleLevel": 1,
+   "castlePoints": 0,
+   "hp": 0,
+   "effect": "Your home. Sleep here, keep your door, and stay out of the cold. Build it on your own plot, and build it first.",
+   "artPrompt": "a small timber cottage with a thatched roof",
+   "buildRequires": []
   }
  },
  "keepUpgrade": {

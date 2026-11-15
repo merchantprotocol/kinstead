@@ -91,7 +91,7 @@
     /** everything the server holds, applied in one go (join, or coming back after a dropped connection) */
     snapshot(m) {
       const w = m.world || {}, me = this.net.id;
-      for (const c of m.claimed || []) { this.owners[c.id] = c.name; this.owners[c.slot] = c.name; if (c.slot !== this.g.L.slot) this.cottage(c.slot); }
+      for (const c of m.claimed || []) { this.owners[c.id] = c.name; this.owners[c.slot] = c.name; if (c.slot !== this.g.L.slot && c.spec) this.cottage(c.slot, c.spec); }
       for (const b of Object.values(w.buildings || {})) if (b.owner !== me) this.building(b.id, b.spec);
       for (const p of Object.values(w.pieces || {})) if (p.owner !== me) this.addPiece(p);
       let box = null; for (const t of Object.values(w.tiles || {})) { this.setTile(t[0], t[1], t[2], t[3], false); box = this.grow(box, t[0], t[1]); }
@@ -110,13 +110,13 @@
       if (op.k === 'piece+' || op.k === 'piece-') this.propsDirty = true;
     }
     /** a settler's cottage on their plot */
-    cottage(slot) {
-      const id = 'home:' + slot; if (this.cottages.has(id) || slot === this.g.L.slot) return; this.cottages.add(id);
-      const spec = this.g.L.cottageAt(slot, id); this.building(id, spec);
+    cottage(slot, given) {
+      const id = 'home:' + slot; if (this.cottages.has(id) || slot === this.g.L.slot || !given) return; this.cottages.add(id);
+      const spec = Object.assign({}, given, { id }); this.building(id, spec);
       const obj = this.play.doc.obj(id); if (obj) { this.remoteDoor(slot, obj, null); this.g.play.refreshProps(); }
     }
     building(id, spec) {
-      const g = this.g, doc = this.play.doc; if (doc.obj(id)) return; const s = K.BuildingSpec.normalize(Object.assign({}, spec, { id })); doc.objects.push(s);
+      const g = this.g, doc = this.play.doc; if (doc.obj(id)) return; const s = K.BuildingSpec.normalize(Object.assign({}, spec, { id })); if (/^home:/.test(id)) s.noDoorLeaves = true; doc.objects.push(s);
       g.R.syncBuildings(true); this.play.nav.applyBuildings(g.R.buildings); this.play.bplay.dirty(); this.play.refreshProps();
     }
     removeBuilding(id) { const doc = this.play.doc, i = doc.objects.findIndex((o) => o.id === id); if (i < 0) return; doc.objects.splice(i, 1); this.g.R.syncBuildings(true); this.play.nav.applyBuildings(this.g.R.buildings); this.play.refreshProps(); }
@@ -228,7 +228,8 @@
   class Multiplayer {
     constructor(game, net) {
       this.g = game; this.net = net; this.world = new RemoteWorld(game, net); this.avatars = new Avatars(game, net); this.stores = new RemoteStores(game, net); this.lastSave = -1e9; this.t = 0; this.chat = null;
-      net.on('join', (m) => { this.avatars.add(m.p); this.world.cottage(m.p.slot); game.cui.toast(`${m.p.name} joined.`); });
+      net.on('join', (m) => { this.avatars.add(m.p); game.cui.toast(`${m.p.name} joined.`); });
+      net.on('house', (m) => this.onHouse(m));
       net.on('leave', (m) => { const r = this.avatars.by.get(m.id); if (r) game.cui.toast(`${r.name} left.`); this.avatars.remove(m.id); });
       net.on('tick', (m) => this.avatars.ticks(m.p));
       net.on('op', (m) => this.onOp(m));
@@ -250,6 +251,7 @@
     /** tell the server what you already have on your plot (a game from before multiplayer, or one saved on this device) */
     uploadMine() {
       const g = this.g, tiles = [], d = g.play.doc, h0 = g.persist.h0, t0 = g.persist.t0;
+      if (g.home.built) this.announceHome();
       for (const p of g.castle.pieces) this.op({ k: 'piece+', id: this.pieceId(p), type: p.type, x: p.x, z: p.z, rot: p.rot || 0 });
       if (g.smithy) this.op({ k: 'bld+', id: 'smithy:' + this.net.id, spec: g.smithy });
       for (let k = 0; k < d.height.length; k++) if (d.height[k] !== h0[k] || d.terrain[k] !== t0[k]) { tiles.push([k % d.w, (k / d.w) | 0, d.height[k], d.terrain[k]]); if (tiles.length >= 400) { this.op({ k: 'tiles', list: tiles.splice(0) }); } }

@@ -4,7 +4,8 @@ const mk = (cid, name) => new Promise((res) => { const ws = new WebSocket(url), 
 const A = await mk('aaaaaaaa-1', 'Ann'), B = await mk('bbbbbbbb-2', 'Bo'); await wait(500);
 const aid = 'aaaaaaaa', bid = 'bbbbbbbb';
 A.send({ t: 'pos', x: 10, z: 12, y: 0, f: 0, s: 'idle', tool: 'sword' }); B.send({ t: 'pos', x: 11, z: 12, y: 0, f: 0, s: 'idle', tool: 'warhammer' });
-A.send({ t: 'op', op: { k: 'piece+', id: aid + ':1', type: 'gate', x: 10, z: 13, rot: 0 } }); await wait(300);
+A.send({ t: 'op', op: { k: 'bld+', id: 'home:0', spec: { x: 20, z: 20, footprint: { w: 10, h: 7 } } } }); A.send({ t: 'op', op: { k: 'piece+', id: aid + ':1', type: 'gate', x: 10, z: 13, rot: 0 } }); await wait(300);
+console.log('house announced to B:', B.has('house', (m) => m.slot === 0));
 B.send({ t: 'open', id: aid + ':1', open: true }); await wait(300); console.log('stranger opens gate -> locked:', B.has('locked'), '| gate msg:', B.has('gate'));
 A.send({ t: 'open', id: aid + ':1', open: true }); await wait(300); console.log('owner opens gate -> gate msg:', B.has('gate'));
 B.send({ t: 'op', op: { k: 'piece-', id: aid + ':1' } }); await wait(300); console.log('stranger forged piece- blocked (no op to A):', !A.has('op', (m) => m.op.k === 'piece-'));

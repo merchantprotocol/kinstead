@@ -174,7 +174,7 @@
       if (!this.resume) this.slot.clear();
       if ((this.net && this.net.welcome.evicted) || (G.localStorage && G.localStorage.getItem('kinstead.evict'))) { try { G.localStorage.removeItem('kinstead.evict'); } catch (e) { /* ignore */ } this.saved = this.evictedSave(this.saved); }   // your castle was taken: you keep what you carry, not the land
       if (this.saved) { this.castle = K.Castle.fromJSON(this.data, this.saved.castle); const d = Object.assign({}, this.saved.day); if (this.day.phases[d.idx] && this.day.phases[d.idx].kind === 'night') d.t = 0; this.day = new K.DayCycle(this.data, d); this.playTime = this.saved.playTime || 0; }
-      if (!this.saved) { this.castle.add('wood', 6); this.castle.add('stone', 4); this.castle.add('dirt', 4); this.castle.add('arrow', 12); this.castle.weapons.add('stoneblade'); }   // you start with a little of everything and a blade
+      if (!this.saved) { this.castle.add('wood', 70); this.castle.add('stone', 35); this.castle.add('dirt', 4); this.castle.add('arrow', 12); this.castle.weapons.add('stoneblade'); this.freshStart = true; }   // you start with a little of everything and a blade
       this.day.phases = K.Calendar.PHASES;   // looping day and night
       this.noXp = true; this.swingSec = this.data.swingSec;
     }
@@ -190,7 +190,7 @@
     get app() { return this.play.app; }
     get R() { return this.play.R; }
     get ui() { return this.cui; }
-    makePlayer() { this.xp = this.xp || new K.Experience(this); const p = new CastleHero(this.play.items, this.castle); p.xp = this.xp; p.addItem('ember_lantern', 1); for (const w of this.castle.weapons) { p.addItem(w, 1); } this.equipBest(p); p.healFull(); return p; }
+    makePlayer() { this.xp = this.xp || new K.Experience(this); const p = new CastleHero(this.play.items, this.castle); p.xp = this.xp; p.addItem('ember_lantern', 1); if (this.freshStart) p.addItem('bread', 10); /* you arrive with food to last a while */ for (const w of this.castle.weapons) { p.addItem(w, 1); } this.equipBest(p); p.healFull(); return p; }
     equipBest(p) { const w = this.castle.bestWeapon(); if (w && p.count(w.id)) p.equip(w.id); }
 
     /* ---------- enter / exit ---------- */
@@ -207,7 +207,7 @@
         play.me.x = play.spawn.x; play.me.z = play.spawn.z; play.me.y = play.nav.y(play.spawn.x, play.spawn.z); }
       // your hut: the fire, the furniture, the barrels. No keep, ruins, outcrop or zone barriers.
       this.walls = new K.WallDrawer(this);   // before any saved pieces come back: placing and blocking a piece asks it what it is
-      this.gateTiles = new Set(); this.smithy = null; this.forge = null; this.home = new K.Home(this); this.castle.extraHas = (t) => t === 'blacksmith' && !!this.smithy; this.keepMesh = null; this.ruinEnts = {}; this.outcropEnt = null;
+      this.gateTiles = new Set(); this.smithy = null; this.forge = null; this.home = new K.Home(this); this.castle.extraHas = (t) => (t === 'blacksmith' && !!this.smithy) || (t === 'cottage' && this.home.built); this.keepMesh = null; this.ruinEnts = {}; this.outcropEnt = null;
       this.keepEnt = { id: 'c-home', type: 'c_keep', name: 'Your home', x: this.L.keep.x, z: this.L.keep.z, y: 0, r: 0.1, h: 2, goal: [this.home.doorPoint.x, this.home.doorPoint.z] };
       if (!this.castle.lit) this.castle.light();
       for (const p of this.castle.pieces) this.addPieceMesh(p);
@@ -229,7 +229,7 @@
       play.app.rig.set({ dist: 11, pitch: 0.78 }); play.app.rig.maxDist = 44;   // you can never zoom out far enough to see the edge of the world
       this.persist = new K.Persist(this); if (this.saved && this.saved.extras) { try { this.persist.restore(this.saved.extras); } catch (err) { console.warn('could not restore the homestead', err); } }
       if (this.net) { try { this.mp = new K.Multiplayer(this, this.net); this.calendar.sync = () => this.mp.cycleState(); this.mp.uploadMine(); } catch (err) { console.warn('multiplayer failed to start; playing alone', err); this.mp = null; } }   // after your own save is back, so the shared world wins
-      this.cui.toast(this.saved ? 'Welcome back.' : 'You wake in your hut. Eat, sleep, chop wood, and watch for wolves.');
+      this.cui.toast(this.saved ? 'Welcome back.' : 'You arrive with wood, stone and bread. Build your cottage first: hammer (5), then Buildings. Wolves hunt at night. Press E to eat.');
       G.castle = this;   // test hook (and the console's best friend)
     }
     exit() {
@@ -892,6 +892,7 @@
       this.sound.unlock();
       if (e.key === 'Escape') { if (!this.dismissTop()) { if (this.onLeave) this.onLeave(); } return true; }   // Esc closes what is open, else leaves the game
       if (this.mp && this.mp.key(e)) return true;
+      if (e.key.toLowerCase() === 'e' && !e.ctrlKey && !e.metaKey && !e.altKey) { this.vitals.eat(); return true; }   // eat from your bag
       if (e.key.toLowerCase() === 'i' && !e.ctrlKey && !e.metaKey && !e.altKey) { this.purse.toggle(); return true; }
       return this.cui.key(e) || this.tools.key(e);
     }

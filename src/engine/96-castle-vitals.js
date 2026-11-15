@@ -39,6 +39,14 @@
       if (this.player.hp >= this.hpMax) { g.cui.toast('You are not tired. Strength is full.'); return; }
       this.sleeping = true; this.hpAtSleep = this.player.hp; this.veil.hidden = false; g.setRespawn(inside, P.me.x, P.me.z); P.channel({ label: 'Sleeping…', time: 1e9, anim: 'idle', onDone() {} }); g.sound.play('whump');
     }
+    /** eat something from your bag: id, or (no id) the food that heals you best without wasting it */
+    eat(id) {
+      const g = this.g, p = this.player, FOOD = K.BUILDING_DATA.FOOD, missing = this.hpMax - p.hp;
+      if (!id) { let best = null; for (const s of p.bag) { if (!s || !FOOD[s.id] || FOOD[s.id].hp <= 0) continue; const h = FOOD[s.id].hp, score = h >= missing ? 1000 - h : h; if (!best || score > best.score) best = { id: s.id, score }; } id = best && best.id; }
+      if (!id || !FOOD[id] || !p.count(id)) { g.cui.toast('You have nothing to eat in your bag.'); return false; }
+      if (missing <= 0.5) { g.cui.toast('You are not hungry.'); return false; }
+      p.removeItem(id, 1); const hp = FOOD[id].hp; p.heal(hp); g.play.float(g.play.me, `+${hp}`, 'heal'); g.sound.play('gather'); g.changed(); return true;
+    }
     wake() { if (!this.sleeping) return; this.sleeping = false; this.veil.hidden = true; this.play.cancelChannel(); this.g.cui.toast('You wake.'); }
     update(dt) {
       const P = this.play; if (!P.me.alive) { if (this.sleeping) this.wake(); return; }

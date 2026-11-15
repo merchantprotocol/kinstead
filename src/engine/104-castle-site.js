@@ -62,24 +62,34 @@
   }
 
   /** A building being placed: where, which way it faces, whether the spot is acceptable. */
+  /** the buildings placed with the ghost-and-steer flow: the blacksmith workshop and your own cottage */
+  const KINDS = {
+    blacksmith: { id: 'smithy', size: [12, 9], have: (g) => !!g.smithy, haveMsg: 'you already have a blacksmith' },
+    cottage: { id: 'home', size: [10, 7], have: (g) => g.home.built, haveMsg: 'you already have a cottage' },
+  };
   class BuildingSite {
-    static get TYPE() { return 'blacksmith'; }
-    constructor(game) { this.g = game; this.turns = 0; this.anchor = null; this.steering = false; this.ghost = null; this.key = ''; this.pad = null; }
+    static get KINDS() { return KINDS; }
+    constructor(game) { this.g = game; this.turns = 0; this.anchor = null; this.steering = false; this.ghost = null; this.key = ''; this.pad = null; this._type = null; }
     get play() { return this.g.play; }
-    handles(type) { return type === BuildingSite.TYPE; }
+    /** which building is being placed (or restored) */
+    get type() { const P = this.g.cui.placing; return P && this.handles(P.type) ? P.type : this._type; }
+    handles(type) { return !!KINDS[type]; }
     get active() { const P = this.g.cui.placing; return !!P && this.handles(P.type); }
     /** the building's spec at tile (ti,tj) turned `turns` quarter-turns (door faces south at 0, west at 1, north at 2, east at 3) */
     specAt(ti, tj, turns, id) {
-      let s = K.makeBuilding('smithy', 0, 0, id || 'smithy', 23); s.furniture = s.furniture.filter((f) => ['forge', 'anvil', 'grindstone', 'workbench', 'barrel', 'sack', 'crate'].includes(f.type));   // a workshop, not a shop
-      if (turns) s = new K.BuildingEdit().rotate(s, turns); s.x = ti; s.z = tj; s.id = id || 'smithy'; return s;
+      const kind = KINDS[this.type]; let s;
+      if (this.type === 'cottage') { s = this.g.L.homeSpec(); s.x = 0; s.z = 0; }
+      else { s = K.makeBuilding('smithy', 0, 0, id || 'smithy', 23); s.furniture = s.furniture.filter((f) => ['forge', 'anvil', 'grindstone', 'workbench', 'barrel', 'sack', 'crate'].includes(f.type)); }   // a workshop, not a shop
+      if (turns) s = new K.BuildingEdit().rotate(s, turns); s.x = ti; s.z = tj; s.id = id || kind.id; if (this.type === 'cottage') s.noDoorLeaves = true; return s;
     }
-    sizeFor(turns) { return turns % 2 ? [9, 12] : [12, 9]; }
+    sizeFor(turns) { const [w, h] = KINDS[this.type].size; return turns % 2 ? [h, w] : [w, h]; }
     /** the top-left tile that centres the building on world point p */
     cornerFor(p, turns) { const [w, h] = this.sizeFor(turns); return [Math.round(p.x / TILE - w / 2), Math.round(p.z / TILE - h / 2)]; }
     /** why a building cannot go here, or null. Trees, rocks, fences and bumpy ground never count. */
     problem(ti, tj, turns) {
       const d = this.play.doc, R = this.g.R, [w, h] = this.sizeFor(turns);
-      if (this.g.smithy) return 'you already have a blacksmith';
+      const kind = KINDS[this.type]; if (kind.have(this.g)) return kind.haveMsg;
+      if (this.type === 'cottage') { const L = this.g.L; if (Math.hypot((ti + w / 2) * TILE - L.keep.x, (tj + h / 2) * TILE - L.keep.z) > 16) return 'your cottage has to stand on your own plot'; }
       for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
         const ci = ti + i, cj = tj + j; if (ci < 1 || cj < 1 || ci >= d.w - 1 || cj >= d.h - 1) return 'that is off the map';
         const t = d.terrain[cj * d.w + ci]; if (t === T.CHASM || t === T.WATER) return 'there is water or a chasm there';
@@ -110,7 +120,7 @@
     hover(sx, sy) {
       const p = this.ground(sx, sy); if (!p) { if (this.ghost) this.ghost.group.visible = false; return; }
       const [ti, tj] = this.cornerFor(p, this.turns), why = this.problem(ti, tj, this.turns); this.showGhost(ti, tj, this.turns, !why); this.ghost.group.visible = true;
-      this.g.play.ui.tip(why ? `<b>Can’t build here</b> · ${why}` : `<b>Blacksmith</b> · press to set it down, hold and swing the mouse to turn it, let go to build`, sx, sy);
+      this.g.play.ui.tip(why ? `<b>Can’t build here</b> · ${why}` : `<b>${this.g.data.piece(this.type).name}</b> · press to set it down, hold and swing the mouse to turn it, let go to build`, sx, sy);
     }
     /** press: set the building down here (it stays put while you steer) */
     down(sx, sy) {
@@ -123,7 +133,7 @@
       const dx = p.x - this.anchor.x, dz = p.z - this.anchor.z;
       if (Math.hypot(dx, dz) > 1.2) this.turns = Math.abs(dz) >= Math.abs(dx) ? (dz > 0 ? 0 : 2) : (dx < 0 ? 1 : 3);   // the door faces where the mouse went
       const [ti, tj] = this.cornerFor(this.anchor, this.turns), why = this.problem(ti, tj, this.turns); this.showGhost(ti, tj, this.turns, !why); this.ghost.group.visible = true;
-      this.g.play.ui.tip(`<b>Blacksmith</b> · let go to build it facing ${['south', 'west', 'north', 'east'][this.turns]}`, sx, sy);
+      this.g.play.ui.tip(`<b>${this.g.data.piece(this.type).name}</b> · let go to build it facing ${['south', 'west', 'north', 'east'][this.turns]}`, sx, sy);
     }
     up() {
       if (!this.steering || !this.anchor) { this.steering = false; return; }
@@ -134,21 +144,31 @@
 
     /* ---------- building it ---------- */
     build(p) {
-      const g = this.g, c = g.castle, [ti, tj] = this.cornerFor(p, this.turns), turns = this.turns, why = this.problem(ti, tj, turns) || c.blocker('blacksmith');
+      const g = this.g, c = g.castle, type = this.type, [ti, tj] = this.cornerFor(p, this.turns), turns = this.turns, why = this.problem(ti, tj, turns) || c.blocker(type);
       if (why) { g.cui.toast(why[0].toUpperCase() + why.slice(1) + '.'); g.sound.play('clank'); return false; }
-      const [w, h] = this.sizeFor(turns), play = this.play, R = g.R; c.spend(c.buildCost('blacksmith'));
+      const [w, h] = this.sizeFor(turns), play = this.play, R = g.R; c.spend(c.buildCost(type));
       this.clearSite(ti, tj, w, h); this.level(ti, tj, w, h);
-      const spec = this.specAt(ti, tj, turns, 'smithy'); play.doc.objects.push(spec);
+      const spec = this.specAt(ti, tj, turns, KINDS[type].id); play.doc.objects.push(spec);
       R.syncBuildings(true); play.nav.applyBuildings(R.buildings); play.bplay.dirty(); play.refreshProps(); g.home.door.apply();
       const me = play.me; if (!play.nav.standable(me.x, me.z)) { const q = play.nav.nearestOk(...play.nav.tile(me.x, me.z), 10); if (q) { [me.x, me.z] = play.nav.centre(...q); me.path = null; } }
-      g.xp.built('blacksmith'); g.smithy = spec; g.smithyTurns = turns; if (g.mp) g.mp.op({ k: 'bld+', id: 'smithy:' + g.mp.net.id, spec }); g.forge = g.forge || new K.Forge(g); this.clearGhost(); g.cui.stopPlacing();
-      const cx = (ti + w / 2) * TILE, cz = (tj + h / 2) * TILE; g.sound.play('whump'); g.shake(0.2); g.puff(cx, cz); g.cui.toast('Blacksmith built. Click the anvil to forge new weapons.'); g.changed(); return true;
+      this.adopt(type, spec, turns); g.xp.built(type); this.clearGhost(); g.cui.stopPlacing();
+      const cx = (ti + w / 2) * TILE, cz = (tj + h / 2) * TILE; g.sound.play('whump'); g.shake(0.2); g.puff(cx, cz);
+      if (type === 'cottage') { g.setRespawn('home', g.home.center.x - 0.25, g.home.center.z + 0.75); g.cui.toast('Your cottage is built. Sleep in the bed to wake here, keep out of the cold, and shut the door on the dark.'); }
+      else g.cui.toast('Blacksmith built. Click the anvil to forge new weapons.');
+      g.changed(); return true;
     }
-    /** put a saved blacksmith back (no cost, no ceremony) */
-    restore(ti, tj, turns) {
-      const g = this.g, play = this.play, R = g.R, spec = this.specAt(ti, tj, turns, 'smithy'); play.doc.objects.push(spec);
-      R.syncBuildings(true); play.nav.applyBuildings(R.buildings); play.bplay.dirty(); play.refreshProps(); g.home.door.apply();
-      g.smithy = spec; g.smithyTurns = turns; g.forge = g.forge || new K.Forge(g);
+    /** the building is up: hook it into the game (and tell everyone else) */
+    adopt(type, spec, turns) {
+      const g = this.g;
+      if (type === 'cottage') { g.home.raise(spec); g.homeTurns = turns; g.home.door.apply(); if (g.mp) g.mp.announceHome(); }
+      else { g.smithy = spec; g.smithyTurns = turns; if (g.mp) g.mp.op({ k: 'bld+', id: 'smithy:' + g.mp.net.id, spec }); g.forge = g.forge || new K.Forge(g); }
+    }
+    /** put a saved building back (no cost, no ceremony) */
+    restore(type, ti, tj, turns) {
+      const g = this.g, play = this.play, R = g.R; this._type = type; const spec = this.specAt(ti, tj, turns, KINDS[type].id); play.doc.objects.push(spec);
+      R.syncBuildings(true); play.nav.applyBuildings(R.buildings); play.bplay.dirty(); play.refreshProps();
+      if (type === 'cottage') { g.home.raise(spec); g.homeTurns = turns; g.home.door.apply(); } else { g.smithy = spec; g.smithyTurns = turns; g.forge = g.forge || new K.Forge(g); }
+      this._type = null;
     }
     /** wipe out whatever stands on the plot: trees, boulders, your fences and walls */
     clearSite(ti, tj, w, h) {

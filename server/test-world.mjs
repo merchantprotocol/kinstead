@@ -11,6 +11,6 @@ B.send({ t: 'take', id: 'aaaaaaaa:food', n: 10 }); await wait(300); console.log(
 console.log('stock broadcast', B.last('stock').stock);
 A.send({ t: 'stock', id: 'food', d: -2 }); await wait(200); console.log('owner delta ->', A.last('stock').stock);
 A.send({ t: 'fx', fx: { k: 'pk+', id: 'x1', kind: 'wood', value: 1, x: 1, y: 1, z: 1 } }); await wait(200); console.log('B got pickup fx', B.has('fx', (m) => m.fx.id === 'x1'));
-A.send({ t: 'respawn', slot: 0, x: 117, z: 100 }); await wait(200);
+A.send({ t: 'op', op: { k: 'bld+', id: 'home:0', spec: { x: 230, z: 195, footprint: { w: 10, h: 7 } } } }); await wait(200); A.send({ t: 'respawn', slot: 0, x: 117, z: 100 }); await wait(200);
 const A2 = await mk('aaaaaaaa-1', 'Ann'); await wait(600); const w2 = A2.last('welcome'); console.log('rejoin: save kept', !!w2.save, 'respawn', JSON.stringify(w2.respawn), 'stores', w2.stores.length);
 process.exit(0);

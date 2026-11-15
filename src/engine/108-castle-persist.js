@@ -27,6 +27,8 @@
         weapons: this.weaponIds(g.tools.belt.weapons), held: g.tools.tool.kind === 'weapon' ? g.tools.tool.id : null,
         tray: g.forge ? g.forge.tray.map((t) => (t.kind === 'weapon' ? { weapon: t.id } : { res: t.id, n: t.n })) : [],
         smithy: g.smithy ? { x: g.smithy.x, z: g.smithy.z, turns: g.smithyTurns || 0 } : null,
+        home: g.home.built ? { x: g.home.spec.x, z: g.home.spec.z, turns: g.homeTurns || 0 } : null,
+        bag: g.play.player.bag.filter((q) => q).map((q) => [q.id, q.n]),
         xp: g.xp.toJSON(), moved: mp ? {} : g.forest.moved, wolves: g.wild.difficulty.wolvesSpawned,
       };
     }
@@ -42,7 +44,9 @@
         if (!g.forest.live(e)) g.forest.cleared(e);
       }
       play.R.objectsChanged(false);
-      if (x.smithy) g.site.restore(x.smithy.x, x.smithy.z, x.smithy.turns);
+      if (x.home) g.site.restore('cottage', x.home.x, x.home.z, x.home.turns);   // before anything that lives in the house
+      if (x.smithy) g.site.restore('blacksmith', x.smithy.x, x.smithy.z, x.smithy.turns);
+      if (x.bag) { const p = g.play.player; for (let i = 0; i < p.bag.length; i++) p.bag[i] = null; for (const [id, n] of x.bag) p.addItem(id, n); }   // what you carry: bread, meat, the lantern
       for (const id of x.weapons || []) { if (!g.tools.belt.weapons.some((w) => w.id === id)) { const w = K.Armory.make(id); if (w) g.tools.belt.addWeapon(w); } }
       if (x.weapons && x.weapons.includes('bow') && g.home.rack) { g.home.rack.owned = true; g.home.rack.bow.visible = false; }
       if (x.held) { const w = g.tools.belt.weapons.find((q) => q.id === x.held); if (w) g.tools.belt.equip(w); }

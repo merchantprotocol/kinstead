@@ -12,25 +12,6 @@
   const K = G.K, THREE = G.THREE;
   const TILE = K.TILE;
   const STEAL = new Set(['chest', 'pantry', 'bed', 'table', 'shelf', 'bookshelf', 'wardrobe']);   // furniture a raider will carry off (if the door is open)
-  /* what stands outside. own: a stock of its own (turnips); otherwise it shows your stores of that resource */
-  const STORES = (() => {
-    const out = [
-      { id: 'wood', kind: 'barrel', name: 'Wood barrel', res: 'wood', dx: 2.5, dz: 2.9 }, { id: 'stone', kind: 'barrel', name: 'Stone barrel', res: 'stone', dx: 3.25, dz: 2.5 },
-      { id: 'food', kind: 'barrel', name: 'Meat barrel', res: 'food', dx: 2.05, dz: 3.6, own: 6 },
-      { id: 'larder', kind: 'crate', name: 'Meat crate', res: 'food', dx: 0.45, dz: 3.8, own: 5 },
-      { id: 'bread1', kind: 'crate', name: 'Crate of bread', res: 'bread', dx: -2.1, dz: 3.0, own: 8 }, { id: 'bread2', kind: 'crate', name: 'Crate of bread', res: 'bread', dx: -2.9, dz: 2.4, own: 8 }, { id: 'bread3', kind: 'crate', name: 'Crate of bread', res: 'bread', dx: 1.3, dz: 3.2, own: 6 },
-      { id: 'arrows1', kind: 'crate', name: 'Arrow crate', res: 'arrow', dx: -0.7, dz: 3.9, own: 14 }, { id: 'arrows2', kind: 'crate', name: 'Arrow crate', res: 'arrow', dx: -1.45, dz: 3.6, own: 12 },
-    ];
-    /* piled against the walls of the house: barrels and stacked crates, nearly all food. dx/dz are metres from the house centre. */
-    const pile = (tag, spots) => spots.forEach(([dx, dz], i) => out.push(i % 3 === 1
-      ? { id: `${tag}${i}`, kind: 'crate', stack: 2, name: 'Stacked crates of raw meat', res: 'food', dx, dz, own: 10 }
-      : { id: `${tag}${i}`, kind: i % 3 === 0 ? 'barrel' : 'crate', name: i % 3 === 0 ? 'Barrel of raw meat' : 'Crate of raw meat', res: 'food', dx, dz, own: i % 3 === 0 ? 8 : 5 }));
-    pile('w', [[-3.1, -1.2], [-3.1, -0.4], [-3.1, 0.4], [-3.1, 1.2], [-3.75, -0.8], [-3.75, 0], [-3.75, 0.8]]);          // west wall, two deep
-    pile('e', [[3.1, -1.2], [3.1, -0.4], [3.1, 0.4], [3.1, 1.2], [3.75, -0.8], [3.75, 0], [3.75, 0.8]]);                 // east wall, two deep
-    pile('n', [[-2, -2.2], [-1.2, -2.2], [-0.4, -2.2], [0.4, -2.2], [1.2, -2.2], [2, -2.2], [-1.6, -2.85], [-0.4, -2.85], [0.8, -2.85], [1.9, -2.85]]);   // behind the house, two deep
-    return out;
-  })();
-
   /** Something by the door that holds supplies. A raider "mines" it: each swing takes one unit out. */
   class Store {
     constructor(home, def) {
@@ -153,22 +134,34 @@
     }
   }
 
+  /** the door of a house that is not built yet: never shut, nothing to draw */
+  class NullDoor {
+    constructor(c) { this.open = false; this.broken = false; this.locked = false; this.hp = 0; this.leaf = null; this.ent = { id: 'nodoor', type: 'c_door', x: c.x, z: c.z + 3, y: 0, r: 0, h: 0 }; }
+    shutFor() { return false; } apply() {} update() {} auto() {} toggle() {} occupied() { return false; } hurt() {} repair() {}
+  }
+
   class Home {
+    /** You arrive with no house: it exists once you have built your cottage (raise()). Until then there is a door that is never shut,
+        no stores, no rack: every question about the house answers "no". */
     constructor(game) {
-      this.g = game; this.id = 'home';
-      this.spec = game.play.doc.obj(this.id); this.center = { x: game.L.keep.x, z: game.L.keep.z };
-      this.stores = STORES.map((d) => new STORE_CLASS[d.kind](this, d));
+      this.g = game; this.id = 'home'; this.built = false; this.spec = null; this.rack = null; this.stores = [];
+      this.center = { x: game.L.keep.x, z: game.L.keep.z }; this.door = new NullDoor(this.center);
+      const spec = game.play.doc.obj(this.id); if (spec) this.raise(spec);
+    }
+    /** the cottage stands: now it has a door and a weapon rack */
+    raise(spec) {
+      this.spec = spec; this.built = true; this.center = { x: (spec.x + spec.footprint.w / 2) * TILE, z: (spec.z + spec.footprint.h / 2) * TILE };
       this.door = new Door(this); this.rack = new Rack(this);
     }
     get building() { return this.g.R.buildings.get(this.id); }
-    get doorPoint() { const b = this.spec, d = b.doors.find((q) => q.kind === 'exterior'); return { x: (b.x + d.x + d.w / 2) * TILE, z: (b.z + d.z + 1.8) * TILE }; }   // just outside the front door
+    get doorPoint() { if (!this.spec) return { x: this.center.x, z: this.center.z + 3 }; const b = this.spec, d = b.doors.find((q) => q.kind === 'exterior'); return { x: (b.x + d.x + d.w / 2) * TILE, z: (b.z + d.z + 1.8) * TILE }; }   // just outside the front door
     /** are you (or a creature) standing inside the house? */
-    inside(x, z) { const i = Math.floor(x / TILE), j = Math.floor(z / TILE); return K.Footprint.inside(this.spec.footprint, i - this.spec.x, j - this.spec.z); }
+    inside(x, z) { if (!this.spec) return false; const i = Math.floor(x / TILE), j = Math.floor(z / TILE); return K.Footprint.inside(this.spec.footprint, i - this.spec.x, j - this.spec.z); }
     /** within `m` metres of the house (its footprint grown by m)? The ground there is never touched. */
-    near(x, z, m) { const b = this.spec, x0 = b.x * TILE - m, z0 = b.z * TILE - m, x1 = (b.x + b.footprint.w) * TILE + m, z1 = (b.z + b.footprint.h) * TILE + m; return x > x0 && x < x1 && z > z0 && z < z1; }
+    near(x, z, m) { if (!this.spec) return false; const b = this.spec, x0 = b.x * TILE - m, z0 = b.z * TILE - m, x1 = (b.x + b.footprint.w) * TILE + m, z1 = (b.z + b.footprint.h) * TILE + m; return x > x0 && x < x1 && z > z0 && z < z1; }
     /** a spot outside the house for a wolf to prowl around while it cannot get to you */
     prowlPoint() {
-      const b = this.spec, cx = (b.x + b.footprint.w / 2) * TILE, cz = (b.z + b.footprint.h / 2) * TILE, nav = this.g.play.nav;
+      const b = this.spec, cx = this.center.x, cz = this.center.z, nav = this.g.play.nav;
       for (let k = 0; k < 12; k++) { const a = Math.random() * 6.283, r = 4.5 + Math.random() * 3, x = cx + Math.cos(a) * r, z = cz + Math.sin(a) * (r * 0.8); if (nav.standable(x, z) && !this.inside(x, z)) return { x, z }; }
       return { x: cx + 6, z: cz + 5 };
     }
@@ -219,9 +212,9 @@
     }
     /** after a store vanishes, re-mark the ground under the ones still standing */
     reblock() { for (const s of this.stores) if (s.present) this.g.blockRect(s.x, s.z, 0.5, 0.5, 0, false); this.door.apply(); }
-    entities() { return this.stores.filter((s) => s.present).map((s) => s.ent).concat([this.door.ent, this.rack.ent]); }
+    entities() { const out = this.stores.filter((s) => s.present).map((s) => s.ent); if (this.built) out.push(this.door.ent, this.rack.ent); return out; }
     update(dt) { this.door.apply(); this.door.update(dt); this.stores.forEach((x) => x.sync()); if (this.stores.some((x) => x.pile && !x.present)) { this.stores = this.stores.filter((x) => { if (x.pile && !x.present) { if (this.g.mp) this.g.mp.storeGone(x); x.dispose(); return false; } return true; }); this.g.play.refreshProps(); } }   // the building re-reads the ground now and then; the door is written back every frame
-    dispose() { this.stores.forEach((s) => s.dispose()); this.rack.dispose(); this.g.group.remove(this.door.leaf); }
+    dispose() { this.stores.forEach((s) => s.dispose()); if (this.rack) this.rack.dispose(); if (this.door.leaf) this.g.group.remove(this.door.leaf); }
   }
 
   Object.assign(K, { Home, Door, Rack, Store, Barrel, Crate });

@@ -73,11 +73,18 @@ export class GameRoom {
   claim(cid, name) {
     const mine = this.plots[cid]; if (mine) { mine.name = name; return mine.slot; }
     const taken = new Set([...Object.values(this.plots).map((p) => p.slot), ...Object.keys(this.world.houses).map(Number)]);
-    for (let s = 0; s < MAX_PLAYERS; s++) if (!taken.has(s)) { this.plots[cid] = { slot: s, name }; this.makeHouse(s, cid, name); this.state.storage.put('plots', this.plots); return s; }
+    for (let s = 0; s < MAX_PLAYERS; s++) if (!taken.has(s)) { this.plots[cid] = { slot: s, name }; this.state.storage.put('plots', this.plots); return s; }   // a plot, nothing more: the house appears when its settler builds it
     return -1;
   }
-  /** a new house gets a door that is the settler's alone, until someone breaks it and puts up their own */
-  makeHouse(slot, cid, name) { this.world.houses[slot] = { owner: cid.slice(0, 8), name }; this.world.doors[slot] = { owner: cid.slice(0, 8), hp: DOOR_HP, hpMax: DOOR_HP, broken: false }; this.dirty = true; }
+  /** a settler built their cottage: it and its door (theirs alone, until someone breaks it and hangs their own) now exist for everyone */
+  onHome(p, op) {
+    if (op.id !== 'home:' + p.slot || !op.spec || !op.spec.footprint) return;
+    const sp = op.spec, x = (sp.x + sp.footprint.w / 2) * 0.5, z = (sp.z + sp.footprint.h / 2) * 0.5, old = this.world.houses[p.slot];
+    if (old && old.owner !== p.id && this.world.doors[p.slot] && this.world.doors[p.slot].owner !== p.id) return;   // someone else holds it now
+    this.world.houses[p.slot] = { owner: p.id, name: p.name, x, z, spec: sp };
+    if (!this.world.doors[p.slot]) this.world.doors[p.slot] = { owner: p.id, hp: DOOR_HP, hpMax: DOOR_HP, broken: false };
+    this.dirty = true; this.broadcast({ t: 'house', slot: p.slot, owner: p.id, name: p.name, x, z, spec: sp, door: this.world.doors[p.slot] });
+  }
   /** the settler whose house was taken gets a fresh plot the next time they come in */
   async evictSave(cid) {
     const raw = await this.state.storage.get('save:' + cid); if (!raw) return;
@@ -86,7 +93,7 @@ export class GameRoom {
   evict(ownerId) {
     const cid = Object.keys(this.plots).find((c) => c.slice(0, 8) === ownerId); if (!cid) return; this.evictSave(cid);
     const taken = new Set([...Object.values(this.plots).map((p) => p.slot), ...Object.keys(this.world.houses).map(Number)]);
-    for (let s = 0; s < MAX_PLAYERS; s++) if (!taken.has(s)) { this.plots[cid] = { slot: s, name: this.plots[cid].name, evicted: true }; this.makeHouse(s, cid, this.plots[cid].name); this.state.storage.put('plots', this.plots); break; }
+    for (let s = 0; s < MAX_PLAYERS; s++) if (!taken.has(s)) { this.plots[cid] = { slot: s, name: this.plots[cid].name, evicted: true }; this.state.storage.put('plots', this.plots); break; }
   }
 
   async onMessage(ws, p, m) {
@@ -96,7 +103,6 @@ export class GameRoom {
       const slot = this.claim(cid, name);
       if (slot < 0) { this.send(ws, { t: 'full' }); return; }
       Object.assign(p, { cid, id: cid.slice(0, 8), name, slot, joined: true });
-      if (!this.world.houses[slot]) this.makeHouse(slot, cid, name);
       const save = await this.state.storage.get('save:' + cid);
       const ev = this.plots[cid].evicted; if (ev) { delete this.plots[cid].evicted; this.state.storage.put('plots', this.plots); }
       this.send(ws, { t: 'welcome', id: p.id, slot, evicted: !!ev, max: MAX_PLAYERS, players: this.online().filter((q) => q !== p).map((q) => this.pub(q)), claimed: this.claimed(), world: this.world, teams: this.teamList(), gates: this.gates, save: save || null, clock: this.clock(), weather: this.weather(), respawn: this.validRespawn(p), stores: Object.values(this.stores) });
@@ -104,6 +110,7 @@ export class GameRoom {
     }
     if (!p.joined) return;
     if (m.t === 'pos') { p.x = +m.x || 0; p.z = +m.z || 0; p.y = +m.y || 0; p.f = +m.f || 0; p.s = String(m.s || 'idle').slice(0, 12); p.tool = String(m.tool || '').slice(0, 14); p.hp = +m.hp || 0; return; }
+    if (m.t === 'op' && m.op && m.op.k === 'bld+' && /^home:/.test(m.op.id || '')) { this.onHome(p, m.op); return; }
     if (m.t === 'op') { if (this.applyOp(p, m.op) !== false) this.broadcast({ t: 'op', from: p.id, op: m.op }, ws); return; }
     if (m.t === 'chat') { const text = String(m.text || '').slice(0, 160); if (text) this.broadcast({ t: 'chat', from: p.id, name: p.name, text }); return; }
     if (m.t === 'doorstate') { const d = this.world.doors[p.slot]; if (!d || d.owner !== p.id) return; d.broken = !!m.broken; if (!d.broken) d.hp = d.hpMax; this.broadcast({ t: 'door', slot: p.slot, broken: d.broken, open: d.broken ? true : undefined, hp: d.hp, max: d.hpMax }, null); this.dirty = true; return; }
@@ -124,7 +131,7 @@ export class GameRoom {
 
   pub(q) { return { id: q.id, name: q.name, slot: q.slot, team: this.teamOf(q.id), x: q.x, z: q.z, y: q.y, f: q.f, s: q.s, tool: q.tool }; }
   /** every plot that has a settler (online or not) so their cottage stands on the map */
-  claimed() { return Object.entries(this.world.houses).map(([slot, h]) => ({ id: h.owner, slot: +slot, name: h.name })); }
+  claimed() { return Object.entries(this.world.houses).map(([slot, h]) => ({ id: h.owner, slot: +slot, name: h.name, x: h.x, z: h.z, spec: h.spec })); }
 
   /** the world edits are kept as the latest state per thing, so the log never grows without bound */
   applyOp(p, op) {
@@ -211,7 +218,7 @@ export class GameRoom {
     this.dirty = true;
   }
   /** where a house's door is: the centre of its plot (the same grid the client uses) */
-  cottage(slot) { return PLOTS[slot] || { x: 0, z: 0 }; }
+  cottage(slot) { const h = this.world.houses[slot]; return h && h.x != null ? h : PLOTS[slot] || { x: 0, z: 0 }; }
   /** put up your own door on a broken one: you hold its key now, and the old owner is out */
   onInstall(p, m) {
     const d = this.world.doors[m.slot]; if (!d || !d.broken || !this.near(p, this.cottage(m.slot), 8)) return;

@@ -82,7 +82,7 @@
     objects() {
       const L = this.L, R = this.R, n = this.n, wu = L.size.w * TILE, hu = L.size.h * TILE, plan = L.plan;
       this.prop('start', L.start.x, L.start.z, { hero: 'warden' });
-      this.doc.objects.push(L.homeSpec());   // my house; other settlers' houses are added as they arrive
+      // no house yet: you arrive with the means to build one (a cottage from the hammer drawer)
       /* a spatial hash, so "is anything within m metres?" stays quick with thousands of props */
       const cell = 2.5, grid = new Map(), cellOf = (v) => Math.floor(v / cell);
       const put = (x, z) => { const k = cellOf(x) + ',' + cellOf(z); let a = grid.get(k); if (!a) grid.set(k, (a = [])); a.push([x, z]); };

@@ -150,7 +150,7 @@
     /** move a whole stack from one purse to the other (a lone purse: a weapon click equips it) */
     move(side, key, amount = 0) {
       const g = this.g, from = this.holdings(side), s0 = from.find(key); if (!s0) return; const s = Object.assign({}, s0, { n: amount > 0 ? Math.min(amount, s0.n) : s0.n });   // amount 0: the whole stack
-      if (!this.there && !this.forge) { if (s.kind === 'weapon') { g.tools.belt.equip(s.weapon); this.render(); } return; }
+      if (!this.there && !this.forge) { if (s.kind === 'weapon') { g.tools.belt.equip(s.weapon); this.render(); } else if (s.kind === 'item' && K.BUILDING_DATA.FOOD[s.id]) { g.vitals.eat(s.id); this.render(); } return; }   // click food to eat it
       if (this.forge && side === 'me') { g.cui.toast(`Click something under ${this.forge.verb} to have it made.`); return; }
       const to = this.holdings(side === 'me' ? 'there' : 'me'), why = side === 'me' && from.keep ? from.keep(s) : null; if (why) { g.cui.toast(why); return; }
       if (this.forge && side === 'there' && s.kind === 'weapon' && g.tools.belt.weapons.some((w) => w.id === s.id)) { g.cui.toast('You already have one.'); return; }
