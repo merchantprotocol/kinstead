@@ -1,0 +1,63 @@
+<!doctype html>
+<!-- Copyright (c) 2026 Merchant Protocol. All rights reserved. -->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<script>window.__errs=[];window.addEventListener('error',e=>window.__errs.push(String(e.message)));(function(){const ce=console.error;console.error=function(){window.__errs.push([].map.call(arguments,String).join(' '));ce.apply(console,arguments);};})();</script>
+<title>Kinstead · Asset Lab</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #23262d; color: #e9e6df; font: 13px/1.3 system-ui, sans-serif; display: grid; grid-template-columns: 210px 1fr; height: 100vh; overflow: hidden; }
+  body[data-light=studio], body[data-light=grok] { background: #2b2e35; }
+  aside { background: #1a1c21; overflow-y: auto; padding: 10px 8px 30px; border-right: 1px solid #343842; }
+  aside h1 { font: 600 16px Georgia, serif; margin: 2px 4px 8px; }
+  aside a { color: #9fb4c8; font-size: 12px; margin: 0 4px; }
+  aside h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #8b909b; margin: 14px 4px 4px; }
+  .pick { display: flex; justify-content: space-between; width: 100%; text-align: left; background: none; border: 0; color: inherit; padding: 4px 6px; border-radius: 4px; cursor: pointer; font: inherit; text-transform: capitalize; }
+  .pick:hover { background: #2a2e37; } .pick.on { background: #3d5366; }
+  .pick b { font-size: 10px; background: #c9902c; color: #1a1c21; padding: 0 4px; border-radius: 3px; }
+  #toolbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 12px; border-bottom: 1px solid #343842; }
+  .grp { display: flex; gap: 2px; align-items: center; margin-right: 8px; }
+  .grp > span { color: #8b909b; margin-right: 4px; font-size: 11px; }
+  button.t { background: #313641; color: inherit; border: 1px solid #454b58; padding: 4px 9px; border-radius: 4px; cursor: pointer; font: inherit; }
+  button.t.on { background: #5096b3; border-color: #5096b3; color: #fff; }
+  label { display: flex; gap: 4px; align-items: center; }
+  #info { color: #b9bdc6; font-size: 12px; padding: 4px 12px; }
+  #panes { display: flex; gap: 12px; padding: 4px 12px; align-items: flex-start; }
+  .pane { position: relative; background: #d3d5d9; border-radius: 4px; overflow: hidden; flex: none; }
+  .pane img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; pointer-events: none; z-index: 1; }
+  .pane canvas { display: block; width: 100%; height: 100%; }
+  .pane .tag { position: absolute; left: 6px; top: 6px; background: #000a; color: #fff; padding: 2px 6px; border-radius: 3px; font-size: 11px; z-index: 2; }
+  #loading { position: fixed; inset: 0; display: grid; place-items: center; background: #23262d; z-index: 9; font: 16px Georgia, serif; }
+</style>
+</head>
+<body data-light="studio">
+<aside>
+  <h1>Asset Lab</h1><a href="index.html">← Start menu</a>
+  <div id="picker"></div>
+</aside>
+<main>
+  <div id="toolbar">
+    <div class="grp"><span>View</span><button class="t on" data-mode="split">Split</button><button class="t" data-mode="overlay">Overlay</button><button class="t" data-mode="wipe">Wipe</button></div>
+    <label id="opacityWrap" hidden>Ref opacity <input id="opacity" type="range" min="0" max="1" step="0.05" value="0.5"></label>
+    <label id="wipeWrap" hidden>Wipe <input id="wipe" type="range" min="0" max="1" step="0.01" value="0.5"></label>
+    <div class="grp"><span>Light</span><button class="t on" data-light="studio">Studio</button><button class="t" data-light="grok" title="Studio grey with the warm orange back-rim of the Grok refs">Grok rim</button><button class="t" data-light="game">Game dusk</button><button class="t" data-light="night">Night campfire</button></div>
+    <div class="grp" id="anims"><span>Anim</span><button class="t on" data-anim="idle">Idle</button><button class="t" data-anim="walk">Walk</button><button class="t" data-anim="attack">Attack</button></div>
+    <label><input type="checkbox" id="orbit"> Orbit</label>
+    <label><input type="checkbox" id="dof"> DOF</label>
+    <label title="The snowy plot (off in studio light, like the cutout refs)"><input type="checkbox" id="plot"> Plot</label>
+    <button class="t" id="bReframe" title="Camera back to the reference's angle and framing">Match ref camera</button>
+    <button class="t" id="bSil" title="Silhouette overlap with the reference (studio / Grok rim light)">Silhouette %</button>
+    <button class="t" id="bSnap" title="Save the reference and the render side by side as a PNG">Snapshot compare</button>
+  </div>
+  <div id="info"></div>
+  <div id="panes">
+    <div class="pane" id="refPane"><span class="tag">Reference (Grok)</span><img id="refImg" alt=""></div>
+    <div class="pane" id="renderPane"><span class="tag">Live 3D</span><img id="refImg2" alt="" hidden></div>
+  </div>
+</main>
+<div id="loading">building the lab…</div>
+<script src="{{asset:three.min.js}}"></script>
+<script src="{{asset:engine.js}}"></script>
+<script src="{{asset:app.js}}"></script>
+<script>K.Pages.boot('lab');</script>
+</body></html>

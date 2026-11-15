@@ -1,10 +1,10 @@
 /* Copyright (c) 2026 Merchant Protocol. All rights reserved. */
-/* Kinstead · page routing between the static pages: index.html (menu), builder.html, play.html. */
+/* Kinstead · page routing between the static pages: index.html (menu), builder.html, play.html, lab.html. */
 (function (G) {
   const K = (G.K = G.K || {});
 
   class Router {
-    static PAGES = { menu: 'index.html', builder: 'builder.html', play: 'play.html' };
+    static PAGES = { menu: 'index.html', lab: 'lab.html', builder: 'builder.html', play: 'play.html' };
 
     /* location: an object with assign(url) and search (window.location, or a recorder in tests) */
     constructor(location) { this.location = location; }

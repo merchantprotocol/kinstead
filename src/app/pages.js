@@ -113,10 +113,16 @@
     }
   }
 
+  /* lab.html: the Asset Lab (src/app/lab.js) */
+  class LabPage {
+    constructor(services) { this.s = services; }
+    async start() { this.view = G.lab = new K.Lab.LabView(document, G); return this.view.start(); }
+  }
+
   const Pages = {
-    PageServices, MenuPage, BuilderPage, PlayPage,
+    PageServices, MenuPage, BuilderPage, PlayPage, LabPage,
     boot(kind) {
-      const Page = { menu: MenuPage, builder: BuilderPage, play: PlayPage }[kind];
+      const Page = { menu: MenuPage, builder: BuilderPage, play: PlayPage, lab: LabPage }[kind];
       let started = false;
       const go = () => {
         if (started) return; started = true;
