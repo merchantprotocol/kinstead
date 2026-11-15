@@ -80,8 +80,13 @@
 
   /** other people's edits, applied to your map */
   class RemoteWorld {
-    constructor(game, net) { this.g = game; this.net = net; this.pieces = new Map(); this.byId = null; this.cottages = new Set(); this.doors = new Map(); this.owners = {}; }   // doors: slot -> { door, owner, hp, max }
+    constructor(game, net) { this.g = game; this.net = net; this.pieces = new Map(); this.byId = null; this.cottages = new Set(); this.doors = new Map(); this.owners = {}; this.objDirty = false; this.propsDirty = false; }   // doors: slot -> { door, owner, hp, max }
     get play() { return this.g.play; }
+    /** a burst of other people's changes (a player joining sends dozens) is applied once per frame, not once per change */
+    flush() {
+      if (this.objDirty) { this.objDirty = false; this.play.R.objectsChanged(false); }
+      if (this.propsDirty) { this.propsDirty = false; this.play.refreshProps(); }
+    }
     node(id) { if (!this.byId) { this.byId = new Map(); for (const e of this.play.baseProps) this.byId.set(e.id, e); } return this.byId.get(id) || null; }
     /** everything the server holds, applied in one go (join, or coming back after a dropped connection) */
     snapshot(m) {
@@ -94,15 +99,15 @@
       for (const [slot, d] of Object.entries(w.doors || {})) { const rec = this.doors.get(+slot); if (rec) { rec.owner = d.owner; rec.hp = d.hp; rec.max = d.hpMax; rec.door.broken = !!d.broken; rec.door.open = !!d.broken; rec.door.apply(); } }
       for (const [id, open] of Object.entries(m.gates || {})) this.gateState(id, !!open);
       for (const n of Object.values(w.nodes || {})) this.nodeOp(n, true);
-      this.play.R.objectsChanged(false); this.play.refreshProps();
+      this.objDirty = true; this.propsDirty = true;
     }
     grow(b, i, j) { return b ? [Math.min(b[0], i), Math.min(b[1], j), Math.max(b[2], i), Math.max(b[3], j)] : [i, j, i, j]; }
     apply(op, from) {
       if (op.k === 'piece+') this.addPiece(Object.assign({ owner: from }, op)); else if (op.k === 'piece-') this.removePiece(op.id);
       else if (op.k === 'tile') this.setTile(op.i, op.j, op.h, op.te, true);
-      else if (op.k === 'tiles') { let box = null; for (const t of op.list) { this.setTile(t[0], t[1], t[2], t[3], false); box = this.grow(box, t[0], t[1]); } if (box) this.play.R.tilesChanged(box[0], box[1], box[2] + 1, box[3] + 1); } else if (op.k === 'node') { this.nodeOp(op, false); this.play.R.objectsChanged(false); }
+      else if (op.k === 'tiles') { let box = null; for (const t of op.list) { this.setTile(t[0], t[1], t[2], t[3], false); box = this.grow(box, t[0], t[1]); } if (box) this.play.R.tilesChanged(box[0], box[1], box[2] + 1, box[3] + 1); } else if (op.k === 'node') { this.nodeOp(op, false); this.objDirty = true; }
       else if (op.k === 'bld+') this.building(op.id, op.spec); else if (op.k === 'bld-') this.removeBuilding(op.id);
-      if (op.k === 'piece+' || op.k === 'piece-') this.play.refreshProps();
+      if (op.k === 'piece+' || op.k === 'piece-') this.propsDirty = true;
     }
     /** a settler's cottage on their plot */
     cottage(slot) {
@@ -211,10 +216,11 @@
       if (s.owner === this.net.id) return; const old = this.by.get(s.id); if (old) { this.setStock(s.id, s.stock); return; }
       const cls = s.kind === 'pile' ? K.Pile : s.kind === 'crate' ? K.Crate : K.Barrel;
       const view = new cls(this.fake, { id: s.id, kind: s.kind, name: s.name, res: s.res, dx: s.x, dz: s.z, own: s.stock, stack: s.stack }); view.ent.type = 'c_rstore'; view.ent.sid = s.id; view.ent.name = s.name;
-      this.by.set(s.id, { s, view }); view.sync(); this.g.play.refreshProps();
+      this.by.set(s.id, { s, view }); view.sync(); this.dirty = true;
     }
-    setStock(id, stock) { const r = this.by.get(id); if (!r) return; r.view.stock = stock; if (r.view.refresh && stock > 0) r.view.refresh(); r.view.sync(); this.g.play.refreshProps(); }
-    gone(id) { const r = this.by.get(id); if (!r) return; const g = this.g, v = r.view; g.unblockRect(v.x, v.z, 0.5, 0.5, 0); v.dispose(); this.by.delete(id); g.play.refreshProps(); }
+    setStock(id, stock) { const r = this.by.get(id); if (!r) return; r.view.stock = stock; if (r.view.refresh && stock > 0) r.view.refresh(); r.view.sync(); this.dirty = true; }
+    gone(id) { const r = this.by.get(id); if (!r) return; const g = this.g, v = r.view; g.unblockRect(v.x, v.z, 0.5, 0.5, 0); v.dispose(); this.by.delete(id); this.dirty = true; }
+    flush() { if (this.dirty) { this.dirty = false; this.g.play.refreshProps(); } }
     dropOwner(owner) { for (const [id, r] of [...this.by]) if (r.s.owner === owner) this.gone(id); }
     entities() { const out = []; for (const r of this.by.values()) if (r.view.present) out.push(r.view.ent); return out; }
   }
@@ -368,7 +374,7 @@
     op(o) { this.net.op(o); }
     pieceId(p) { return this.net.id + ':' + p.uid; }
     update(dt) {
-      this.t += dt; this.avatars.update(dt);
+      this.t += dt; this.avatars.update(dt); this.world.flush(); this.stores.flush();
       for (const r of this.world.doors.values()) r.door.update(dt);
       for (const r of this.world.pieces.values()) if (r.gate) r.gate.update(dt);
       const d = this.g.home.door; if (this.lastOpen !== d.open) { if (this.lastOpen !== null) this.net.send({ t: 'open', slot: this.g.L.slot, open: d.open }); this.lastOpen = d.open; }

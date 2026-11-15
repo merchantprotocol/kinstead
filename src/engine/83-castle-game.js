@@ -206,6 +206,7 @@
         if (rs) { play.spawn = { x: rs.x, z: rs.z }; this.respawn = rs; }
         play.me.x = play.spawn.x; play.me.z = play.spawn.z; play.me.y = play.nav.y(play.spawn.x, play.spawn.z); }
       // your hut: the fire, the furniture, the barrels. No keep, ruins, outcrop or zone barriers.
+      this.walls = new K.WallDrawer(this);   // before any saved pieces come back: placing and blocking a piece asks it what it is
       this.gateTiles = new Set(); this.smithy = null; this.forge = null; this.home = new K.Home(this); this.castle.extraHas = (t) => t === 'blacksmith' && !!this.smithy; this.keepMesh = null; this.ruinEnts = {}; this.outcropEnt = null;
       this.keepEnt = { id: 'c-home', type: 'c_keep', name: 'Your home', x: this.L.keep.x, z: this.L.keep.z, y: 0, r: 0.1, h: 2, goal: [this.home.doorPoint.x, this.home.doorPoint.z] };
       if (!this.castle.lit) this.castle.light();
@@ -223,7 +224,7 @@
       this.kinActors = {}; this.troll = null;
       this.restoreNodes();
       this.raid = null;
-      this.cui = new K.CastleUI(this); this.vitals = new K.Vitals(this); this.wild = new K.Wild(this); this.calendar.on((ev) => this.onCalendar(ev)); this.tools = new K.CastleTools(this); this.minimap = new K.Minimap(this); this.walls = new K.WallDrawer(this); this.xp = this.xp || new K.Experience(this); this.weather = new K.Weather(this); this.forest = new K.Forest(this); this.brush = new K.GroundBrush(this); this.steer = new K.PieceSteer(this); this.purse = new K.Purse(this); this.stash = new K.Stash(this); this.site = new K.BuildingSite(this); this.sweep = new K.SweepAttack(this); this.demolisher = new K.Demolisher(this); this.play.refreshProps();
+      this.cui = new K.CastleUI(this); this.vitals = new K.Vitals(this); this.wild = new K.Wild(this); this.calendar.on((ev) => this.onCalendar(ev)); this.tools = new K.CastleTools(this); this.minimap = new K.Minimap(this); this.xp = this.xp || new K.Experience(this); this.weather = new K.Weather(this); this.forest = new K.Forest(this); this.brush = new K.GroundBrush(this); this.steer = new K.PieceSteer(this); this.purse = new K.Purse(this); this.stash = new K.Stash(this); this.site = new K.BuildingSite(this); this.sweep = new K.SweepAttack(this); this.demolisher = new K.Demolisher(this); this.play.refreshProps();
       if (this.day.isNight) this.startRaid();
       play.app.rig.set({ dist: 11, pitch: 0.78 }); play.app.rig.maxDist = 44;   // you can never zoom out far enough to see the edge of the world
       this.persist = new K.Persist(this); if (this.saved && this.saved.extras) { try { this.persist.restore(this.saved.extras); } catch (err) { console.warn('could not restore the homestead', err); } }
@@ -800,7 +801,10 @@
     }
 
     /* ---------- per frame ---------- */
+    /** true once enter() has finished (events can arrive before that, or after it failed) */
+    get ready() { return !!(this.cui && this.tools && this.brush && this.glowMesh); }
     update(dt) {
+      if (!this.ready) return;
       const c = this.castle, play = this.play; this.playTime += dt;
       // economy
       const tk = c.tick(dt);
@@ -877,13 +881,14 @@
     }
 
     /* ---------- input ---------- */
-    click(sx, sy) { this.sound.unlock(); return this.tools.click(sx, sy); }
-    pointerMove(sx, sy) { return this.cui.pointerMove(sx, sy); }
-    rightClick(sx, sy) { return this.stash.rightClick(sx, sy); }
-    pointerDown(sx, sy) { return this.brush.down(sx, sy) || this.site.down(sx, sy) || this.steer.down(sx, sy) || this.walls.down(sx, sy) || this.demolisher.down(sx, sy); }
-    pointerDrag(sx, sy) { this.brush.drag(sx, sy); this.site.drag(sx, sy); this.steer.drag(sx, sy); this.walls.drag(sx, sy); this.demolisher.drag(sx, sy); }
-    pointerUp(sx, sy) { this.brush.up(sx, sy); this.site.up(sx, sy); this.steer.up(sx, sy); this.walls.up(sx, sy); this.demolisher.up(sx, sy); }
+    click(sx, sy) { if (!this.ready) return false; this.sound.unlock(); return this.tools.click(sx, sy); }
+    pointerMove(sx, sy) { return this.ready ? this.cui.pointerMove(sx, sy) : false; }
+    rightClick(sx, sy) { return this.ready ? this.stash.rightClick(sx, sy) : false; }
+    pointerDown(sx, sy) { if (!this.ready) return false; return this.brush.down(sx, sy) || this.site.down(sx, sy) || this.steer.down(sx, sy) || this.walls.down(sx, sy) || this.demolisher.down(sx, sy); }
+    pointerDrag(sx, sy) { if (!this.ready) return; this.brush.drag(sx, sy); this.site.drag(sx, sy); this.steer.drag(sx, sy); this.walls.drag(sx, sy); this.demolisher.drag(sx, sy); }
+    pointerUp(sx, sy) { if (!this.ready) return; this.brush.up(sx, sy); this.site.up(sx, sy); this.steer.up(sx, sy); this.walls.up(sx, sy); this.demolisher.up(sx, sy); }
     key(e) {
+      if (!this.ready) return false;
       this.sound.unlock();
       if (e.key === 'Escape') { if (!this.dismissTop()) { if (this.onLeave) this.onLeave(); } return true; }   // Esc closes what is open, else leaves the game
       if (this.mp && this.mp.key(e)) return true;
