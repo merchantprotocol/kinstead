@@ -7,7 +7,7 @@
 (function (G) {
   const K = G.K;
   const NEED = [0, 60, 160, 320, 560, 900, 1400, 2100, 3000];   // total XP at which levels 1..9 begin
-  const BUILD = { dirt: 1, palisade: 3, stone_wall: 4, gate: 12, stone_gate: 40, woodcutter: 30, quarry: 40, storehouse: 50, blacksmith: 60, cottage: 60, watchtower: 40, fire_pot: 4 };
+  const BUILD = { dirt: 1, palisade: 3, stone_wall: 4, gate: 12, stone_gate: 40, woodcutter: 30, quarry: 40, storehouse: 50, blacksmith: 60, cottage: 60, watchtower: 40, fire_pot: 4, farm: 30, field: 1, silo: 30, market: 50 };
   const KILL = { 'Wolf pup': 15, Wolf: 30, Bear: 90, Raider: 45, 'Armed raider': 70 };
   const BEAR_LEVEL = 4;
 

@@ -91,6 +91,34 @@
    "source": "crates, fletching wood",
    "valueSec": 2,
    "valueNote": "one wood makes four arrows"
+  },
+  "wheat": {
+   "id": "wheat",
+   "name": "Wheat",
+   "kind": "food",
+   "source": "your town",
+   "valueSec": 2
+  },
+  "egg": {
+   "id": "egg",
+   "name": "Eggs",
+   "kind": "food",
+   "source": "your town",
+   "valueSec": 2
+  },
+  "milk": {
+   "id": "milk",
+   "name": "Milk",
+   "kind": "food",
+   "source": "your town",
+   "valueSec": 2
+  },
+  "beef": {
+   "id": "beef",
+   "name": "Beef",
+   "kind": "food",
+   "source": "your town",
+   "valueSec": 2
   }
  },
  "itemAliases": {
@@ -167,7 +195,11 @@
    "ember_shard": 20,
    "dirt": 60,
    "food": 40,
-   "arrow": 60
+   "arrow": 60,
+   "wheat": 60,
+   "egg": 30,
+   "milk": 30,
+   "beef": 20
   },
   "baseFrom": "the Keep",
   "rule": "production and gathering stop at the cap; a full producer shows a red 'FULL' flag (the hint to build a Storehouse or spend)",
@@ -642,6 +674,73 @@
    "effect": "A pot of burning coals. Lights up your camp at night, and standing near it keeps the cold off.",
    "artPrompt": "an iron fire pot on a stone base",
    "buildRequires": []
+  },
+  "farm": {
+   "id": "farm",
+   "name": "Farm",
+   "category": "farming",
+   "cost": {
+    "wood": 20,
+    "stone": 6
+   },
+   "requiresCastleLevel": 1,
+   "castlePoints": 0,
+   "hp": 200,
+   "effect": "A barn for a farmer. Draw wheat fields around it (Wheat field, in the drawer): the bigger the field, the more wheat.",
+   "artPrompt": "Farm",
+   "buildRequires": [
+    "cottage"
+   ]
+  },
+  "field": {
+   "id": "field",
+   "name": "Wheat field",
+   "category": "farming",
+   "cost": {
+    "wood": 1
+   },
+   "requiresCastleLevel": 1,
+   "castlePoints": 0,
+   "hp": 0,
+   "effect": "One square of tilled field, sown with wheat. Draw it within 14 m of a farm. It grows sprout, green, gold, then gives 1 wheat and starts again.",
+   "artPrompt": "Wheat field",
+   "buildRequires": [
+    "farm"
+   ]
+  },
+  "silo": {
+   "id": "silo",
+   "name": "Grain silo",
+   "category": "farming",
+   "cost": {
+    "wood": 16,
+    "stone": 20
+   },
+   "requiresCastleLevel": 1,
+   "castlePoints": 0,
+   "hp": 200,
+   "effect": "Stores up to 200 wheat. Wheat goes here first; the marketplace takes what does not fit.",
+   "artPrompt": "Grain silo",
+   "buildRequires": [
+    "farm"
+   ]
+  },
+  "market": {
+   "id": "market",
+   "name": "Marketplace",
+   "category": "trade",
+   "cost": {
+    "wood": 30,
+    "stone": 20
+   },
+   "requiresCastleLevel": 1,
+   "castlePoints": 0,
+   "hp": 400,
+   "effect": "Your storehouse and shop. Carts bring everything your town makes here, and you can watch the crates pile up.",
+   "artPrompt": "Marketplace",
+   "buildRequires": [
+    "cottage"
+   ]
   }
  },
  "keepUpgrade": {

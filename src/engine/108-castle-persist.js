@@ -29,7 +29,7 @@
         smithy: g.smithy ? { x: g.smithy.x, z: g.smithy.z, turns: g.smithyTurns || 0 } : null,
         home: g.home.built ? { x: g.home.spec.x, z: g.home.spec.z, turns: g.homeTurns || 0 } : null,
         bag: g.play.player.bag.filter((q) => q).map((q) => [q.id, q.n]),
-        xp: g.xp.toJSON(), moved: mp ? {} : g.forest.moved, wolves: g.wild.difficulty.wolvesSpawned,
+        xp: g.xp.toJSON(), economy: g.economy ? g.economy.toJSON() : null, moved: mp ? {} : g.forest.moved, wolves: g.wild.difficulty.wolvesSpawned,
       };
     }
     restore(x) {
@@ -56,6 +56,7 @@
       if (x.tray && x.tray.length) { g.forge = g.forge || new K.Forge(g); g.forge.restoreTray(x.tray); }
       if (x.wolves) g.wild.difficulty.wolvesSpawned = x.wolves;
       if (x.xp) g.xp.restore(x.xp);
+      if (x.economy && g.economy) g.economy.restore(x.economy);
       if (x.respawn && !g.net) { g.respawn = x.respawn; g.play.spawn = { x: x.respawn.x, z: x.respawn.z }; }
     }
   }

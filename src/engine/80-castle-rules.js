@@ -4,7 +4,7 @@
    runs in the game and in `node --test`. Every number comes from game-data-castle.json (K.CASTLE_DATA). */
 (function (G) {
   const K = (G.K = G.K || {});
-  const RES = ['wood', 'stone', 'dirt', 'food', 'arrow', 'iron', 'gold', 'ember_shard'];
+  const RES = ['wood', 'stone', 'dirt', 'food', 'arrow', 'iron', 'gold', 'ember_shard', 'wheat', 'egg', 'milk', 'beef'];
   const KEY_ITEMS = ['troll_heart'];
 
   /* ---------- the data, with lookups and the one item vocabulary ---------- */
@@ -57,7 +57,7 @@
       return `${gain} · pays for itself in ${m.toFixed(1)} min`;
     }
   }
-  CastleData.NAMES = { wood: 'wood', stone: 'stone', dirt: 'dirt', food: 'food', arrow: 'arrows', iron: 'iron', gold: 'gold', ember_shard: 'ember', troll_heart: "troll's heart" };
+  CastleData.NAMES = { wood: 'wood', stone: 'stone', dirt: 'dirt', food: 'food', arrow: 'arrows', iron: 'iron', gold: 'gold', ember_shard: 'ember', wheat: 'wheat', egg: 'eggs', milk: 'milk', beef: 'beef', troll_heart: "troll's heart" };
   CastleData.resName = (r) => CastleData.NAMES[r] || r;
 
   /* ---------- the castle: pieces, stores, Castle Level, production, crafting, raid losses ---------- */

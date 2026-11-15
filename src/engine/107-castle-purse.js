@@ -10,8 +10,8 @@
 (function (G) {
   const K = G.K;
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const ORDER = ['wood', 'stone', 'dirt', 'iron', 'food', 'arrow', 'gold', 'ember_shard'];
-  const NAME = { wood: 'Wood', stone: 'Stone', dirt: 'Dirt', iron: 'Iron', food: 'Food', arrow: 'Arrows', gold: 'Gold', ember_shard: 'Ember shard' };
+  const ORDER = ['wood', 'stone', 'dirt', 'iron', 'food', 'arrow', 'gold', 'ember_shard', 'wheat', 'egg', 'milk', 'beef'];
+  const NAME = { wood: 'Wood', stone: 'Stone', dirt: 'Dirt', iron: 'Iron', food: 'Food', arrow: 'Arrows', gold: 'Gold', ember_shard: 'Ember shard', wheat: 'Wheat', egg: 'Eggs', milk: 'Milk', beef: 'Beef' };
 
   /** painted pictures, 64x64 */
   class GoodsArt {
@@ -22,6 +22,10 @@
         stone: '<rect x="8" y="38" width="22" height="14" rx="2" fill="#aeb7c6" stroke="#4b5568" stroke-width="2"/><rect x="32" y="38" width="22" height="14" rx="2" fill="#98a2b4" stroke="#4b5568" stroke-width="2"/><rect x="18" y="22" width="22" height="14" rx="2" fill="#c3cbd8" stroke="#4b5568" stroke-width="2"/>',
         dirt: '<path d="M8 50c-2-14 8-28 24-28s28 12 24 28z" fill="#7b5636" stroke="#3d2a18" stroke-width="2.5"/><circle cx="24" cy="40" r="3" fill="#5a3d24"/><circle cx="38" cy="34" r="3.5" fill="#9a7048"/><circle cx="44" cy="44" r="2.5" fill="#5a3d24"/>',
         iron: '<path d="M10 44l8-18h30l6 18z" fill="#7d8798" stroke="#2c3442" stroke-width="2.5"/><path d="M18 26h30l-4 8H14z" fill="#b6bfce" opacity=".8"/>',
+        wheat: '<path d="M32 58V20" stroke="#8a6a2a" stroke-width="3"/><g fill="#e8c25a" stroke="#8a6a2a" stroke-width="1.6"><ellipse cx="32" cy="14" rx="4" ry="7"/><ellipse cx="25" cy="24" rx="4" ry="7" transform="rotate(-30 25 24)"/><ellipse cx="39" cy="24" rx="4" ry="7" transform="rotate(30 39 24)"/><ellipse cx="25" cy="36" rx="4" ry="7" transform="rotate(-30 25 36)"/><ellipse cx="39" cy="36" rx="4" ry="7" transform="rotate(30 39 36)"/></g>',
+        egg: '<ellipse cx="32" cy="36" rx="15" ry="19" fill="#f6ead2" stroke="#8a6a4a" stroke-width="2.5"/><ellipse cx="26" cy="28" rx="4" ry="6" fill="#fff" opacity=".7"/>',
+        milk: '<path d="M22 14h20v8l6 10v22a4 4 0 0 1-4 4H20a4 4 0 0 1-4-4V32l6-10z" fill="#fafafa" stroke="#5a6a7a" stroke-width="2.5"/><path d="M16 40h32" stroke="#7aa0c8" stroke-width="5"/>',
+        beef: '<path d="M14 34c0-12 14-20 28-16 10 3 12 14 6 22-6 9-22 12-30 6-3-3-4-7-4-12z" fill="#c8464a" stroke="#6a1e22" stroke-width="2.5"/><circle cx="40" cy="30" r="5" fill="#f2e6d6" stroke="#6a1e22" stroke-width="2"/>',
         food: '<path d="M32 54C14 52 10 30 32 26c22 4 18 26 0 28z" fill="#f1e7f5" stroke="#5a3a6a" stroke-width="2.5"/><path d="M20 38c4 6 20 6 24 0" fill="#b86acb" opacity=".85"/><path d="M32 26c-8-8-6-14-2-16M32 26c4-8 10-10 14-8" stroke="#3f8a4a" stroke-width="3" fill="none" stroke-linecap="round"/>',
         meat: '<path d="M14 40c0-14 16-20 28-14s8 22-6 24-22-2-22-10z" fill="#d5575a" stroke="#6a1f26" stroke-width="2.5"/><circle cx="40" cy="38" r="5" fill="#f4d9c8" stroke="#6a1f26" stroke-width="2"/>',
         arrow: '<g stroke-linecap="round"><path d="M10 54L52 12" stroke="#8a5a32" stroke-width="3"/><path d="M52 12l-10 2 8 8z" fill="#aeb7c6" stroke="#4b5568" stroke-width="1.5"/><path d="M10 54l-2-8m2 8l8-2M16 48l-2-8m2 8l8-2" stroke="#f3f6ff" stroke-width="2.5"/></g>',
@@ -218,6 +222,7 @@
     vault(id) { if (!this.vaults.has(id)) this.vaults.set(id, new Vault()); return this.vaults.get(id); }
     openVault(e) { this.win.open(new VaultHoldings(this.g, this.vault(e.id), e.name || 'Chest')); }
     openForge(forge) { this.win.open(null, forge); }
+    openLedger(p) { const g = this.g, title = { market: 'Marketplace', silo: 'Grain silo', farm: 'Barn' }[p.type] || 'Store'; this.win.open(new VaultHoldings(g, g.economy.vaultFor(p), title)); }
     openHearth() { this.win.open(null, this.hearth); }
     /** chests and wardrobes (the building system's own furniture) open the two-purse screen */
     hook() {
