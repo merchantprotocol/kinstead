@@ -80,9 +80,9 @@
       const xc = s * 8.5, x0 = Math.round(xc - 4.5), x1 = Math.round(xc + 4.5), L = part(name, [Math.round(xc), 40, 0], 'hips');
       S.bevelBox(L, x0, x1, 27, 40, -5, 5, 2, plate(4, 13));
       L.ellipsoid(xc, 25.5, 2, 5, 3.5, 4.5, mo([[P.steelL, 4], [P.steel, 2], [P.steelLL, 1]], 14));
-      S.bevelBox(L, x0, x1, 9, 24, -5, 4, 2, plate(5, 15));
-      S.bevelBox(L, x0 - 1, x1 + 1, 0, 8, -6, 9, 2, (x, y, z) => (z > 1 && (z + 40) % 3 === 0 ? P.steelD : steel(x, y, z)));
-      L.box(x0 - 1, x1 + 1, 0, 0, -6, 9, P.steelD);
+      L.fill(x0, x1, 9, 24, -5, 5, (x,y,z) => { const t=(y-9)/15; return Math.abs(x-xc)<=2.8+t*1.6 && Math.abs(z)<=2.8+t*1.5; }, plate(5, 15));
+      L.ellipsoid(xc, 3, 2, 5.2, 4.2, 8, (x,y,z) => z>1 && (z+40)%3===0 ? P.steelD : steel(x,y,z));
+      L.fill(x0-1,x1+1,0,0,-6,10,(x,y,z)=>((x-xc)/5.3)**2+((z-2)/8.3)**2<=1,P.steelD);
     }
 
     /* ---- torso: breastplate, the red tabard with the flame, gorget, layered pauldrons ---- */
@@ -93,11 +93,15 @@
     T.stamp(FLAME, flameInk, -7, 67, 1);
     T.ellipsoid(0, 70.5, 0, 8, 2.5, 7, mo([[P.steelD, 3], [P.steel, 2]], 17));
     for (const s of [-1, 1]) {
-      T.ellipsoid(s * 18, 69.5, 0, 9.5, 6.5, 9.5, plate(4, 18 + s));
-      T.ellipsoid(s * 20, 63.5, 0, 9, 3.2, 9.5, (x, y, z) => (y < 61 ? P.steelD : steel(x, y, z)));
-      T.ellipsoid(s * 21.5, 59.5, 0, 8.5, 2.8, 9, (x, y, z) => (y < 57 ? P.steelD : steel(x, y, z)));
-      T.ellipsoid(s * 22.5, 56, 0, 7.5, 2.4, 8, (x, y, z) => (y < 54 ? P.steelD : steelDk(x, y, z)));
-      for (const [y, z] of [[71, 6], [71, -6], [66, 8], [66, -8]]) T.set(s * 17, y, z, P.steelLL);
+      /* Three overlapping domed lames descend outwards, not a stack of horizontal drums. */
+      for (let layer=0; layer<3; layer++) {
+        const cx=s*(15.5+layer*1.5), cy=69-layer*3.6, rx=7.5-layer*.4;
+        T.fill(cx-rx,cx+rx,cy-4,cy+6,-8,8,(x,y,z)=>{
+          const top=cy+5.5*Math.sqrt(Math.max(0,1-((x-cx)/rx)**2-(z/8.2)**2));
+          return ((x-cx)/rx)**2+(z/8.2)**2<=1 && y<=top && y>=top-3.5;
+        },(x,y,z)=>y<cy ? steelDk(x,y,z):steel(x,y,z));
+      }
+      for (const [y,z] of [[71,5],[67,7],[63,7]]) T.set(s*17,y,z,P.steelLL);
     }
 
     /* ---- head: great helm with a crest, eye slits either side of a nose bar ---- */
@@ -106,7 +110,8 @@
     H.ellipsoid(0, 86, 0.5, 8, 6.5, 7.5, steel);
     H.ellipsoid(0, 87.5, 0, 1.2, 6.5, 8.2, mo([[P.steelL, 3], [P.steelLL, 1]], 19));
     H.box(-5, 5, 73, 85, 9, 9, steel);
-    H.box(-4, -2, 76, 82, 9, 9, P.black).box(2, 4, 76, 82, 9, 9, P.black).box(-5, 5, 82, 83, 9, 9, P.black);
+    H.box(-5,5,82,83,9,9,P.black);
+    for (const x of [-4,-2,2,4]) H.box(x,x,74,78,10,10,P.steelD);
     H.box(-1, 1, 73, 84, 10, 10, P.steelL).box(-5, 5, 84, 84, 9, 10, P.steelL);
     for (const x of [-4, -3, 3, 4]) H.set(x, 74, 9, P.steelDD);
     H.box(-7, 7, 71, 71, -7, 8, P.steelDD);
@@ -128,7 +133,7 @@
     W.ellipsoid(...at(-7).map(Math.round), 1.4, 1.4, 1.4, P.goldD);
     S.slab(W, { a: at(4).map((v, i) => v - perp[i] * 7), b: at(4).map((v, i) => v + perp[i] * 7), wdir: u, half: 1.2, thick: 1.2 }, mo([[P.goldD, 3], [P.leather, 2], [P.gold, 1]], 23));
     S.slab(W, { a: at(5), b: at(50), wdir: perp, half: (t) => (t > 0.88 ? 3 * (1 - t) / 0.12 : 3 - t * 0.6), thick: 0.7 },
-      (x, y, z, t, w) => (Math.abs(w) < 0.25 ? P.steelD : Math.abs(w) > 0.75 ? P.steelLL : Hash.h3(x, y, z, 24) < 0.3 ? P.steel : P.steelL));
+      (x, y, z, t, w) => (Math.abs(w) < 0.25 ? P.steelLL : Math.abs(w) > 0.75 ? P.steelLL : Hash.h3(x, y, z, 24) < 0.3 ? P.steel : P.steelL));
 
     /* ---- round shield on the left forearm: steel rim with studs, red field, big flame ---- */
     const Sh = part('shield', [19, 44, 5], 'armL');
