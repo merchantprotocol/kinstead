@@ -4,6 +4,12 @@
   const K = G.K;
 
   class BuildDetailsDialog {
+    static POPULATION = Object.freeze({ cottage: 1, woodcutter: 1, quarry: 1, farm: 1,
+      mill: 1, storehouse: 1, bakery: 1, barn: 1, market: 1 });
+    static FOOD_PRODUCERS = Object.freeze({ bakery: 'Bread feeds up to 12 people',
+      coop: 'Each chicken feeds 1 person', barn: 'Each cow produces milk for 1 person',
+      farm: 'Every 3 wheat fields feed 1 person' });
+
     constructor(ui) {
       this.ui = ui;
       this.castle = ui.c;
@@ -77,11 +83,9 @@
     }
 
     populationImpact(card) {
-      const mouths = { cottage: 1, woodcutter: 1, quarry: 1, farm: 1, mill: 1, storehouse: 1,
-        bakery: 1, barn: 1, market: 1 }[card.id];
+      const mouths = BuildDetailsDialog.POPULATION[card.id];
       const demand = mouths || 0;
-      const feeds = { bakery: 'Bread feeds up to 12 people', coop: 'Each chicken feeds 1 person',
-        barn: 'Each cow produces milk for 1 person', farm: 'Every 3 wheat fields feed 1 person' }[card.id] || '';
+      const feeds = BuildDetailsDialog.FOOD_PRODUCERS[card.id] || '';
       if (!mouths && !feeds) return '';
       const impact = mouths ? `+${mouths} mouths (−${demand} food/min)` : '';
       return `<p>${impact}${impact && feeds ? ' · ' : ''}${feeds}</p>`;

@@ -32,10 +32,6 @@
       const night = this.w.night;
       if (night.bedtime) { night.turnIn(this, e); return; }
       if (this.asleep || this.huddled) { night.wake(this, e); return; }
-      const food = this.g.economy.food;
-      if (food && food.emptyFor >= 120) { e.a.path = null; this.w.say(e.a, "I am hungry.", 3); return; }
-      if (food && food.emptyFor >= 60) e.a.speed = (this.opts.speed || 1.6) * 0.5;
-      else e.a.speed = this.opts.speed || 1.6;
       this.idle(e, dt);
     }
     idle() {}
