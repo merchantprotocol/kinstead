@@ -43,7 +43,7 @@
       }
       this.courses(k, 0.2, slab);
       k.box('stoneMid', 0, slab, 0, 0.5, 0.08, 0.5);                    // walkway slab
-      k.box('stoneLight', 0, top, 0, 0.18, 0.32, 0.18); // central post, no merlons crossing joints
+      for (const x of [-0.18, 0.18]) for (const z of [-0.18, 0.18]) k.box('stoneLight', x, top, z, 0.14, 0.32, 0.14);   // corner merlons: parapet both sides, walk clear down the middle
       return k;
     }
     /* staggered block faces, the same on all four sides so a run looks right in either direction */

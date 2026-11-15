@@ -333,8 +333,10 @@
     pieceRadius(p) { const [w, d] = CastleArt.size(p.type); return Math.max(w, d) / 2; }
     wallPieces() { return [...this.castle.pieces, ...[...(this.net && this.net.pieces ? this.net.pieces.values() : [])].map((r) => r.p)]; }
     wallMask(p, pieces = this.wallPieces()) { return K.WallConnections ? K.WallConnections.mask(p, pieces) : 0; }
+    /* walls whose join can change when `c` comes or goes: itself and its 4 touching tiles, or the tiles along a gate/tower */
+    wallNear(p, c) { const [w, d] = CastleArt.size(c.type), r = Math.max(w, d) / 2 + 0.26; return Math.abs(p.x - c.x) <= r && Math.abs(p.z - c.z) <= r && (w > 0.5 || d > 0.5 || Math.abs(p.x - c.x) + Math.abs(p.z - c.z) <= 0.51); }
     refreshWallConnections(changedPiece = null) {
-      const pieces = this.wallPieces(), walls = pieces.filter((p) => !p.broken && (p.type === 'palisade' || p.type === 'stone_wall') && (!changedPiece || (Math.abs(p.x - changedPiece.x) + Math.abs(p.z - changedPiece.z) <= 0.51)));
+      const pieces = this.wallPieces(), walls = pieces.filter((p) => !p.broken && (p.type === 'palisade' || p.type === 'stone_wall') && (!changedPiece || this.wallNear(p, changedPiece)));
       for (const p of walls) {
         const opts = { level: p.level || 1, wallMask: this.wallMask(p, pieces) };
         const local = this.castle.pieces.includes(p), rec = !local && this.net && [...this.net.pieces.values()].find((r) => r.p === p);
