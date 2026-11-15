@@ -82,6 +82,7 @@
       if (this.tool.ranged && this.archery.click(sx, sy)) return true;   // bow: shoot, do not walk
       const e = P.pick(sx, sy);
       if (e === P.me) { this.g.purse.toggle(); return true; }   // click yourself: your purse (its Team tab is your banner and team)
+      if (e && e.type === K.RemoteWorkerTalk.TYPE) return false;   // someone else's townsperson: play's menu (talk, trade), never a swing
       if (e && e.remote && this.g.mp) {   // click another settler: a teammate gets the menu; anyone else, you attack (right-click them for the menu)
         if (this.g.mp.mayUse(e.pid)) { this.g.mp.playerMenu(e); return true; }
         if (!this.g.sweep.clickFoe(e, this.tool)) P.walkTo(e.x, e.z, false);
