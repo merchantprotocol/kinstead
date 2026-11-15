@@ -62,7 +62,7 @@
     selection() {
       const o = this.app.sel && this.doc.obj(this.app.sel);
       this.setPts(this.sel, o ? this.outline(o) : []);
-      const hp = []; if (o) this.app.handles(o).forEach(([x, z]) => hp.push(x, this.doc.groundY(x, z) + 0.12, z));
+      const hp = []; if (o) this.app.selection.handles(o).forEach(([x, z]) => hp.push(x, this.doc.groundY(x, z) + 0.12, z));
       this.setPts(this.handles, hp);
     }
     hoverObj(id) { if (id === this.hoverId) return; this.hoverId = id; const o = id && id !== this.app.sel && this.doc.obj(id); this.setPts(this.hov, o ? this.outline(o) : []); }

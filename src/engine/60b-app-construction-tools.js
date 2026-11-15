@@ -143,7 +143,7 @@
     bind(root) {
       root.querySelectorAll('[data-p]').forEach((b) => (b.onclick = () => { this.app.ui.prop = b.dataset.p; this.app.panel(); }));
       const s = root.querySelector('[data-k=ps]'); s.oninput = () => { this.app.ui.propS = +s.value; s.nextElementSibling.textContent = (+s.value).toFixed(2); };
-      this.app.drawIcons(root);
+      new K.PropIconPainter(this.app.renderer).paintAll(root);
     }
   }
 
@@ -154,11 +154,11 @@
       const app = this.app, doc = this.doc, cur = app.sel && doc.obj(app.sel);
       // handles of the current selection first
       if (cur) {
-        const h = app.handleAt(cur, sx, sy);
+        const h = app.selection.handleAt(cur, sx, sy);
         if (h != null) { this.drag = { id: cur.id, handle: h, before: JSON.stringify(doc.objects), p0: p }; return; }
         if (e.altKey && cur.kind === 'wall') { this.toggleGap(cur, p); return; }
       }
-      const hit = app.pick(p);
+      const hit = app.selection.pick(p);
       app.select(hit ? hit.id : null);
       if (hit) this.drag = { id: hit.id, handle: null, before: JSON.stringify(doc.objects), p0: p, orig: JSON.parse(JSON.stringify(hit)) };
       else this.pan = { sx, sy, tx: app.rig.goal.tx, tz: app.rig.goal.tz };
@@ -186,7 +186,7 @@
       this.drag = null; this.app.panel();
     }
     cancel() { if (this.drag && this.drag.moved) { this.doc.objects = JSON.parse(this.drag.before); this.app.renderer.objectsChanged(); } this.drag = null; this.pan = null; }
-    hover(p) { this.app.overlay.brush(null); const hit = p && this.app.pick(p); this.app.overlay.hoverObj(hit ? hit.id : null); }
+    hover(p) { this.app.overlay.brush(null); const hit = p && this.app.selection.pick(p); this.app.overlay.hoverObj(hit ? hit.id : null); }
     toggleGap(o, p) {
       const P = WorldDoc.wallPts(o); let best = null;
       for (let k = 0; k < P.length - 1; k++) {
@@ -203,12 +203,12 @@
     }
     key(e) {
       const app = this.app, o = app.sel && this.doc.obj(app.sel); if (!o) return false;
-      if (e.key === 'q' || e.key === 'e') { app.rotateSel((e.key === 'e' ? 1 : -1) * Math.PI / 12); return true; }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') { app.duplicateSel(); return true; }
+      if (e.key === 'q' || e.key === 'e') { app.selection.rotateSel((e.key === 'e' ? 1 : -1) * Math.PI / 12); return true; }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') { app.selection.duplicateSel(); return true; }
       return false;
     }
-    options() { return this.app.selectionPanel(); }
-    bind(root) { this.app.bindSelectionPanel(root); }
+    options() { return this.app.inspector.render(); }
+    bind(root) { this.app.inspector.bind(root); }
   }
 
 
