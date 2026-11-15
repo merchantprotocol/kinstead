@@ -44,8 +44,8 @@
     }
     victims(facing) { return this.play.actors.filter((a) => this.isFoe(a) && this.inArc(a, facing)); }
     /** one big swing toward `target`: everything in the arc is hit a beat later, as the blade passes */
-    swing(target, auto = false) {
-      const P = this.play, me = P.me; if (!me.alive) return;
+    swing(target, auto = false, retaliate = false) {
+      const P = this.play, me = P.me; if (!me.alive) return; this.lastSwingAuto = retaliate;   // a hit-back swing is marked, so it never starts one in return
       const facing = Math.atan2(target.z - me.z, target.x - me.x), hits = this.victims(facing);
       if (auto && (P.t - this.lastClick > AUTO_WINDOW || !hits.length)) { P.target = null; return; }   // you stopped clicking, or there is nothing there: stand down
       P.face(me, target); me.cdT = me.cd; me.view.setState('attack'); this.lastSwing = P.t;
@@ -64,14 +64,15 @@
       return true;
     }
     /** you were hit: from now on you fight back at whoever did it, without a click (not while you are walking away) */
-    defend(attacker) { if (this.isFoe(attacker)) this.guard = { foe: attacker, until: this.play.t + 3 }; }
+    /** once: answer with a single blow (another player: a bump never turns into a fight to the death) */
+    defend(attacker, once = false) { if (this.isFoe(attacker)) this.guard = { foe: attacker, until: this.play.t + 3, once }; }
     update(dt) {
       this.arc.update(dt); const g = this.guard, P = this.play, me = P.me; if (!g) return;
       if (!me.alive || P.t > g.until || !this.isFoe(g.foe)) { this.guard = null; return; }
       if (me.path || P.t - this.lastSwing < this.combat.gap) return;                       // walking away, or still recovering
       const d = P.dist(me, g.foe) - (g.foe.r || 0.3), tool = this.g.tools.tool;
-      if (tool.ranged && this.g.castle.amount('arrow') > 0) { if (d < 14) { this.g.tools.archery.shoot(g.foe.x, g.foe.z); this.lastSwing = P.t; } return; }
-      if (d <= this.combat.radius) { P.cancelChannel(); this.swing(g.foe); g.until = P.t + 3; }   // keeps going while it keeps fighting you
+      if (tool.ranged && this.g.castle.amount('arrow') > 0) { if (d < 14) { this.lastSwingAuto = true; this.g.tools.archery.shoot(g.foe.x, g.foe.z); this.lastSwing = P.t; if (g.once) this.guard = null; } return; }
+      if (d <= this.combat.radius) { P.cancelChannel(); this.swing(g.foe, false, true); if (g.once) this.guard = null; else g.until = P.t + 3; }   // creatures: keep fighting while they fight you; players: one blow back
     }
     dispose() { this.arc.dispose(); }
   }

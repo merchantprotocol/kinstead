@@ -46,7 +46,7 @@
     get fx() { return this.g.tools.effects; }
     /** a left-click with the bow out: shoot the foe under the pointer, or (Shift) the ground there. false = just walk. */
     click(sx, sy) {
-      const P = this.play, e = P.pick(sx, sy);
+      this.g.sweep.lastSwingAuto = false; const P = this.play, e = P.pick(sx, sy);
       if (e && this.g.sweep.isFoe(e)) { this.shoot(e.x, e.z); return true; }
       if (this.shift) { const p = this.g.app.pickGround(sx, sy); if (p) { this.shoot(p.x, p.z); return true; } }
       return false;

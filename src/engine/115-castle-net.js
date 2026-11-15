@@ -235,6 +235,25 @@
     entities() { const out = []; for (const r of this.by.values()) if (r.view.present) out.push(r.view.ent); return out; }
   }
 
+  /** invitations to join a team: little notices beside the world map, each with Accept and Decline */
+  class InviteBoard {
+    constructor(mp) {
+      this.mp = mp; const root = (this.root = document.createElement('div')); root.id = 'cInvites'; mp.g.cui.root.appendChild(root);
+      root.addEventListener('pointerdown', (e) => e.stopPropagation());
+      root.addEventListener('click', (e) => { const a = e.target.closest('[data-acc]'), d = e.target.closest('[data-dec]'); if (a) mp.acceptInvite(a.dataset.acc); else if (d) mp.declineInvite(d.dataset.dec); else if (e.target.closest('[data-more]')) mp.g.purse.openTab('team'); });
+    }
+    static card(inv) {
+      const b = inv.banner || {}, col = '#' + K.BANNER_COLORS[(b.color || 0) % 12].toString(16).padStart(6, '0');
+      return `<div class="inv"><i class="em" style="background:${col}"><img src="${K.Emblems.url(b.logo || 0)}" alt=""></i><div class="t"><b>${esc(inv.name)}</b> invites you to join <b>${esc(inv.teamName)}</b></div><div class="ab"><button data-acc="${esc(inv.team)}" class="ok">Accept</button><button data-dec="${esc(inv.team)}">Decline</button></div></div>`;
+    }
+    render() {
+      const list = this.mp.invites, show = list.slice(-3);
+      this.root.innerHTML = show.map((i) => InviteBoard.card(i)).join('') + (list.length > 3 ? `<button class="more" data-more>${list.length - 3} more in your Team tab</button>` : '');
+      this.root.hidden = !list.length;
+    }
+    dispose() { this.root.remove(); }
+  }
+
   class Multiplayer {
     constructor(game, net) {
       this.g = game; this.net = net; this.world = new RemoteWorld(game, net); this.avatars = new Avatars(game, net); this.stores = new RemoteStores(game, net); this.lastSave = -1e9; this.t = 0; this.chat = null;
@@ -246,7 +265,7 @@
       net.on('gate', (m) => { this.world.gateState(m.id, m.open); this.mineGate(m.id, m.open); });
       net.on('door', (m) => this.onDoor(m)); net.on('hp', (m) => this.onHp(m));
       net.on('locked', (m) => game.cui.toast(m.what === 'door' ? 'The door is locked. Only its owner and their team have the key.' : 'The gate is locked. Only its owner and their team have the key.'));
-      net.on('teams', (m) => this.setTeams(m.list)); net.on('invite', (m) => this.onInvite(m));
+      net.on('teams', (m) => this.setTeams(m.list)); net.on('invite', (m) => this.onInvite(m)); net.on('invites', (m) => { this.invites = m.list || []; this.invitesChanged(); }); net.on('declined', (m) => game.cui.toast(`${m.name} declined your invitation to ${m.teamName}.`));
       net.on('demand', (m) => this.onDemand(m)); net.on('paid', (m) => this.onPaid(m)); net.on('refused', (m) => game.cui.toast(`${m.name} refused to pay.`));
       net.on('fx', (m) => this.onFx(m)); net.on('stores', (m) => this.onStores(m)); net.on('store', (m) => this.onStore(m)); net.on('stock', (m) => this.onStock(m));
       net.on('took', (m) => this.giveTaken(m.res, m.n)); net.on('raided', (m) => game.cui.toast(`${m.by} raided your supplies (${m.n} ${K.CastleData.resName(m.res).toLowerCase()}).`));
@@ -254,8 +273,8 @@
       net.on('chat', (m) => { if (m.from === net.id) return; game.cui.toast(`${m.name}: ${m.text}`); this.avatars.say(m.from, m.text); });
       net.on('welcome', (m) => this.start(m));
       net.on('offline', () => game.cui.toast('Lost the connection. Reconnecting…'));
-      this.teams = (net.welcome.teams || []); this.lastOpen = null; this.lastBroken = null; this.lastHit = 0;
-      this.start(net.welcome, true); this.makeChatBox();
+      this.teams = (net.welcome.teams || []); this.invites = (net.welcome.invites || []).slice(); this.board = new InviteBoard(this); this.lastOpen = null; this.lastBroken = null; this.lastHit = 0;
+      this.start(net.welcome, true); this.makeChatBox(); this.board.render();
     }
     start(w, first) { if (w.clock) { this.net.clock = w.clock; this.net.offset = w.clock.now - Date.now(); } if (this.g.weather && w.weather) this.g.weather.setFromServer(w.weather); if (!first) this.avatars.clear(); for (const p of w.players || []) this.avatars.add(p); this.world.snapshot(w); this.syncStores(w.stores || []); if (!this.g.resume) this.net.send({ t: 'save', data: null }); }
     /** tell the server what you already have on your plot (a game from before multiplayer, or one saved on this device) */
@@ -346,12 +365,12 @@
     gate(p, open) { this.net.send({ t: 'open', id: this.pieceId(p), open }); }
     requestGate(rec) { this.net.send({ t: 'open', id: rec.p.id, open: !rec.gate.open }); }
     requestDoor(rec) { this.net.send({ t: 'open', slot: rec.slot, open: !rec.door.open }); }
-    pvp(target) { this.net.send({ t: 'pvp', to: target, tool: this.g.tools.tool.id }); }
+    pvp(target) { this.net.send({ t: 'pvp', to: target, tool: this.g.tools.tool.id, auto: !!this.g.sweep.lastSwingAuto }); }
     /** another player's blow lands on you */
     onPvpHit(m) {
       const g = this.g, me = g.play.me; if (!me.alive) return; g.play.float(me, '-' + m.dmg, 'hurt'); me.view.flash && me.view.flash('hit'); g.sound.play('hit');
       if (g.play.player.hurt(m.dmg)) g.play.defeat();
-      g.xp.taken(); const r = this.avatars.by.get(m.from); if (r) g.sweep.defend(r.a);   // you always fight back
+      g.xp.taken(); const r = this.avatars.by.get(m.from); if (r && !m.auto) g.sweep.defend(r.a, true);   // one blow back for a blow struck on purpose; a blow struck back is never answered automatically, so it cannot spiral
     }
     /** if you are shut inside someone else's house or fence you may walk out: the door or gate opens for you (only you), then shuts behind you. You cannot come back in. */
     exits() {
@@ -419,7 +438,11 @@
         { label: 'Refuse', pri: true, run: () => this.net.send({ t: 'refuse', to: m.from }) }]);
     }
     onPaid(m) { const g = this.g, got = g.castle.add(m.res, m.n); g.changed(); g.cui.toast(`${m.name} paid you ${m.n} ${K.CastleData.resName(m.res).toLowerCase()}${got < m.n ? ' (your store was full for the rest)' : ''}.`); }
-    onInvite(m) { const g = this.g; g.cui.modal(`<h2>${esc(m.name)} invites you</h2><p>Join <b>${esc(m.teamName)}</b>? Teammates share every key: gates, doors and all.</p>`, [{ label: 'Join', run: () => this.net.send({ t: 'team', a: 'accept', team: m.team }) }, { label: 'Decline', pri: true }]); }
+    /** an invitation arrived: it waits beside the world map (and in your Team tab) until you answer */
+    onInvite(m) { this.invites = this.invites.filter((x) => x.team !== m.team); this.invites.push(m); this.invitesChanged(); this.g.cui.toast(`${m.name} invites you to join ${m.teamName}.`); this.g.sound.play('fanfare'); }
+    invitesChanged() { this.board.render(); this.g.purse.refreshTeam(); }
+    acceptInvite(team) { const inv = this.invites.find((x) => x.team === team); this.net.send({ t: 'team', a: 'accept', team }); this.invites = this.invites.filter((x) => x.team !== team); this.invitesChanged(); if (inv) this.g.cui.toast(`You joined ${inv.teamName}. You share their keys and fly their banner.`); }
+    declineInvite(team) { this.net.send({ t: 'team', a: 'decline', team }); this.invites = this.invites.filter((x) => x.team !== team); this.invitesChanged(); }
     /** the game reports its own changes here */
     op(o) { this.net.op(o); }
     pieceId(p) { return this.net.id + ':' + p.uid; }
@@ -443,8 +466,8 @@
     closeChat() { this.chat.hidden = true; this.chat.querySelector('input').value = ''; }
     key(e) { if (e.key === 'Enter' && this.chat.hidden) { this.chat.hidden = false; setTimeout(() => this.chat.querySelector('input').focus(), 0); return true; } return false; }
     get chatOpen() { return !this.chat.hidden; }
-    dispose() { this.net.close(); this.avatars.dispose(); this.chat.remove(); }
+    dispose() { this.net.close(); this.avatars.dispose(); this.chat.remove(); this.board.dispose(); }
   }
 
-  Object.assign(K, { Identity, NameGate, Net, RemoteWorld, RemoteStores, Avatars, Multiplayer });
+  Object.assign(K, { Identity, NameGate, Net, RemoteWorld, RemoteStores, Avatars, InviteBoard, Multiplayer });
 })(typeof window !== 'undefined' ? window : globalThis);

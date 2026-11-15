@@ -135,6 +135,7 @@
         <h4>Logo</h4><div class="lg">${K.BANNER_EMBLEMS.map((e, i) => `<button class="${i === d.logo ? 'on' : ''}" data-l="${i}" title="${e[0]}" style="background:${c}"><img src="${E.url(i)}" alt="${e[0]}"></button>`).join('')}</div>
         <h4>Team name</h4><input maxlength="24" placeholder="Name your team" value="${esc(d.name)}">
         <div class="tm-act"><button data-saveb class="pri">Save banner</button>${b.team ? '<button data-leave>Leave team</button>' : ''}</div>
+        ${mp && mp.invites.length ? `<h4>Invitations</h4><div class="invs">${mp.invites.map((inv) => K.InviteBoard.card(inv)).join('')}</div>` : (mp ? '<h4>Invitations</h4><p class="tn">No invitations right now.</p>' : '')}
         ${roster.length ? `<h4>On your team</h4><div class="roster">${roster.map((r) => `<span><i style="background:${hex(COL[r.color % 12])}"></i>${esc(r.name)}</span>`).join('')}</div>` : ''}
         <p class="tn">${mp ? 'Right-click a player to invite them to your team or demand tribute. Left-click attacks anyone who is not on your team.' : 'Alone on the map for now.'}</p></div>`;
     }
@@ -142,12 +143,13 @@
       const solo = !this.there && !this.forge, tabs = solo ? `<div class="tabs"><button data-tab="items" class="${this.tab === 'items' ? 'on' : ''}">Purse</button><button data-tab="team" class="${this.tab === 'team' ? 'on' : ''}">Team</button></div>` : '';
       const mine = this.panel(this.me.title, 'me', tabs + (solo && this.tab === 'team' ? this.teamBody() : this.grid(this.me, 'me')), 'bag');
       const there = this.forge ? this.panel(this.forge.title, 'there', this.forgeBody(), this.forge.icon) : this.there ? this.panel(this.there.title, 'there', this.grid(this.there, 'there'), /ward/i.test(this.there.title) ? 'bag' : 'wood') : '';
-      this.root.innerHTML = `<div class="pw ${there ? 'two' : ''}">${mine}${there}<div class="hint">Click moves a stack · Shift-click one · Right-click half · Drag onto the ground to put it down</div><button class="cb x" data-close>Close <kbd>Esc</kbd></button></div>`;
+      this.root.innerHTML = `<div class="pw ${there ? 'two' : ''}">${mine}${there}${this.tab === 'team' && !there ? '' : '<div class="hint">' + (there ? 'Click moves a stack · Shift-click one · Right-click half · Drag onto the ground to put it down' : 'Click food to eat it · Click a weapon to hold it · Drag onto the ground to put it down') + '</div>'}<button class="cb x" data-close>Close <kbd>Esc</kbd></button></div>`;
       const nm = this.root.querySelector('.tmb input'); if (nm) nm.addEventListener('input', () => { if (this.draft) this.draft.name = nm.value; const pv = this.root.querySelector('.bn-prev b'); if (pv) pv.textContent = nm.value || 'Your team'; });   // typing updates the preview without redrawing
     }
     holdings(side) { return side === 'me' ? this.me : this.forge ? new TrayHoldings(this.forge) : this.there; }
     onClick(e) {
       if (e.target === this.root || e.target.closest('[data-close]')) { this.close(); return; }
+      const ia = e.target.closest('[data-acc]'), id_ = e.target.closest('[data-dec]'); if (ia && this.g.mp) { this.g.mp.acceptInvite(ia.dataset.acc); return; } if (id_ && this.g.mp) { this.g.mp.declineInvite(id_.dataset.dec); return; }
       const tb = e.target.closest('[data-tab]'); if (tb) { this.tab = tb.dataset.tab; this.draft = null; this.render(); return; }
       const d = this.draft, g = this.g;
       if (d) {
@@ -210,6 +212,8 @@
     close() { this.win.close(); }
     update() { if (this.isOpen) this.win.render(); }
     openPurse() { this.win.tab = 'items'; this.win.open(null); }
+    /** redraw the Team tab if it is showing (invites or banners changed) */
+    refreshTeam() { if (this.win.isOpen && this.win.tab === 'team' && !this.win.there && !this.win.forge) this.win.render(); }
     openTab(tab) { if (this.isOpen && this.win.tab === tab && !this.win.there && !this.win.forge) { this.win.close(); return; } this.win.tab = tab; this.win.draft = null; this.win.open(null); }
     vault(id) { if (!this.vaults.has(id)) this.vaults.set(id, new Vault()); return this.vaults.get(id); }
     openVault(e) { this.win.open(new VaultHoldings(this.g, this.vault(e.id), e.name || 'Chest')); }

@@ -1,0 +1,13 @@
+const url = 'ws://127.0.0.1:8799/ws/inv-' + Math.random().toString(36).slice(2, 8);
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const mk = (cid, name) => new Promise((res) => { const ws = new WebSocket(url), log = []; ws.onopen = () => ws.send(JSON.stringify({ t: 'hello', cid, name })); ws.onmessage = (e) => log.push(JSON.parse(e.data)); res({ ws, log, send: (m) => ws.send(JSON.stringify(m)), last: (t) => log.filter((m) => m.t === t).pop() }); });
+const A = await mk('aaaaaaaa-1', 'Ann'), B = await mk('bbbbbbbb-2', 'Bo'), C = await mk('cccccccc-3', 'Cy'); await wait(600);
+A.send({ t: 'banner', b: { name: 'Frost Wolves', color: 5, logo: 4 } }); C.send({ t: 'banner', b: { name: 'Ember Kin', color: 0, logo: 2 } }); await wait(300);
+A.send({ t: 'team', a: 'invite', to: 'bbbbbbbb' }); C.send({ t: 'team', a: 'invite', to: 'bbbbbbbb' }); await wait(400);
+console.log('B got two invites live:', B.log.filter((m) => m.t === 'invite').map((m) => m.teamName + '/' + m.banner.color).join(', '));
+B.ws.close(); await wait(300); const B2 = await mk('bbbbbbbb-2', 'Bo'); await wait(600);
+console.log('pending on rejoin:', B2.last('welcome').invites.map((i) => i.teamName).join(', '));
+const [ia, ic] = B2.last('welcome').invites;
+B2.send({ t: 'team', a: 'decline', team: ic.team }); await wait(300); console.log('C told of decline:', JSON.stringify(C.last('declined')), '| B list now', JSON.stringify(B2.last('invites').list.map((i) => i.teamName)));
+B2.send({ t: 'team', a: 'accept', team: ia.team }); await wait(300); console.log('B joined', B2.last('banners').map.bbbbbbbb.name, '| list', JSON.stringify(B2.last('invites').list));
+process.exit(0);
