@@ -861,6 +861,24 @@
    "buildRequires": [
     "storehouse"
    ]
+  },
+  "bunkhouse": {
+   "id": "bunkhouse",
+   "name": "Bunkhouse",
+   "category": "building",
+   "cost": {
+    "wood": 120,
+    "stone": 60
+   },
+   "requiresCastleLevel": 1,
+   "castlePoints": 0,
+   "hp": 400,
+   "effect": "Bunks for your townsfolk. At dusk your workers walk in and sleep here; at dawn they walk out to work.",
+   "description": "A long timber bunkhouse where your workers sleep at night.",
+   "artPrompt": "a long timber bunkhouse with a thatched roof, rows of wooden bunk beds and a stove inside",
+   "buildRequires": [
+    "cottage"
+   ]
   }
  },
  "keepUpgrade": {

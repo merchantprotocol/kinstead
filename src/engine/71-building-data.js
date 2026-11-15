@@ -34,6 +34,8 @@
       sign: { icon: 'cleaver', board: 'paintWhite', emblem: true }, awning: ['#7c2f27', '#cbc2ae'], props: [{ type: 'chopping_block', side: 'r', at: 0 }, { type: 'barrel', side: 'l', at: 0 }, { type: 'crate', side: 'l', at: 1 }] },
     library: { wallColor: '#9a958a', trim: '#2e2420', doorColor: 'paintPurple', shutterColor: 'paintPurple', roof: { snow: 'light' }, fill: 1.1,
       sign: { icon: 'potion', board: 'paintPurple', emblem: true }, props: [{ type: 'potion_crate', side: 'l', at: 0 }, { type: 'cauldron_small', side: 'r', at: 0 }] },
+    bunkhouse: { wallColor: '#b9a888', trim: '#3e2a1a', doorColor: 'paintGreen', shutterColor: 'paintGreen', roof: { snow: 'light' }, fill: 1,
+      sign: { icon: 'home', board: 'signBoard', emblem: false }, props: [{ type: 'woodpile', side: 'l', at: 0 }, { type: 'bench', side: 'r', at: 0 }] },
     keep: { trim: '#3a2a1c', roof: { snow: true }, fill: 1 },
   };
   const isColor = (v) => typeof v === 'string' && /^(#[0-9a-fA-F]{6}|[a-zA-Z]+)$/.test(v);
@@ -373,6 +375,21 @@
           { type: 'book_pile', x: 5, z: 7 }, { type: 'book_pile', x: 1, z: 8 }, { type: 'globe', x: 6, z: 8 },
           { type: 'cauldron', x: 8, z: 2, rot: 0 }, { type: 'potion_shelf', x: 7, z: 0, rot: 0 }, { type: 'potion_shelf', x: 10, z: 0, rot: 0 }, { type: 'potion_shelf', x: 11, z: 6, rot: 3 },
           { type: 'alchemy_table', x: 9, z: 7, rot: 0 }, { type: 'potion_crate', x: 7, z: 9 }, { type: 'candle', x: 11, z: 2 }, { type: 'book_pile', x: 10, z: 4 },
+        ],
+      }),
+    },
+    bunkhouse: {
+      name: 'Bunkhouse', desc: 'Long timber bunkhouse with a thatched roof: bunks for your workers and a stove',
+      make: () => ({
+        footprint: { shape: 'rect', w: 12, h: 8 }, walls: 'timber', roof: { style: 'gable', material: 'thatch' }, interiorFloor: 'planks', wallH: 2.1,
+        rooms: [{ id: 'bunks', type: 'bedroom', name: 'Bunk room', x: 0, z: 0, w: 12, h: 8 }],
+        doors: [{ x: 5, z: 7, side: 's', w: 2 }],
+        windows: [{ x: 1, z: 7, side: 's', w: 2 }, { x: 9, z: 7, side: 's', w: 2 }, { x: 0, z: 3, side: 'w', w: 1 }, { x: 11, z: 3, side: 'e', w: 1 }, { x: 5, z: 0, side: 'n', w: 2 }],
+        furniture: [
+          { type: 'bunk', x: 0, z: 0, rot: 0 }, { type: 'bunk', x: 2, z: 0, rot: 0 }, { type: 'bunk', x: 8, z: 0, rot: 0 }, { type: 'bunk', x: 10, z: 0, rot: 0 },
+          { type: 'bunk', x: 0, z: 4, rot: 0 }, { type: 'bunk', x: 10, z: 4, rot: 0 },
+          { type: 'hearth', x: 5, z: 0, rot: 0 }, { type: 'table', x: 5, z: 3, rot: 0 }, { type: 'bench', x: 4, z: 3, rot: 1 }, { type: 'bench', x: 7, z: 3, rot: 3 },
+          { type: 'chest', x: 3, z: 6, rot: 2 }, { type: 'chest', x: 8, z: 6, rot: 2 }, { type: 'candle', x: 4, z: 0 },
         ],
       }),
     },

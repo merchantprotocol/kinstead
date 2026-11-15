@@ -8,7 +8,7 @@
   const K = G.K;
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const GROUPS = [['terrain', 'Land'], ['defense', 'Walls'], ['farming', 'Farming'], ['trade', 'Trade'], ['producer', 'Workshops'], ['storage', 'Storage'], ['building', 'Buildings']];
-const BUILDABLE = new Set(['dirt', 'palisade', 'gate', 'stone_wall', 'stone_gate', 'watchtower', 'fire_pot', 'farm', 'field', 'silo', 'coop', 'barn', 'market', 'stable', 'bakery', 'butcher', 'library', 'woodcutter', 'quarry', 'storehouse', 'cottage', 'blacksmith']);   // what you can place by the square
+const BUILDABLE = new Set(['dirt', 'palisade', 'gate', 'stone_wall', 'stone_gate', 'watchtower', 'fire_pot', 'farm', 'field', 'silo', 'coop', 'barn', 'market', 'stable', 'bakery', 'butcher', 'library', 'bunkhouse', 'woodcutter', 'quarry', 'storehouse', 'cottage', 'blacksmith']);   // what you can place by the square
 
   /** Replace an element's HTML only if it changed; keep its scroll. */
   const patch = (el, html) => { if (el._h === html) return; const top = el.scrollTop; el._h = html; el.innerHTML = html; el.scrollTop = top; };

@@ -71,12 +71,14 @@
     bakery: { id: 'bakery', prefab: 'bakery', hall: true, have: (g) => !!g.halls.bakery, haveMsg: 'you already have a bakery' },
     butcher: { id: 'butcher', prefab: 'butcher', hall: true, have: (g) => !!g.halls.butcher, haveMsg: 'you already have a butcher shop' },
     library: { id: 'library', prefab: 'library', hall: true, have: (g) => !!g.halls.library, haveMsg: 'you already have a library' },
+    bunkhouse: { id: 'bunkhouse', prefab: 'bunkhouse', hall: true, have: (g) => !!g.halls.bunkhouse, haveMsg: 'you already have a bunkhouse' },
   };
   const Hall = { BUILT: {
     stable: 'Stable built. Two horses came with it. Talk to the stablehand, or ride a horse from the stable.',
     bakery: 'Bakery built. The baker takes wheat from your market and bakes bread you can eat.',
     butcher: 'Butcher shop built. The butcher turns your spare cows and chickens into meat for the market.',
     library: 'Library built. The alchemist takes odds and ends from the market and brews potions. Find them in the market.',
+    bunkhouse: 'Bunkhouse built. At dusk your workers walk in to sleep, and at dawn they walk out to work.',
   } };
   class BuildingSite {
     static get KINDS() { return KINDS; }
