@@ -87,6 +87,7 @@
         if (!this.g.sweep.clickFoe(e, this.tool)) P.walkTo(e.x, e.z, false);
         return true;
       }
+      if (P.rampartClick(sx, sy, e)) return false;   // a wall top under the cursor: play walks you up there
       if (e && this.g.sweep.clickFoe(e, this.tool)) return true;   // sword + a foe in reach: swing now, as fast as you click
       if (e) { const t = K.WorkTarget.forEntity(this.ctx, e); if (!t) return false; this.engage(t); return true; }
       const p = P.app.pickGround(sx, sy); if (!p) return false;

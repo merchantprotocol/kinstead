@@ -254,10 +254,27 @@
    "requiresCastleLevel": 1,
    "castlePoints": 2,
    "hp": 90,
-   "effect": "One block of wall, one cube high. Two mined stone make one placed cube.",
+   "effect": "One block of wall as tall as the stone gate, walkable on top: climb a stone tower to get up. Two mined stone make one block.",
    "artPrompt": "a single straight section of crenellated fieldstone castle wall with a timber walkway, frost in the cracks",
    "buildRequires": [],
    "description": "One block of wall, one cube high"
+  },
+  "stone_tower": {
+   "id": "stone_tower",
+   "name": "Stone tower",
+   "category": "defense",
+   "cost": {
+    "wood": 10,
+    "stone": 40
+   },
+   "requiresCastleLevel": 1,
+   "castlePoints": 0,
+   "hp": 400,
+   "effect": "A stone corner tower with stairs inside. Stone walls and the stone gate join it; climb it to walk along the tops of your walls. Needs a quarry.",
+   "artPrompt": "a square crenellated stone castle tower with an arched doorway and a stair inside",
+   "buildRequires": [
+    "quarry"
+   ]
   },
   "gatehouse": {
    "id": "gatehouse",

@@ -314,7 +314,7 @@
   }
 
   /* ---------- the save slot (localStorage-like store injected, so tests use a Map) ---------- */
-  Castle.FLAT = new Set(['palisade', 'stone_wall', 'gate', 'field', 'dirt', 'fire_pot', 'market']);   // walls, fields and fire pots never get dearer (the market is one per settler)
+  Castle.FLAT = new Set(['palisade', 'stone_wall', 'stone_tower', 'gate', 'field', 'dirt', 'fire_pot', 'market']);   // walls, fields and fire pots never get dearer (the market is one per settler)
   Castle.HOLD = 400;   // how much a workshop stacks while your purse is full
 
   class CastleSave {

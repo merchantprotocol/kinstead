@@ -29,6 +29,9 @@ class EngineManifest {
     '82b-art-defense.js',
     '82c-art-producers.js',
     '82d-art-farming.js',
+    '82e-rampart-plan.js',
+    '82f-art-stone-wall.js',
+    '82g-art-stone-tower.js',
     '83-castle-game.js',
     '84-castle-ui.js',
     '94-castle-build-details.js',
@@ -70,6 +73,11 @@ class EngineManifest {
     '120-castle-workers.js',
     '121-castle-wildgame.js',
     '122-castle-inspector.js',
+    '123-castle-rampart-layer.js',
+    '124-castle-tower-stair.js',
+    '125-castle-rampart-walker.js',
+    '126-castle-rampart-cursor.js',
+    '127-castle-ramparts.js',
   ];
   /* game data inlined as K.CASTLE_DATA (src/data is the single source; tests read the same file) */
   static DATA = { '@castle-data': ['data/game-data-castle.json', 'CASTLE_DATA'] };

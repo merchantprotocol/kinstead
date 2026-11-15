@@ -32,7 +32,7 @@
 
   const ICON = { wood: 'log', stone: 'stone', dirt: 'dirt', food: 'food', arrow: 'arrow', iron: 'ore', gold: 'coin', ember_shard: 'ember', troll_heart: 'heart', stoneblade: 'stoneblade', iron_sword: 'sword', ember_brand: 'brand' };
   const RES_ORDER = ['wood', 'stone', 'dirt', 'food', 'arrow', 'iron', 'gold', 'ember_shard'];
-  const PIECE_ICON = { cottage: 'bed', fire_pot: 'ember', farm: 'hammer', field: 'food', silo: 'bag', coop: 'food', barn: 'food', market: 'coin', stable: 'hand', bakery: 'food', butcher: 'food', library: 'book', palisade: 'log', stone_wall: 'stone', stone_gate: 'stone', gate: 'log', gatehouse: 'hammer', watchtower: 'eye', ember_brazier: 'ember', woodcutter: 'axe', quarry: 'pickaxe', mine: 'ore', great_hall: 'coin', chapel: 'ember', storehouse: 'bag', smithy: 'hammer', ember_forge: 'brand', barracks: 'shield', heartfire_hearth: 'heart' };
+  const PIECE_ICON = { cottage: 'bed', fire_pot: 'ember', farm: 'hammer', field: 'food', silo: 'bag', coop: 'food', barn: 'food', market: 'coin', stable: 'hand', bakery: 'food', butcher: 'food', library: 'book', palisade: 'log', stone_wall: 'stone', stone_gate: 'stone', stone_tower: 'stone', gate: 'log', gatehouse: 'hammer', watchtower: 'eye', ember_brazier: 'ember', woodcutter: 'axe', quarry: 'pickaxe', mine: 'ore', great_hall: 'coin', chapel: 'ember', storehouse: 'bag', smithy: 'hammer', ember_forge: 'brand', barracks: 'shield', heartfire_hearth: 'heart' };
   const SHORT = {
     palisade: 'Blocks raiders; they must chop through it.', stone_wall: 'Blocks raiders. 2.5x a palisade’s HP.', gatehouse: 'The way in. Walls joined to it make the courtyard.',
     watchtower: 'Shoots raiders within 6 m for 4/s (6 with a hero on it).', ember_brazier: 'At night, burns frost creatures within 3 m.', storehouse: '+100 storage. Guards half your stores from raids.',
@@ -293,11 +293,19 @@
     }
     stopPlacing() { if (!this.placing) return; if (this.g.site) this.g.site.clearGhost(); this.g.group.remove(this.placing.ghost); this.placing = null; this.$('cPlace').hidden = true; this.g.play.ui.tip(null); }
     rotate() { if (this.g.site.active) { this.g.site.turn(); if (this.lastP) this.moveGhost(this.lastP.sx, this.lastP.sy); return; } this.g.rotExtra = ((this.g.rotExtra || 0) + Math.PI / 2) % (Math.PI * 2); if (this.lastP) this.moveGhost(this.lastP.sx, this.lastP.sy); }
+    /* where a piece snaps for the pointer at p: walls to the square, gates to a wall run, stone towers to the tile grid; null = free */
+    snapSpot(type, p) {
+      const g = this.g;
+      if (g.walls.handles(type)) return g.walls.edgeAt(type, p);
+      if (K.Breacher.GATES.has(type)) return g.gateSpot(p);
+      if (type === 'stone_tower' && g.ramparts) return g.ramparts.towerSpot(p);
+      return null;
+    }
     moveGhost(sx, sy) {
       this.lastP = { sx, sy }; if (this.g.site.active) { this.g.site.hover(sx, sy); return; }   // a building: the site draws it
       const P = this.placing, g = this.g, p = g.app.pickGround(sx, sy);
       if (!p) { P.ghost.visible = false; return; }
-      const e = g.walls.handles(P.type) ? g.walls.edgeAt(P.type, p) : K.Breacher.GATES.has(P.type) ? g.gateSpot(p) : null;
+      const e = this.snapSpot(P.type, p);
       const x = e ? e.x : Math.round(p.x * 4) / 4, z = e ? e.z : Math.round(p.z * 4) / 4, rot = e ? e.rot : g.autoRot(x, z), why = g.placementOk(P.type, x, z, rot);
       P.ghost.visible = true; P.ghost.position.set(x, g.play.nav.y(x, z), z); P.ghost.rotation.y = rot; CastleArt.tintGhost(P.ghost, !why); P.at = { x, z, rot, why };
       g.play.ui.tip(why ? `<b>Can’t build here</b> · ${esc(why)}` : `<b>${esc(this.c.data.piece(P.type).name)}</b> · ${g.walls.handles(P.type) ? 'click to build, or drag to draw a wall' : 'press, hold and swing the mouse to turn it, let go to build'} (${esc(Object.entries(this.c.buildCost(P.type)).map(([r, n]) => n + ' ' + K.CastleData.resName(r)).join(', '))})`, sx, sy);
