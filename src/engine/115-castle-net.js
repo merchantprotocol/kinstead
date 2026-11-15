@@ -62,13 +62,15 @@
         ws.onclose = () => { fail('closed'); this.onClosed(); };
         ws.onmessage = (e) => {
           let m; try { m = JSON.parse(e.data); } catch (err) { return; }
-          if (m.t === 'welcome') { this.id = m.id; this.slot = m.slot; this.welcome = m; clearTimeout(timer); if (!done) { done = true; this.ready = true; resolve(this); } else { this.ready = true; this.emit('welcome', m); } return; }
+          if (m.t === 'welcome') { this.id = m.id; this.slot = m.slot; this.welcome = m; this.clock = m.clock; this.offset = m.clock.now - Date.now(); clearTimeout(timer); if (!done) { done = true; this.ready = true; resolve(this); } else { this.ready = true; this.emit('welcome', m); } return; }
           if (m.t === 'full') { fail('the map is full'); return; }
           this.emit(m.t, m);
         };
       });
     }
     onClosed() { this.ready = false; if (this.closed || !this.welcome) return; this.emit('offline', {}); clearTimeout(this.rt); this.rt = setTimeout(() => this.open().catch(() => this.onClosed()), 3000); }
+    /** the server's time, in ms */
+    now() { return Date.now() + (this.offset || 0); }
     send(m) { if (this.ready && this.ws && this.ws.readyState === 1) this.ws.send(JSON.stringify(m)); }
     op(o) { this.send({ t: 'op', op: o }); }
     close() { this.closed = true; try { this.ws.close(); } catch (e) { /* already closed */ } }
@@ -201,9 +203,24 @@
     dispose() { this.clear(); this.root.remove(); }
   }
 
+  /** everyone's supplies around their houses, drawn the same for all; anyone may take from them */
+  class RemoteStores {
+    constructor(game, net) { this.g = game; this.net = net; this.by = new Map(); this.fake = { g: game, center: { x: 0, z: 0 }, reblock() {}, stores: [] }; }
+    upsert(s) {
+      if (s.owner === this.net.id) return; const old = this.by.get(s.id); if (old) { this.setStock(s.id, s.stock); return; }
+      const cls = s.kind === 'pile' ? K.Pile : s.kind === 'crate' ? K.Crate : K.Barrel;
+      const view = new cls(this.fake, { id: s.id, kind: s.kind, name: s.name, res: s.res, dx: s.x, dz: s.z, own: s.stock, stack: s.stack }); view.ent.type = 'c_rstore'; view.ent.sid = s.id; view.ent.name = s.name;
+      this.by.set(s.id, { s, view }); view.sync(); this.g.play.refreshProps();
+    }
+    setStock(id, stock) { const r = this.by.get(id); if (!r) return; r.view.stock = stock; if (r.view.refresh && stock > 0) r.view.refresh(); r.view.sync(); this.g.play.refreshProps(); }
+    gone(id) { const r = this.by.get(id); if (!r) return; const g = this.g, v = r.view; g.unblockRect(v.x, v.z, 0.5, 0.5, 0); v.dispose(); this.by.delete(id); g.play.refreshProps(); }
+    dropOwner(owner) { for (const [id, r] of [...this.by]) if (r.s.owner === owner) this.gone(id); }
+    entities() { const out = []; for (const r of this.by.values()) if (r.view.present) out.push(r.view.ent); return out; }
+  }
+
   class Multiplayer {
     constructor(game, net) {
-      this.g = game; this.net = net; this.world = new RemoteWorld(game, net); this.avatars = new Avatars(game, net); this.t = 0; this.chat = null;
+      this.g = game; this.net = net; this.world = new RemoteWorld(game, net); this.avatars = new Avatars(game, net); this.stores = new RemoteStores(game, net); this.lastSave = -1e9; this.t = 0; this.chat = null;
       net.on('join', (m) => { this.avatars.add(m.p); this.world.cottage(m.p.slot); game.cui.toast(`${m.p.name} joined.`); });
       net.on('leave', (m) => { const r = this.avatars.by.get(m.id); if (r) game.cui.toast(`${r.name} left.`); this.avatars.remove(m.id); });
       net.on('tick', (m) => this.avatars.ticks(m.p));
@@ -213,14 +230,16 @@
       net.on('locked', (m) => game.cui.toast(m.what === 'door' ? 'The door is locked. Only its owner and their team have the key.' : 'The gate is locked. Only its owner and their team have the key.'));
       net.on('teams', (m) => this.setTeams(m.list)); net.on('invite', (m) => this.onInvite(m));
       net.on('demand', (m) => this.onDemand(m)); net.on('paid', (m) => this.onPaid(m)); net.on('refused', (m) => game.cui.toast(`${m.name} refused to pay.`));
-      net.on('evicted', () => this.onEvicted());
+      net.on('fx', (m) => this.onFx(m)); net.on('stores', (m) => this.onStores(m)); net.on('store', (m) => this.onStore(m)); net.on('stock', (m) => this.onStock(m));
+      net.on('took', (m) => this.giveTaken(m.res, m.n)); net.on('raided', (m) => game.cui.toast(`${m.by} raided your supplies (${m.n} ${K.CastleData.resName(m.res).toLowerCase()}).`));
+      net.on('evicted', () => this.onEvicted()); net.on('weather', (m) => game.weather && game.weather.setFromServer(m.weather));
       net.on('chat', (m) => { if (m.from === net.id) return; game.cui.toast(`${m.name}: ${m.text}`); this.avatars.say(m.from, m.text); });
       net.on('welcome', (m) => this.start(m));
       net.on('offline', () => game.cui.toast('Lost the connection. Reconnecting…'));
       this.teams = (net.welcome.teams || []); this.lastOpen = null; this.lastBroken = null; this.lastHit = 0;
       this.start(net.welcome); this.makeChatBox();
     }
-    start(w) { this.avatars.clear(); for (const p of w.players || []) this.avatars.add(p); this.world.snapshot(w); }
+    start(w) { if (w.clock) { this.net.clock = w.clock; this.net.offset = w.clock.now - Date.now(); } if (this.g.weather && w.weather) this.g.weather.setFromServer(w.weather); this.avatars.clear(); for (const p of w.players || []) this.avatars.add(p); this.world.snapshot(w); this.syncStores(w.stores || []); if (!this.g.resume) this.net.send({ t: 'save', data: null }); }
     /** tell the server what you already have on your plot (a game from before multiplayer, or one saved on this device) */
     uploadMine() {
       const g = this.g, tiles = [], d = g.play.doc, h0 = g.persist.h0, t0 = g.persist.t0;
@@ -230,7 +249,55 @@
       if (tiles.length) this.op({ k: 'tiles', list: tiles });
       for (const e of g.forest.nodes) if (!g.forest.live(e)) this.op({ k: 'node', id: e.id, st: 'felled' });
     }
-    get me() { return this.net.id; }
+    /** [phase index, seconds into it, day number] from the server's clock */
+    cycleState() { const c = this.net.clock, tot = c.day + c.night, el = Math.max(0, (this.net.now() - c.epoch) / 1000), n = Math.floor(el / tot) + 1, tin = el % tot; return tin < c.day ? [0, tin, n] : [1, tin - c.day, n]; }
+    /* ---------- your progress, kept on the server ---------- */
+    saveRemote(snap, force) { const now = performance.now(); if (!force && now - this.lastSave < 8000) return; this.lastSave = now; try { this.net.send({ t: 'save', data: JSON.stringify(snap) }); } catch (e) { console.warn('could not send the save', e); } }
+    /* ---------- pickups everyone sees ---------- */
+    fx(o) { this.net.send({ t: 'fx', fx: o }); }
+    onFx(m) { const f = m.fx, e = this.g.tools.effects; if (f.k === 'pk+') e.pickups.spawn(f.kind, f.value, f.x, f.y, f.z, 1.2, !!f.exact, null, f.id); else if (f.k === 'pk-') e.pickups.drop(f.id); }
+    /* ---------- supplies ---------- */
+    own(s) { return s.stock != null && s.present; }
+    pub(s) { return { id: s.id, kind: s.kind, name: s.name, res: s.res, x: +s.x.toFixed(2), z: +s.z.toFixed(2), stack: s.stack || 1, stock: s.stock }; }
+    publishStores() { this.net.send({ t: 'stores', list: this.g.home.stores.filter((s) => this.own(s)).map((s) => this.pub(s)) }); }
+    storeAdd(s) { if (this.own(s)) this.net.send({ t: 'store', id: s.id, kind: s.kind, name: s.name, res: s.res, x: +s.x.toFixed(2), z: +s.z.toFixed(2), stack: s.stack || 1, stock: s.stock }); }
+    storeGone(s) { this.net.send({ t: 'store', id: s.id, gone: true }); }
+    stockDelta(s, d) { if (d) this.net.send({ t: 'stock', id: s.id, d }); }
+    /** on joining: take the server's word for what is in your barrels (raiders may have been), then show everyone else's */
+    syncStores(list) {
+      const me = this.me, mine = list.filter((s) => s.owner === me), home = this.g.home;
+      if (!mine.length) this.publishStores(); else this.reconcileMine(mine);
+      for (const s of list) if (s.owner !== me) this.stores.upsert(s);
+    }
+    reconcileMine(mine) {
+      const home = this.g.home, by = new Map(mine.map((s) => [s.id.slice(this.me.length + 1), s]));
+      for (const st of home.stores.slice()) {
+        if (st.stock == null) continue; const sv = by.get(st.id); by.delete(st.id);
+        if (sv) { st.stock = sv.stock; if (st.refresh && st.stock > 0) st.refresh(); st.sync(); } else if (st.pile) { st.stock = 0; st.sync(); } else this.storeAdd(st);
+      }
+      for (const sv of by.values()) if (sv.kind === 'pile' && sv.stock > 0) home.dropPile(sv.res, sv.x, sv.z, sv.stock, null, sv.id.slice(this.me.length + 1), true);
+    }
+    onStores(m) { if (m.mine) return; this.stores.dropOwner(m.owner); for (const s of m.list) this.stores.upsert(s); }
+    onStore(m) { if (m.gone) { this.stores.gone(m.id); return; } this.stores.upsert(m.s); }
+    onStock(m) {
+      const mineId = m.id.startsWith(this.me + ':') ? m.id.slice(this.me.length + 1) : null;
+      if (mineId) { const st = this.g.home.stores.find((q) => q.id === mineId); if (st && st.stock !== m.stock) { st.stock = m.stock; if (st.refresh && st.stock > 0) st.refresh(); st.sync(); } return; }
+      this.stores.setStock(m.id, m.stock);
+    }
+    takeFrom(id) { this.net.send({ t: 'take', id, n: 10 }); }
+    giveTaken(res, n) {
+      const g = this.g; if (res === 'bread') { g.play.player.addItem('bread', n); } else g.castle.add(res, n);
+      g.changed(); g.sound.play('gather'); g.play.float(g.play.me, `+${n} ${K.CastleData.resName(res).toLowerCase()}`, 'loot');
+    }
+    /* ---------- houses and keys ---------- */
+    /** do you hold the key to this building (so you may sleep there)? */
+    keyFor(id) {
+      const m = /^home:(\d+)$/.exec(id); if (m) { const r = this.world.doors.get(+m[1]); return !!r && !r.door.broken && !!r.owner && this.mayUse(r.owner); }
+      const s = /^smithy:(.+)$/.exec(id); if (s) return this.mayUse(s[1]); return false;
+    }
+    slotOf(id) { if (id === 'home') return this.g.L.slot; const m = /^home:(\d+)$/.exec(id); return m ? +m[1] : null; }
+    setRespawn(slot, x, z) { this.net.send({ t: 'respawn', slot, x: +x.toFixed(2), z: +z.toFixed(2) }); }
+
     teamId(id) { for (const t of this.teams) if (t.members.includes(id)) return t.id; return null; }
     /** do you hold the key for something this settler owns? (yours, or your team's) */
     mayUse(owner) { return !owner || owner === this.me || (!!this.teamId(this.me) && this.teamId(this.me) === this.teamId(owner)); }
@@ -322,5 +389,5 @@
     dispose() { this.net.close(); this.avatars.dispose(); this.chat.remove(); }
   }
 
-  Object.assign(K, { Identity, NameGate, Net, RemoteWorld, Avatars, Multiplayer });
+  Object.assign(K, { Identity, NameGate, Net, RemoteWorld, RemoteStores, Avatars, Multiplayer });
 })(typeof window !== 'undefined' ? window : globalThis);

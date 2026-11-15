@@ -63,7 +63,7 @@
     /** pick a heap back up (what does not fit in your store stays) */
     take(store) {
       const g = this.g, c = g.castle, res = store.res, got = c.add(res, store.stock); if (got <= 0) { g.cui.toast(`Your ${K.CastleData.resName(res).toLowerCase()} store is full.`); return; }
-      store.stock -= got; g.play.float(g.play.me, `+${got}`, 'loot'); g.sound.play('gather'); g.changed(); if (store.stock > 0 && store.refresh) store.refresh();
+      store.stock -= got; if (g.mp) g.mp.stockDelta(store, -got); g.play.float(g.play.me, `+${got}`, 'loot'); g.sound.play('gather'); g.changed(); if (store.stock > 0 && store.refresh) store.refresh();
     }
     name(res) { return NAMES[res]; }
   }

@@ -89,18 +89,21 @@
       const hero = env.hero(), p = this.mesh.position; this.flyT += dt;
       if (!hero) return true;
       const k = Math.min(1, dt * 14); p.x += (hero.x - p.x) * k; p.y += (hero.y + 0.7 - p.y) * k; p.z += (hero.z - p.z) * k; this.mesh.scale.multiplyScalar(1 - dt * 3);
-      if (this.flyT > 0.18 || Math.hypot(hero.x - p.x, hero.z - p.z) < 0.18) { env.grant(this); return false; }
+      if (this.flyT > 0.18 || Math.hypot(hero.x - p.x, hero.z - p.z) < 0.18) { if (this.pid && env.share) env.share({ k: 'pk-', id: this.pid }); env.grant(this); return false; }
       return true;
     }
   }
   class PickupField {
     constructor(group, materials, env, cap = 140) { this.group = group; this.materials = materials; this.env = env; this.cap = cap; this.items = []; }
-    spawn(kind, value, x, y, z, speed, exact = false, payload = null) {
+    /** pid: the shared id of a pickup other players can see and collect (null when alone) */
+    spawn(kind, value, x, y, z, speed, exact = false, payload = null, pid = null) {
       if (this.items.length >= this.cap) this.group.remove(this.items.shift().mesh);
       const size = kind === 'wood' ? 0.34 : kind === 'dirt' ? 0.17 : 0.17 + value * 0.04, mesh = this.materials.mesh(kind, size), a = rnd(0, 6.28), s = rnd(0.4, 1) * speed;
       mesh.position.set(x, y, z); this.group.add(mesh);
-      this.items.push(new Pickup(kind, value, mesh, size, Math.cos(a) * s, rnd(2.6, 4.4), Math.sin(a) * s, exact, payload));
+      const pk = new Pickup(kind, value, mesh, size, Math.cos(a) * s, rnd(2.6, 4.4), Math.sin(a) * s, exact, payload); pk.pid = pid; this.items.push(pk); return pk;
     }
+    /** someone else got it first */
+    drop(pid) { const i = this.items.findIndex((p) => p.pid === pid); if (i >= 0) { this.group.remove(this.items[i].mesh); this.items.splice(i, 1); } }
     update(dt) { this.items = this.items.filter((p) => { const live = p.update(dt, this.env); if (!live) this.group.remove(p.mesh); return live; }); }
     clear() { for (const p of this.items) this.group.remove(p.mesh); this.items = []; }
   }
@@ -147,7 +150,10 @@
     /** a cube of `kind` flies from `from` {x,y,z} to `actor`, then onArrive() */
     courier(kind, from, actor, onArrive) { this.couriers.push(new Courier(this.group, this.materials.mesh(kind, kind === 'wood' ? 0.2 : 0.14), from, actor, onArrive)); }
     /** exact: the value is paid in full (a refund), without the gather bonus a harvest gets */
-    spawnPickup(kind, value, x, y, z, speed, exact = false, payload = null) { this.pickups.spawn(kind, value, x, y, z, speed, exact, payload); }
+    spawnPickup(kind, value, x, y, z, speed, exact = false, payload = null) {
+      let pid = null; if (!payload && this.env.share) { pid = Math.random().toString(36).slice(2, 10); this.env.share({ k: 'pk+', id: pid, kind, value, x: +x.toFixed(2), y: +y.toFixed(2), z: +z.toFixed(2), exact }); }   // everyone sees it; first to collect it gets it
+      this.pickups.spawn(kind, value, x, y, z, speed, exact, payload, pid);
+    }
     /** fell a pine: crash, thud, snow puffs, then onLanded({x, z}) so the caller can drop the logs */
     fellTree(x, z, fromX, fromZ, onLanded) {
       const y = this.env.floorY(x, z); this.env.sound('whump');

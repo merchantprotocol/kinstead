@@ -23,17 +23,21 @@
     get hpMax() { return this.player.stats().hpMax; }
     get weak() { return this.player.hp < this.hpMax * 0.3; }
     get floor() { return Math.max(2, Math.round(this.hpMax * 0.06)); }
-    get home() { const me = this.play.me; return this.g.home.inside(me.x, me.z); }
+    /** the id of the house you are standing in if you hold its key (yours, or your team's), else null */
+    shelter() { const g = this.g, me = this.play.me, b = g.R.buildings.at(Math.floor(me.x / K.TILE), Math.floor(me.z / K.TILE)); return b && g.keyFor(b.spec.id) ? b.spec.id : null; }
+    get home() { return !!this.shelter(); }
     /** the bed's "Sleep" (the building system's instant full heal is replaced) */
     hook() {
       const reg = K.Interactions, v = this, orig = reg.get('bed') || {}, base = orig.baseActions || orig.actions;
-      reg.register('bed', Object.assign({}, orig, { baseActions: base, actions: (e, game) => [{ id: 'sleep', label: 'Sleep (slow recovery)', icon: 'hand', range: e.range, run: () => v.sleep() }].concat((base ? base(e, game) : []).filter((a) => a.id !== 'sleep' && a.id !== 'rest')) }));
+      reg.register('bed', Object.assign({}, orig, { baseActions: base, actions: (e, game) => [{ id: 'sleep', label: 'Sleep (slow recovery)', icon: 'hand', range: e.range, run: () => v.sleep(e) }].concat((base ? base(e, game) : []).filter((a) => a.id !== 'sleep' && a.id !== 'rest')) }));
     }
-    sleep() {
+    sleep(e) {
       const g = this.g, P = this.play; if (this.sleeping || !P.me.alive) return;
-      if (!this.home) { g.cui.toast('You can only sleep inside your house.'); return; }
+      const id = (e && e.buildingId) || null, inside = this.shelter();
+      if (id && !g.keyFor(id)) { g.cui.toast('This is not your house. You cannot sleep here.'); return; }   // only where you hold the key
+      if (!inside) { g.cui.toast('You can only sleep inside a house you hold the key to.'); return; }
       if (this.player.hp >= this.hpMax) { g.cui.toast('You are not tired. Strength is full.'); return; }
-      this.sleeping = true; this.hpAtSleep = this.player.hp; this.veil.hidden = false; P.channel({ label: 'Sleeping…', time: 1e9, anim: 'idle', onDone() {} }); g.sound.play('whump');
+      this.sleeping = true; this.hpAtSleep = this.player.hp; this.veil.hidden = false; g.setRespawn(inside, P.me.x, P.me.z); P.channel({ label: 'Sleeping…', time: 1e9, anim: 'idle', onDone() {} }); g.sound.play('whump');
     }
     wake() { if (!this.sleeping) return; this.sleeping = false; this.veil.hidden = true; this.play.cancelChannel(); this.g.cui.toast('You wake.'); }
     update(dt) {
@@ -44,7 +48,7 @@
       if (this.home) {
         if (p.hp < max) { this.acc += dt * HOME_PER_SEC * (this.sleeping ? SLEEP_FACTOR : 1); if (this.acc >= 1) { this.acc -= 1; p.heal(1); } } else this.acc = 0;
       } else {
-        this.acc += dt * DRAIN_PER_SEC;
+        this.acc += dt * DRAIN_PER_SEC * (this.g.weather ? this.g.weather.chill : 1);
         if (this.acc >= 1) { this.acc -= 1; if (p.hp > this.floor) p.hurt(1); }   // hunger and cold wear you down to a bare minimum, never to death
       }
       if (this.weak && !this.warned) { this.warned = true; g_toast(this.g); }

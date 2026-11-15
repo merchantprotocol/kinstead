@@ -1,0 +1,16 @@
+const url = process.argv[2] || 'ws://127.0.0.1:8799/ws/world-' + Math.random().toString(36).slice(2, 8);
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const mk = (cid, name) => new Promise((res) => { const ws = new WebSocket(url), log = []; ws.onopen = () => ws.send(JSON.stringify({ t: 'hello', cid, name })); ws.onmessage = (e) => log.push(JSON.parse(e.data)); res({ ws, log, send: (m) => ws.send(JSON.stringify(m)), has: (t, f) => log.some((m) => m.t === t && (!f || f(m))), last: (t) => log.filter((m) => m.t === t).pop() }); });
+const A = await mk('aaaaaaaa-1', 'Ann'), B = await mk('bbbbbbbb-2', 'Bo'); await wait(600);
+const w = A.last('welcome'); console.log('clock', !!w.clock, w.clock.day, w.clock.night, '| weather', w.weather.kind, '| save', w.save);
+A.send({ t: 'pos', x: 118, z: 100, y: 0, f: 0, s: 'idle', tool: 'sword' }); B.send({ t: 'pos', x: 120, z: 100, y: 0, f: 0, s: 'idle', tool: 'axe' });
+A.send({ t: 'save', data: JSON.stringify({ castle: { pieces: [1] }, xp: 5 }) }); await wait(300);
+A.send({ t: 'stores', list: [{ id: 'food', kind: 'barrel', name: 'Meat barrel', res: 'food', x: 119, z: 101, stack: 1, stock: 12 }] }); await wait(300);
+console.log('B sees A stores', JSON.stringify(B.last('stores').list.map((s) => s.stock)));
+B.send({ t: 'take', id: 'aaaaaaaa:food', n: 10 }); await wait(300); console.log('B took', JSON.stringify(B.last('took')), '| A raided msg', JSON.stringify(A.last('raided')));
+console.log('stock broadcast', B.last('stock').stock);
+A.send({ t: 'stock', id: 'food', d: -2 }); await wait(200); console.log('owner delta ->', A.last('stock').stock);
+A.send({ t: 'fx', fx: { k: 'pk+', id: 'x1', kind: 'wood', value: 1, x: 1, y: 1, z: 1 } }); await wait(200); console.log('B got pickup fx', B.has('fx', (m) => m.fx.id === 'x1'));
+A.send({ t: 'respawn', slot: 0, x: 117, z: 100 }); await wait(200);
+const A2 = await mk('aaaaaaaa-1', 'Ann'); await wait(600); const w2 = A2.last('welcome'); console.log('rejoin: save kept', !!w2.save, 'respawn', JSON.stringify(w2.respawn), 'stores', w2.stores.length);
+process.exit(0);

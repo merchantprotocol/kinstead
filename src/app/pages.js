@@ -98,13 +98,13 @@
     async startCastle(app) {
       const net = await K.Net.join(), layout = new K.HutLayout(new K.WorldPlan(), net ? net.slot : 0);   // a plot of your own (or plot 0 when playing alone)
       app.setDoc(new K.HutWorldBuilder(layout).build()); app.dirtySince = false;
-      this.castle = app.play.ext = new K.CastleGame(app.play, { layout, net, resume: this.s.router.param('resume') === '1' || !!G.KINSTEAD_RESUME });
+      this.castle = app.play.ext = new K.CastleGame(app.play, { layout, net, resume: this.s.router.param('new') !== '1' });
       const setPlay = app.setPlay.bind(app); setPlay(true);
       app.setPlay = (on) => { if (on) setPlay(true); };
       document.title = 'Kinstead';
-      this.castle.onLeave = () => { this.castle.save(); G.KINSTEAD_NO_UNLOAD_PROMPT = true; this.s.router.go('menu'); };
-      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') this.castle.save(); });
-      G.addEventListener('pagehide', () => this.castle.save());
+      this.castle.onLeave = () => { this.castle.save(true); G.KINSTEAD_NO_UNLOAD_PROMPT = true; this.s.router.go('menu'); };
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') this.castle.save(true); });
+      G.addEventListener('pagehide', () => this.castle.save(true));
       return this;
     }
     /* the Continue slot: the world with this character's progress (doc.game) */

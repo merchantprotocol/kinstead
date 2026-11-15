@@ -40,6 +40,7 @@
       const g = this.g, play = g.play;
       return {
         floorY: (x, z) => play.nav.y(x, z), hero: () => play.me, time: () => play.t,
+        share: (fx) => { if (g.mp) g.mp.fx(fx); },
         sound: (n) => g.sound.play(n), shake: (s) => { g.shakeT = Math.max(g.shakeT || 0, s); },
         canTake: (kind) => kind === 'furn' || (kind === 'bread' && play.player.canAdd('bread', 1)) || g.castle.amount(kind) < (g.castle.caps()[kind] || 0),
         notifyFull: (kind) => { if (play.t - this.fullAt < 2) return; this.fullAt = play.t; g.cui.toast(`Your ${K.CastleData.resName(kind)} store is full.`); g.cui.flashRes(kind); },

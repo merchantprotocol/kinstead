@@ -18,7 +18,15 @@
     get nightProgress() { return this.isNight ? Math.min(1, this.cycle.t / Math.max(1, this.cycle.length() || 1)) : 0; }
     on(fn) { this.listeners.push(fn); return this; }
     emit(ev) { for (const fn of this.listeners) fn(ev, this); }
+    /** with a server, the clock is the server's: phase, time into it, and the day number come from `this.sync()` */
+    updateSynced() {
+      const [idx, t, n] = this.sync(), c = this.cycle;
+      if (idx !== c.idx) { c.idx = idx; c.warned = false; if (!this.synced) { /* joining: no event */ } else if (idx === 1) this.emit({ type: 'dusk', phase: c.phase }); else { this.n = n; this.emit({ type: 'dawn', phase: c.phase }); } }
+      c.t = t; this.n = n; this.synced = true;
+      if (idx === 0 && !c.warned && Calendar.PHASES[0].sec - t <= 30) { c.warned = true; this.emit({ type: 'warn', phase: c.phases[1] }); }
+    }
     update(dt) {
+      if (this.sync) { this.updateSynced(); return; }
       for (let ev of this.cycle.tick(dt)) {
         if (ev.type === 'end') { const c = this.cycle; c.idx = 0; c.t = 0; c.warned = false; c.override = null; this.n++; ev = { type: 'dawn', phase: c.phase }; }   // night is over: loop
         this.emit(ev);
