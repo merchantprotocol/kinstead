@@ -28,7 +28,7 @@
 
   /* piece footprints (m): w along the piece's local x, d along local z; used for nav blocking, raider collision and placement */
   const SIZE = {
-    keep: [4.2, 4.2], palisade: [0.5, 0.5], stone_wall: [0.5, 0.5], dirt: [0.5, 0.5], gate: [2, 0.5], stone_gate: [4, 1.5], blacksmith: [6, 4.5], cottage: [5, 3.5], gatehouse: [3.6, 1.6], watchtower: [1.5, 1.5], ember_brazier: [0.8, 0.8], fire_pot: [0.8, 0.8], farm: [3, 2.5], silo: [1.6, 1.6], coop: [1.6, 1.4], barn: [3.4, 2.6], market: [1, 1], market_stalls: [3.8, 2.6], market_pavilion: [3.8, 2.6], market_wagons: [3.8, 2.6], field: [0.5, 0.5],
+    keep: [4.2, 4.2], palisade: [0.5, 0.5], stone_wall: [0.5, 0.5], stone_tower: [1.5, 1.5], dirt: [0.5, 0.5], gate: [2, 0.5], stone_gate: [4, 1.5], blacksmith: [6, 4.5], cottage: [5, 3.5], gatehouse: [3.6, 1.6], watchtower: [1.5, 1.5], ember_brazier: [0.8, 0.8], fire_pot: [0.8, 0.8], farm: [3, 2.5], silo: [1.6, 1.6], coop: [1.6, 1.4], barn: [3.4, 2.6], market: [1, 1], market_stalls: [3.8, 2.6], market_pavilion: [3.8, 2.6], market_wagons: [3.8, 2.6], field: [0.5, 0.5],
     woodcutter: [2.6, 2.2], quarry: [2.6, 2.2], mine: [2.6, 2.4], great_hall: [5.2, 3.2], chapel: [2.2, 2.6], storehouse: [2.8, 2.2],
     smithy: [3.2, 2.6], ember_forge: [1.8, 1.6], barracks: [4.2, 2.2],
   };

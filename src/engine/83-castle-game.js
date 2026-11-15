@@ -301,7 +301,7 @@
       return out;
     }
     pieceEnt(p) {
-      if (!p.ent) { const [w, d] = CastleArt.size(p.type); p.ent = { id: 'c-p' + p.uid, type: 'c_piece', piece: p, x: p.x, z: p.z, y: 0, r: K.Breacher.GATES.has(p.type) ? Math.max(w, d) / 2 : Math.max(0.5, Math.min(w, d) / 2 + 0.2), h: { watchtower: 4.6, great_hall: 2.8, gatehouse: 3, stone_gate: 3.2 }[p.type] || 1.8 }; }
+      if (!p.ent) { const [w, d] = CastleArt.size(p.type); p.ent = { id: 'c-p' + p.uid, type: 'c_piece', piece: p, x: p.x, z: p.z, y: 0, r: K.Breacher.GATES.has(p.type) ? Math.max(w, d) / 2 : Math.max(0.5, Math.min(w, d) / 2 + 0.2), h: { watchtower: 4.6, great_hall: 2.8, gatehouse: 3, stone_gate: 3.2, stone_wall: 3.4, stone_tower: 4 }[p.type] || 1.8 }; }
       p.ent.name = this.data.piece(p.type).name + (p.level >= 2 ? ' · Level 2' : ''); return p.ent;
     }
     pieceRadius(p) { const [w, d] = CastleArt.size(p.type); return Math.max(w, d) / 2; }
