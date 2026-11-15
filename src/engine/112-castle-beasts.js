@@ -28,7 +28,7 @@
       return this.g.home.stores.filter((s) => (s.res === 'food' || s.res === 'bread') && s.present && s.amount >= 1 && !(this.bad.get(s) > now)).sort((p, q) => dist(p.ent, a) - dist(q.ent, a))[0] || null;
     }
     update(dt) {
-      const g = this.g, a = this.a, me = this.P.me; if (!this.tickDead(dt)) return;
+      const g = this.g, a = this.a, me = this.prey(); if (!this.tickDead(dt)) return;
       this.cd -= dt; if (this.plunder) this.plunder.follow(); const d = dist(a, me);
       if (d > 90 && this.mode !== 'leave') { this.plunder.release(); g.removeActor(a); return; }
       if (this.mode === 'leave') { if (dist(a, g.home.center) > 66) { this.plunder.escape(); g.removeActor(a); return; } const lp = g.wild.leavePoint(a); this.walk(lp.x, lp.z, 1.5, dt); return; }

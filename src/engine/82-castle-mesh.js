@@ -28,7 +28,7 @@
 
   /* piece footprints (m): w along the piece's local x, d along local z; used for nav blocking, raider collision and placement */
   const SIZE = {
-    keep: [4.2, 4.2], palisade: [0.5, 0.5], stone_wall: [0.5, 0.5], dirt: [0.5, 0.5], gate: [2, 0.5], stone_gate: [4, 1.5], blacksmith: [6, 4.5], cottage: [5, 3.5], gatehouse: [3.6, 1.6], watchtower: [1.5, 1.5], ember_brazier: [0.8, 0.8],
+    keep: [4.2, 4.2], palisade: [0.5, 0.5], stone_wall: [0.5, 0.5], dirt: [0.5, 0.5], gate: [2, 0.5], stone_gate: [4, 1.5], blacksmith: [6, 4.5], cottage: [5, 3.5], gatehouse: [3.6, 1.6], watchtower: [1.5, 1.5], ember_brazier: [0.8, 0.8], fire_pot: [0.8, 0.8],
     woodcutter: [2.6, 2.2], quarry: [2.6, 2.2], mine: [2.6, 2.4], great_hall: [5.2, 3.2], chapel: [2.2, 2.6], storehouse: [2.8, 2.2],
     smithy: [3.2, 2.6], ember_forge: [1.8, 1.6], barracks: [4.2, 2.2],
   };
@@ -140,6 +140,7 @@
           for (let i = 0; i < 6; i++) k.box('wood', 0.78, 0.9 + i * 0.38, 0.1, 0.05, 0.05, 0.4);
           break;
         }
+        case 'fire_pot':
         case 'ember_brazier': {
           k.box('ashlar', 0, 0, 0, 0.7, 0.3, 0.7);
           for (let i = 0; i < 3; i++) { const a = i / 3 * Math.PI * 2; k.box('iron', Math.cos(a) * 0.18, 0.3, Math.sin(a) * 0.18, 0.06, 0.55, 0.06); }

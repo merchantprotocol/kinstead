@@ -181,7 +181,11 @@
     /** a saved game after your castle was taken: resources, strength and weapons stay; pieces, buildings, stores and ground do not */
     evictedSave(sv) { if (!sv) return null; const keep = sv.extras || {}; sv.castle.pieces = []; sv.hero = null; sv.nodes = {}; sv.extras = { weapons: keep.weapons, held: keep.held, xp: keep.xp }; return sv; }
     /** you hit another player: tell the server (it works out the damage) */
-    pvpHit(a, b) { if (this.mp) { this.mp.pvp(b.pid); this.xp.dealt(); this.sound.play('hit'); } }
+    pvpHit(a, b) {
+      if (!this.mp) return;
+      if (a === this.play.me) { if (b.mob) this.mp.mobHit(b); else this.mp.pvp(b.pid); this.xp.dealt(); this.sound.play('hit'); }   // you hit a player, or someone else's creature
+      else if (!a.remote && !b.mob && b.pid) this.mp.mobBite(a, b);   // one of your creatures bit another player
+    }
     playerMenu(e) { if (this.mp) this.mp.playerMenu(e); }
     /** your character wears your banner's colour */
     applyLook() { const me = this.play.me; if (me && me.view) { const c = K.BANNER_COLORS[this.banners.mine().color % 12]; if (me.view.setTeam) me.view.setTeam(c); else if (me.view.setTint) me.view.setTint(c); } }
@@ -229,7 +233,7 @@
       this.kinActors = {}; this.troll = null;
       this.restoreNodes();
       this.raid = null;
-      this.cui = new K.CastleUI(this); this.vitals = new K.Vitals(this); this.wild = new K.Wild(this); this.calendar.on((ev) => this.onCalendar(ev)); this.tools = new K.CastleTools(this); this.minimap = new K.Minimap(this); this.xp = this.xp || new K.Experience(this); this.weather = new K.Weather(this); this.banners = new K.BannerBook(this, this.net); this.flags = new K.Flags(this); this.banners.on(() => this.applyLook()); this.applyLook(); this.forest = new K.Forest(this); this.brush = new K.GroundBrush(this); this.steer = new K.PieceSteer(this); this.purse = new K.Purse(this); this.stash = new K.Stash(this); this.site = new K.BuildingSite(this); this.sweep = new K.SweepAttack(this); this.demolisher = new K.Demolisher(this); this.play.refreshProps();
+      this.cui = new K.CastleUI(this); this.vitals = new K.Vitals(this); this.wild = new K.Wild(this); this.calendar.on((ev) => this.onCalendar(ev)); this.tools = new K.CastleTools(this); this.minimap = new K.Minimap(this); this.xp = this.xp || new K.Experience(this); this.weather = new K.Weather(this); this.towers = new K.Towers(this); this.banners = new K.BannerBook(this, this.net); this.flags = new K.Flags(this); this.banners.on(() => this.applyLook()); this.applyLook(); this.forest = new K.Forest(this); this.brush = new K.GroundBrush(this); this.steer = new K.PieceSteer(this); this.purse = new K.Purse(this); this.stash = new K.Stash(this); this.site = new K.BuildingSite(this); this.sweep = new K.SweepAttack(this); this.demolisher = new K.Demolisher(this); this.play.refreshProps();
       if (this.day.isNight) this.startRaid();
       play.app.rig.set({ dist: 11, pitch: 0.78 }); play.app.rig.maxDist = 44;   // you can never zoom out far enough to see the edge of the world
       this.persist = new K.Persist(this); if (this.saved && this.saved.extras) { try { this.persist.restore(this.saved.extras); } catch (err) { console.warn('could not restore the homestead', err); } }
@@ -239,7 +243,7 @@
     }
     exit() {
       this.play.app.rig.maxDist = null; if (this.minimap) this.minimap.dispose(); if (this.vitals) this.vitals.dispose(); if (this.home) this.home.dispose();
-      this.save(); if (this.tools) this.tools.dispose(); if (this.sweep) this.sweep.dispose(); if (this.demolisher) this.demolisher.dispose(); if (this.site) this.site.dispose(); if (this.brush) this.brush.dispose(); if (this.mp) this.mp.dispose(); if (this.weather) this.weather.dispose(); if (this.flags) this.flags.dispose(); if (this.purse) this.purse.dispose();
+      this.save(); if (this.tools) this.tools.dispose(); if (this.sweep) this.sweep.dispose(); if (this.demolisher) this.demolisher.dispose(); if (this.site) this.site.dispose(); if (this.brush) this.brush.dispose(); if (this.mp) this.mp.dispose(); if (this.weather) this.weather.dispose(); if (this.towers) this.towers.dispose(); if (this.flags) this.flags.dispose(); if (this.purse) this.purse.dispose();
       if (this.origPlace) this.R.placeDynamics = this.origPlace;
       this.R.scene.remove(this.group); this.cui && this.cui.dispose(); document.body.classList.remove('castle');
     }
@@ -508,7 +512,7 @@
       if (type === 'dirt') return this.placeDirt(x, z, quiet);
       const why = this.placementOk(type, x, z, rot); if (why) { if (!quiet) { this.cui.toast(why[0].toUpperCase() + why.slice(1) + '.'); this.sound.play('clank'); } return false; }
       const r = this.castle.build(type, { x, z, rot }); if (!r.ok) { if (!quiet) this.cui.toast(`${this.data.piece(type).name}: ${r.why}.`); return false; }
-      const m = this.addPieceMesh(r.piece); this.pop(m); this.sound.play('thunk'); this.puff(x, z); this.shake(0.08);
+      const m = this.addPieceMesh(r.piece); this.pop(m); this.sound.play('thunk'); this.puff(x, z); this.shake(0.08); if (type === 'fire_pot') this.R.placeDynamics();
       const pr = this.data.piece(type).produces;
       if (!quiet) this.cui.toast(pr ? `${this.data.piece(type).name}: ${K.CastleUI.prodLine(this.castle, type)}.` : `${this.data.piece(type).name} built.`);
       this.xp.built(type); if (this.mp) this.mp.op({ k: 'piece+', id: this.mp.pieceId(r.piece), type, x, z, rot }); this.changed(); return true;
@@ -785,6 +789,8 @@
       const R = this.R, c = this.castle, L = this.L, f = this.flareT > 0 ? 1 + Math.min(1.5, this.flareT) : 1;
       if (c.lit && this.home.built) R.lightSrc.push({ x: this.home.center.x - 1.6, y: 1.4, z: this.home.center.z - 0.4, color: 0xff8a3c, base: 16 * f * (0.6 + 0.4 * this.nightK), dist: Math.max(8, this.glowR * 1.5), ph: 0.3, fire: true });
       for (const p of c.pieces) if (p.type === 'ember_brazier' || p.type === 'ember_forge' || p.type === 'smithy') R.lightSrc.push({ x: p.x, y: 1.3, z: p.z, color: 0xff8a3c, base: 6, dist: 5, ph: p.uid, fire: true });
+      const pots = c.pieces.filter((p) => p.type === 'fire_pot').concat(this.mp ? [...this.mp.world.pieces.values()].filter((r) => r.p.type === 'fire_pot').map((r) => r.p) : []);
+      for (const p of pots) R.lightSrc.push({ x: p.x, y: 1.1, z: p.z, color: 0xff9a4a, base: 5 + 9 * this.nightK, dist: 9, ph: (p.uid || 0) + p.x, fire: true });   // fire pots light the camp, brightest at night
     }
     /* thaw: snow tiles inside radius r become frozen earth / cobbles; animated as a wave over `dur` seconds */
     meltTo(r, dur) { /* the thawing ring around the hearth belonged to the old castle game: the snow stays snow */ }
@@ -839,7 +845,7 @@
       for (const m of this.meshes.values()) if (m.userData.shake > 0) { m.userData.shake -= dt; m.position.x += (Math.random() - 0.5) * 0.04; }
       for (const m of this.meshes.values()) m.traverse((o) => { if (o.userData.flame) o.scale.y = 0.85 + 0.25 * Math.sin(play.t * 11 + o.id); });
       { const fog = this.R.scene.fog, dd = this.app.rig.cur.dist, ws = this.weather.fogScale; if (fog) { fog.near = dd + 8 * ws; fog.far = dd + 32 * ws; } }   // the far edge of the world always fades out, at any zoom
-      this.updateArrow(dt); this.minimap.update(dt); this.weather.update(dt); this.flags.update(dt); this.forest.update(dt); if (this.mp) this.mp.update(dt); for (const p of this.castle.pieces) if (p.bridge) p.bridge.update(dt); this.tools.update(dt); this.sweep.update(dt); this.home.update(dt); this.vitals.update(dt); this.wild.update(dt);
+      this.updateArrow(dt); this.minimap.update(dt); this.weather.update(dt); this.flags.update(dt); this.towers.update(dt); this.forest.update(dt); if (this.mp) this.mp.update(dt); for (const p of this.castle.pieces) if (p.bridge) p.bridge.update(dt); this.tools.update(dt); this.sweep.update(dt); this.home.update(dt); this.vitals.update(dt); this.wild.update(dt);
       this.updateOcclusion(dt);
       if (this.shakeT > 0) { this.shakeT -= dt; const g = play.app.rig.goal; g.tx += (Math.random() - 0.5) * this.shakeT * 0.6; g.tz += (Math.random() - 0.5) * this.shakeT * 0.6; }
       if (this.thawSnow) { const s = this.R.snow.points; s.material.opacity = (s.material.opacity == null ? 1 : s.material.opacity); s.visible = this.endT == null || this.endT < 3; }

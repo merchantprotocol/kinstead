@@ -240,18 +240,20 @@
    "name": "Watchtower",
    "category": "defense",
    "cost": {
-    "wood": 6,
-    "stone": 6
+    "wood": 14,
+    "stone": 10
    },
    "requiresCastleLevel": 1,
    "castlePoints": 4,
-   "hp": 100,
-   "effect": "Shoots raiders within 6 m for 4 dmg/s; 6 dmg/s when a hero stands on it.",
+   "hp": 300,
+   "effect": "A lookout with a bowman. It shoots wolves, bears and raiders within 12 m, day and night. Needs a quarry.",
    "artPrompt": "a tall square timber watchtower on a stone base with a roofed archer platform and a ladder",
    "dps": 4,
    "dpsManned": 6,
    "rangeM": 6,
-   "buildRequires": []
+   "buildRequires": [
+    "quarry"
+   ]
   },
   "ember_brazier": {
    "id": "ember_brazier",
@@ -624,6 +626,21 @@
    "hp": 0,
    "effect": "Your home. Sleep here, keep your door, and stay out of the cold. Build it anywhere you like, whenever you like, but build it first.",
    "artPrompt": "a small timber cottage with a thatched roof",
+   "buildRequires": []
+  },
+  "fire_pot": {
+   "id": "fire_pot",
+   "name": "Fire pot",
+   "category": "defense",
+   "cost": {
+    "wood": 3,
+    "stone": 2
+   },
+   "requiresCastleLevel": 1,
+   "castlePoints": 0,
+   "hp": 80,
+   "effect": "A pot of burning coals. Lights up your camp at night, and standing near it keeps the cold off.",
+   "artPrompt": "an iron fire pot on a stone base",
    "buildRequires": []
   }
  },

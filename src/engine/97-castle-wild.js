@@ -64,6 +64,13 @@
       const want = moving ? (speed > 2.2 ? 'run' : 'walk') : 'idle'; if (v.state !== want) v.setState(want);
     }
     bite(foe) { this.cd = this.a.cd; this.P.swing(this.a, foe); }
+    /** who this creature goes for: the nearest player it can reach (you, or another settler), never someone safe indoors */
+    prey() {
+      const P = this.P, g = this.g, a = this.a, cand = [P.me];
+      if (g.mp) for (const r of g.mp.avatars.by.values()) cand.push(r.a);
+      let best = null, bd = Infinity; for (const c of cand) { if (!c || !c.alive || g.isSanctuary(c.x, c.z)) continue; const d = Math.hypot(c.x - a.x, c.z - a.z); if (d < bd) { bd = d; best = c; } }
+      return (this.who = best || P.me);
+    }
   }
 
   class WolfBrain extends Brain {
@@ -73,9 +80,9 @@
     /** dawn: go back to the dark */
     retreat() { this.mode = 'retreat'; this.leave = this.g.wild.leavePoint(this.a); this.a.path = null; }
     update(dt) {
-      const g = this.g, P = this.P, a = this.a, me = P.me; if (!this.tickDead(dt)) return;
+      const g = this.g, P = this.P, a = this.a, me = this.prey(); if (!this.tickDead(dt)) return;
       this.cd -= dt; const d = dist(a, me);
-      if (d > 80 && this.mode !== 'retreat') { if (this.plunder) this.plunder.release(); g.removeActor(a); return; }
+      if (dist(a, P.me) > 80 && this.mode !== 'retreat') { if (this.plunder) this.plunder.release(); g.removeActor(a); return; }
       if (this.plunder) this.plunder.follow();
       if (this.mode === 'retreat') { if (dist(a, g.home.center) > 66) { if (this.plunder) this.plunder.escape(); g.removeActor(a); return; } const lp = g.wild.leavePoint(a); this.goTo(lp.x, lp.z, a.speed, 1.5, dt); return; }   // it walks away a stretch at a time
       if (this.nothingHere(d)) { this.idle += dt; if (this.idle > 25) { this.retreat(); return; } this.roam(dt); return; }   // a pack that finds nothing roams on, then leaves
@@ -87,7 +94,7 @@
     }
     /** nothing to eat and no one to hunt within its reach: no food outside, and you are in your house or too far to smell */
     nothingHere(d) {
-      const g = this.g, me = this.P.me, night = g.calendar.isNight, smell = night ? g.wild.difficulty.smell : 18;
+      const g = this.g, me = this.who || this.P.me, night = g.calendar.isNight, smell = night ? g.wild.difficulty.smell : 18;
       const prey = me.alive && !g.isSanctuary(me.x, me.z) && d < smell; if (prey || this.a.hp < this.a.hpMax - 0.01 || (this.plunder && this.plunder.carrying)) return false;
       return !(night && this.pickFood());
     }
@@ -99,7 +106,7 @@
     }
     /** go for your food stores and gnaw them (until full, then slink off with it). false = do something else (you are near, or it is hurt). */
     forage(dt, d) {
-      const g = this.g, a = this.a, me = this.P.me, pl = this.plunder || (this.plunder = new K.Plunder(g, a, g.wild.difficulty.appetite));
+      const g = this.g, a = this.a, me = this.who || this.P.me, pl = this.plunder || (this.plunder = new K.Plunder(g, a, g.wild.difficulty.appetite));
       if ((a.hp != null && a.hp < a.hpMax - 0.01) || (me.alive && d < g.wild.difficulty.smell && !g.isSanctuary(me.x, me.z) && !pl.done)) return false;   // hurt, or it smells you: it comes for you before the food
       if (pl.done) { this.retreat(); return true; }
       let st = this.food; if (!st || !st.present || st.amount < 1) { st = this.food = this.pickFood(); if (!st) { if (pl.carrying) this.retreat(); return false; } }
@@ -118,7 +125,7 @@
       if (this.px != null) { a.x = this.px; a.z = this.pz; } a.path = null; this.repath = 0; this.pace = 2.5;   // pushed back; they pace outside for a moment
     }
     hunt(dt, d) {
-      const a = this.a, me = this.P.me, reach = a.reach + (me.r || 0.3) + 0.35; this.spot = null;
+      const a = this.a, me = this.who || this.P.me, reach = a.reach + (me.r || 0.3) + 0.35; this.spot = null;
       if (d <= reach) { a.path = null; this.face(me); if (this.cd <= 0) this.bite(me); this.anim(false); return; }
       this.goTo(me.x, me.z, a.speed * (d > 10 ? 1.3 : 1), reach * 0.8, dt);
     }

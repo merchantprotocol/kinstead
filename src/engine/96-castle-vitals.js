@@ -26,6 +26,7 @@
     /** the id of the house you are standing in if you hold its key (yours, or your team's), else null */
     shelter() { const g = this.g, me = this.play.me, b = g.R.buildings.at(Math.floor(me.x / K.TILE), Math.floor(me.z / K.TILE)); return b && g.keyFor(b.spec.id) ? b.spec.id : null; }
     get home() { return !!this.shelter(); }
+    nearFire() { const g = this.g, me = this.play.me, pots = g.castle.pieces.filter((p) => p.type === 'fire_pot').concat(g.mp ? [...g.mp.world.pieces.values()].map((r) => r.p).filter((p) => p.type === 'fire_pot') : []); return pots.some((p) => Math.hypot(p.x - me.x, p.z - me.z) < 4); }
     /** the bed's "Sleep" (the building system's instant full heal is replaced) */
     hook() {
       const reg = K.Interactions, v = this, orig = reg.get('bed') || {}, base = orig.baseActions || orig.actions;
@@ -55,6 +56,7 @@
       if (this.sleeping) this.hpAtSleep = p.hp;
       if (this.home) {
         if (p.hp < max) { this.acc += dt * HOME_PER_SEC * (this.sleeping ? SLEEP_FACTOR : 1); if (this.acc >= 1) { this.acc -= 1; p.heal(1); } } else this.acc = 0;
+      } else if (this.nearFire()) { this.acc = 0;   // a fire pot keeps the cold off
       } else {
         this.acc += dt * DRAIN_PER_SEC * (this.g.weather ? this.g.weather.chill : 1);
         if (this.acc >= 1) { this.acc -= 1; if (p.hp > this.floor) p.hurt(1); }   // hunger and cold wear you down to a bare minimum, never to death

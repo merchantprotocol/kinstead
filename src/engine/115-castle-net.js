@@ -67,7 +67,7 @@
         ws.onclose = () => { fail('closed'); this.onClosed(); };
         ws.onmessage = (e) => {
           let m; try { m = JSON.parse(e.data); } catch (err) { return; }
-          if (m.t === 'welcome') { this.id = m.id; this.slot = m.slot; this.welcome = m; this.clock = m.clock; this.offset = m.clock.now - Date.now(); clearTimeout(timer); if (!done) { done = true; this.ready = true; resolve(this); } else { this.ready = true; this.emit('welcome', m); } return; }
+          if (m.t === 'welcome') { this.id = m.id; this.slot = m.slot; this.welcome = m; this.clock = m.clock; this.offset = m.clock.now - Date.now(); clearTimeout(timer); if (!done) { done = true; this.ready = true; resolve(this); } else { this.ready = true; this.emit('welcome', m); this.flush(); } return; }
           if (m.t === 'full') { fail('the map is full'); return; }
           this.emit(m.t, m);
         };
@@ -76,7 +76,12 @@
     onClosed() { this.ready = false; if (this.closed || !this.welcome) return; this.emit('offline', {}); clearTimeout(this.rt); this.rt = setTimeout(() => this.open().catch(() => this.onClosed()), 3000); }
     /** the server's time, in ms */
     now() { return Date.now() + (this.offset || 0); }
-    send(m) { if (this.ready && this.ws && this.ws.readyState === 1) this.ws.send(JSON.stringify(m)); }
+    /** sent now, or (for anything that changes the world) kept and sent the moment the connection is back, so no change is lost */
+    send(m) {
+      if (this.ready && this.ws && this.ws.readyState === 1) { this.ws.send(JSON.stringify(m)); return; }
+      if (['pos', 'fx', 'mobs', 'sync', 'ping'].includes(m.t)) return; (this.queue = this.queue || []).push(m); if (this.queue.length > 600) this.queue.shift();
+    }
+    flush() { const q = this.queue || []; this.queue = []; for (const m of q) this.send(m); }
     op(o) { this.send({ t: 'op', op: o }); }
     close() { this.closed = true; try { this.ws.close(); } catch (e) { /* already closed */ } }
   }
@@ -105,6 +110,22 @@
       for (const n of Object.values(w.nodes || {})) this.nodeOp(n, true);
       this.objDirty = true; this.propsDirty = true;
     }
+    /** the server's full picture (a periodic check, or after a dropped connection): add what is missing, remove what is gone */
+    reconcile(m) {
+      const me = this.net.id, g = this.g;
+      if (m.world) {
+        const pcs = m.world.pieces || {};
+        for (const p of Object.values(pcs)) if (p.owner !== me && !this.pieces.has(p.id)) this.addPiece(p);
+        for (const id of [...this.pieces.keys()]) if (!pcs[id]) this.removePiece(id);
+        for (const c of m.claimed || []) { this.owners[c.id] = c.name; this.owners[c.slot] = c.name; if (c.slot !== g.L.slot && c.spec) this.cottage(c.slot, c.spec, c.id); }
+        for (const b of Object.values(m.world.buildings || {})) if (b.owner !== me) this.building(b.id, b.spec);
+        for (const [slot, d] of Object.entries(m.world.doors || {})) { const rec = this.doors.get(+slot); if (rec) { rec.owner = d.owner; rec.hp = d.hp; rec.max = d.hpMax; if (rec.door.broken !== !!d.broken) { rec.door.broken = !!d.broken; rec.door.open = !!d.broken; rec.door.apply(); } } }
+        for (const [id, open] of Object.entries(m.gates || {})) this.gateState(id, !!open);
+        this.propsDirty = true;
+        return Object.keys(pcs);
+      }
+      return null;
+    }
     grow(b, i, j) { return b ? [Math.min(b[0], i), Math.min(b[1], j), Math.max(b[2], i), Math.max(b[3], j)] : [i, j, i, j]; }
     apply(op, from) {
       if (op.k === 'piece+') this.addPiece(Object.assign({ owner: from }, op)); else if (op.k === 'piece-') this.removePiece(op.id);
@@ -129,7 +150,7 @@
       const m = g.art.piece(p.type, { level: 1 }); g.place(m, p.x, p.z, p.rot); const [w, d] = K.CastleArt.size(p.type), rec = { p, mesh: m, w, d, hp: p.hp, hpMax: p.hpMax, gate: null };
       if (K.Breacher.GATES.has(p.type)) { const o = { x: p.x, z: p.z, rot: p.rot || 0, type: p.type, uid: 'r' + p.id }; rec.gate = p.type === 'gate' ? new K.WoodGate(g, o) : new K.Drawbridge(g, o); rec.gate.remote = true; rec.gate.apply(); const lx = p.type === 'gate' ? 1.05 : 2.25; g.flags.flag('rg' + p.id, p.x + lx * Math.cos(p.rot || 0), p.z - lx * Math.sin(p.rot || 0), p.owner, p.type === 'gate' ? 2.6 : 3.8); }   // their gate: shut to you unless you hold the key
       else g.blockRect(p.x, p.z, g.walls.handles(p.type) ? w + 0.04 : w, d, p.rot, false);
-      this.pieces.set(p.id, rec);
+      this.pieces.set(p.id, rec); if (p.type === 'fire_pot') g.R.placeDynamics();
     }
     removePiece(id) {
       const r = this.pieces.get(id); if (!r) return; this.g.group.remove(r.mesh); this.pieces.delete(id); if (r.gate) { r.gate.dispose(); this.g.flags.unflag('rg' + id); }
@@ -235,6 +256,37 @@
     entities() { const out = []; for (const r of this.by.values()) if (r.view.present) out.push(r.view.ent); return out; }
   }
 
+  /** the creatures other players' games are running (their wolves, bears and raiders): you see them, and you can fight them */
+  class RemoteMobs {
+    constructor(game, net) { this.g = game; this.net = net; this.by = new Map(); }
+    key(from, id) { return from + ':' + id; }
+    update(from, list) {
+      const g = this.g, now = g.play.t;
+      for (const [id, kind, x, z, y, f, st, hp, hpMax, name] of list) {
+        const k = this.key(from, id); let r = this.by.get(k);
+        if (!r) {
+          const a = g.addActor({ id: 'mob:' + k, role: 'remote', spriteId: kind === 'bear' ? 'bear' : kind === 'wolf' ? 'wolf' : 'ranger', name: name || kind, x, z, hpMax: hpMax || 30, atk: 0, def: 0, speed: 3, cd: 1, reach: 1, r: kind === 'bear' ? 0.8 : 0.45, scale: 1, level: 1, info: { xp: 0, loot: [] } });
+          a.remote = true; a.hostile = true; a.mob = { owner: from, id }; if (kind === 'raider') a.view.setTint(0x6e4a42);
+          r = { a, tx: x, tz: z, ty: y, f, st, seen: now }; a.brain = { update: (dt) => this.step(r, dt) }; this.by.set(k, r);
+        }
+        r.tx = x; r.tz = z; r.ty = y; r.f = f; r.st = st; r.seen = now; r.a.hp = hp; r.a.hpMax = hpMax || r.a.hpMax;
+      }
+    }
+    step(r, dt) {
+      const a = r.a, g = this.g; if (g.play.t - r.seen > 2.5) { this.remove(r); return; }   // its owner stopped telling us about it: gone
+      const k = Math.min(1, dt * 9), dx = r.tx - a.x, dz = r.tz - a.z, d = Math.hypot(dx, dz);
+      if (d > 20) { a.x = r.tx; a.z = r.tz; } else { a.x += dx * k; a.z += dz * k; } a.y += (r.ty - a.y) * k;
+      if (d > 0.04) a.view.setFacing(dx, dz); else a.view.setFacing(Math.cos(r.f), Math.sin(r.f));
+      const want = r.st === 'dead' ? 'dead' : r.st === 'attack' ? 'attack' : d > 0.1 ? (d > 0.8 ? 'run' : 'walk') : 'idle';
+      if (a.view.state !== want && !(a.view.state === 'attack' && a.view.stateT < 0.45)) a.view.setState(want);
+      if (r.st === 'dead') a.alive = false;
+    }
+    remove(r) { this.by.delete(this.key(r.a.mob.owner, r.a.mob.id)); this.g.removeActor(r.a); }
+    dropOwner(owner) { for (const r of [...this.by.values()]) if (r.a.mob.owner === owner) this.remove(r); }
+    find(owner, id) { return this.by.get(this.key(owner, id)) || null; }
+    dispose() { for (const r of [...this.by.values()]) this.remove(r); }
+  }
+
   /** invitations to join a team: little notices beside the world map, each with Accept and Decline */
   class InviteBoard {
     constructor(mp) {
@@ -256,10 +308,12 @@
 
   class Multiplayer {
     constructor(game, net) {
-      this.g = game; this.net = net; this.world = new RemoteWorld(game, net); this.avatars = new Avatars(game, net); this.stores = new RemoteStores(game, net); this.lastSave = -1e9; this.t = 0; this.chat = null;
+      this.g = game; this.net = net; this.world = new RemoteWorld(game, net); this.avatars = new Avatars(game, net); this.stores = new RemoteStores(game, net); this.mobs = new RemoteMobs(game, net); this.lastSave = -1e9; this.ver = net.welcome.ver || {}; this.syncT = 8; this.mobT = 0; this.t = 0; this.chat = null;
       net.on('join', (m) => { this.avatars.add(m.p); game.cui.toast(`${m.p.name} joined.`); });
       net.on('house', (m) => this.onHouse(m)); net.on('pvphit', (m) => this.onPvpHit(m)); game.banners.on(() => { this.avatars.relook(); this.world.relabel(); });
       net.on('leave', (m) => { const r = this.avatars.by.get(m.id); if (r) game.cui.toast(`${r.name} left.`); this.avatars.remove(m.id); });
+      net.on('resync', (m) => this.onResync(m)); net.on('mobs', (m) => this.mobs.update(m.from, m.list || []));
+      net.on('mobhurt', (m) => this.onMobHurt(m)); net.on('leave', (m) => this.mobs.dropOwner(m.id));
       net.on('tick', (m) => this.avatars.ticks(m.p));
       net.on('op', (m) => this.onOp(m));
       net.on('gate', (m) => { this.world.gateState(m.id, m.open); this.mineGate(m.id, m.open); });
@@ -337,6 +391,44 @@
     setRespawn(slot, x, z) { this.net.send({ t: 'respawn', slot, x: +x.toFixed(2), z: +z.toFixed(2) }); }
 
     get me() { return this.net.id; }
+    /** every few seconds: ask the server whether we have missed anything */
+    onResync(m) {
+      const g = this.g, me = this.me;
+      if (m.players) { const ids = new Set(m.players.map((p) => p.id)); for (const p of m.players) this.avatars.add(p); for (const id of [...this.avatars.by.keys()]) if (!ids.has(id)) this.avatars.remove(id); }
+      if (m.teams) this.setTeams(m.teams);
+      const serverPieces = this.world.reconcile(m);
+      if (serverPieces) {   // anything of mine the server never heard about goes up again
+        const have = new Set(serverPieces); for (const p of g.castle.pieces) if (!have.has(this.pieceId(p))) this.op({ k: 'piece+', id: this.pieceId(p), type: p.type, x: p.x, z: p.z, rot: p.rot || 0 });
+        if (g.home.built && !(m.claimed || []).some((c) => c.slot === g.L.slot)) this.announceHome();
+        if (g.smithy && !Object.keys((m.world || {}).buildings || {}).includes('smithy:' + me)) this.op({ k: 'bld+', id: 'smithy:' + me, spec: g.smithy });
+      }
+      if (m.stores) {
+        const others = m.stores.filter((s) => s.owner !== me), ids = new Set(others.map((s) => s.id));
+        for (const s of others) this.stores.upsert(s); for (const id of [...this.stores.by.keys()]) if (!ids.has(id)) this.stores.gone(id);
+        const mine = new Set(m.stores.filter((s) => s.owner === me).map((s) => s.id.slice(me.length + 1))); for (const st of g.home.stores) if (this.own(st) && !mine.has(st.id)) this.storeAdd(st);
+      }
+      if (m.tiles) { let box = null; for (const t of Object.values(m.tiles)) { this.world.setTile(t[0], t[1], t[2], t[3], false); box = this.world.grow(box, t[0], t[1]); } if (box) g.R.tilesChanged(box[0], box[1], box[2] + 1, box[3] + 1); }
+      if (m.nodes) { for (const n of Object.values(m.nodes)) this.world.nodeOp(n, true); this.world.objDirty = true; }
+      this.ver = m.ver || this.ver;
+    }
+    /** the creatures this game runs, told to everyone else a few times a second */
+    castMobs() {
+      const g = this.g, list = [];
+      for (const a of g.play.actors) {
+        if (a.remote || a === g.play.me || !a.hostile || !(a.wolf || a.bear || a.thief)) continue;
+        const d = a.view.dir; list.push([a.id, a.bear ? 'bear' : a.wolf ? 'wolf' : 'raider', +a.x.toFixed(2), +a.z.toFixed(2), +(a.y || 0).toFixed(2), +Math.atan2(d.z, d.x).toFixed(2), a.alive ? a.view.state : 'dead', Math.round(a.hp), a.hpMax, a.name]);
+        if (list.length >= 40) break;
+      }
+      if (list.length || this.hadMobs) this.net.send({ t: 'mobs', list }); this.hadMobs = list.length > 0;
+    }
+    /** you struck someone else's creature: its owner's game takes the blow */
+    mobHit(b) { this.net.send({ t: 'mobhit', to: b.mob.owner, id: b.mob.id, tool: this.g.tools.tool.id }); }
+    /** one of your creatures bit another player */
+    mobBite(a, b) { this.net.send({ t: 'mobbite', to: b.pid, mob: a.id, name: a.name, dmg: Math.round(a.atk || 5) }); }
+    onMobHurt(m) {
+      const g = this.g, a = g.play.actors.find((x) => x.id === m.id && !x.remote); if (!a || !a.alive) return;
+      a.hp -= m.dmg; a.aggro = true; a.lastFight = g.play.t; g.play.float(a, String(m.dmg), 'dealt'); if (a.view.flash) a.view.flash('hit'); if (a.hp <= 0) g.play.kill(a);
+    }
     /** you built your cottage: everyone gets to see it, and its door is yours */
     announceHome() { const g = this.g; if (g.home.built) this.net.send({ t: 'op', op: { k: 'bld+', id: 'home:' + g.L.slot, spec: g.home.spec, slot: g.L.slot } }); }
     /** someone else built their cottage */
@@ -370,7 +462,8 @@
     onPvpHit(m) {
       const g = this.g, me = g.play.me; if (!me.alive) return; g.play.float(me, '-' + m.dmg, 'hurt'); me.view.flash && me.view.flash('hit'); g.sound.play('hit');
       if (g.play.player.hurt(m.dmg)) g.play.defeat();
-      g.xp.taken(); const r = this.avatars.by.get(m.from); if (r && !m.auto) g.sweep.defend(r.a, true);   // one blow back for a blow struck on purpose; a blow struck back is never answered automatically, so it cannot spiral
+      g.xp.taken(); if (m.mob) { const mr = this.mobs.find(m.from, m.mob); if (mr) g.sweep.defend(mr.a); return; }   // a creature bit you: fight it like your own
+      const r = this.avatars.by.get(m.from); if (r && !m.auto) g.sweep.defend(r.a, true);   // one blow back for a blow struck on purpose; a blow struck back is never answered automatically, so it cannot spiral
     }
     /** if you are shut inside someone else's house or fence you may walk out: the door or gate opens for you (only you), then shuts behind you. You cannot come back in. */
     exits() {
@@ -448,6 +541,8 @@
     pieceId(p) { return this.net.id + ':' + p.uid; }
     update(dt) {
       this.t += dt; this.avatars.update(dt); this.world.flush(); this.stores.flush(); this.exits();
+      if ((this.syncT -= dt) <= 0) { this.syncT = 12; this.net.send({ t: 'sync', v: this.ver }); }   // catch up on anything missed
+      if ((this.mobT -= dt) <= 0) { this.mobT = 0.2; this.castMobs(); }
       for (const r of this.world.doors.values()) r.door.update(dt);
       for (const r of this.world.pieces.values()) if (r.gate) r.gate.update(dt);
       const d = this.g.home.door; if (this.lastOpen !== d.open) { if (this.lastOpen !== null) this.net.send({ t: 'open', slot: this.g.L.slot, open: d.open }); this.lastOpen = d.open; }
@@ -466,8 +561,8 @@
     closeChat() { this.chat.hidden = true; this.chat.querySelector('input').value = ''; }
     key(e) { if (e.key === 'Enter' && this.chat.hidden) { this.chat.hidden = false; setTimeout(() => this.chat.querySelector('input').focus(), 0); return true; } return false; }
     get chatOpen() { return !this.chat.hidden; }
-    dispose() { this.net.close(); this.avatars.dispose(); this.chat.remove(); this.board.dispose(); }
+    dispose() { this.net.close(); this.avatars.dispose(); this.mobs.dispose(); this.chat.remove(); this.board.dispose(); }
   }
 
-  Object.assign(K, { Identity, NameGate, Net, RemoteWorld, RemoteStores, Avatars, InviteBoard, Multiplayer });
+  Object.assign(K, { Identity, NameGate, Net, RemoteWorld, RemoteStores, Avatars, InviteBoard, RemoteMobs, Multiplayer });
 })(typeof window !== 'undefined' ? window : globalThis);
