@@ -1,42 +1,138 @@
 /* Copyright (c) 2026 Merchant Protocol. All rights reserved. */
 /* Building editor integration. All changes use the builder's object history and serializer. */
-(function(G){
-const K=G.K,T=K.TILE, E=new K.BuildingEdit();
-const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-class BuildingTool {
- constructor(app,furniture=false){this.app=app;this.furniture=furniture;this.rot=0;this.chosen=null;}
- get doc(){return this.app.doc;}
- cursor(){return 'crosshair';} cancel(){this.drag=null;} up(){} dbl(){}
- candidate(p){if(!p)return null;const [i,j]=this.doc.tileOf(p.x,p.z);let b=K.makeBuilding(this.app.ui.prefab||'cottage',i,j,'preview',this.doc.seed);for(let k=0;k<this.rot;k++)b=E.rotate(b);b.x=i;b.z=j;return b;}
- hover(p){this.app.overlay.brush(null);if(!p){this.app.overlay.hov.visible=false;return;}let b=this.furniture?this.doc.obj(this.app.interiors.id):this.candidate(p);if(!b)return;let pts=[];
- if(this.furniture){const [i,j]=this.doc.tileOf(p.x,p.z),def=K.FURNITURE[this.app.ui.furniture||'bed'],[w,h]=K.FurnitureFootprint.size(def,this.rot);const x=i*T,z=j*T;pts=[[x,z],[x+w*T,z],[x+w*T,z+h*T],[x,z+h*T],[x,z]];}
- else {this.app.overlay.poly([],false);this.app.overlay.setPts(this.app.overlay.hov,this.app.overlay.outline(b));return;}this.app.overlay.poly(pts,false);}
- move(e,p){this.hover(p);}
- down(e,p){if(!p)return;const app=this.app;
- if(!this.furniture){const b=this.candidate(p),err=E.placementProblems(this.doc,b);if(err.length)return app.toast(err[0]);app.commitObjects('place '+b.prefab,d=>{b.id=d.uid('b');d.objects.push(b);app.sel=b.id;});app.panel();return;}
- const b=this.doc.obj(app.interiors.id);if(!b)return app.toast('Select a building, then Enter interior first.');const [i,j]=this.doc.tileOf(p.x,p.z),x=i-b.x,z=j-b.z;
- const old=E.furnitureAt(b,x,z);
- if(e.altKey){this.chosen=old&&old.id;if(old)this.rot=old.rot||0;app.panel();return;}
- const f=this.chosen?Object.assign({},b.furniture.find(v=>v.id===this.chosen),{x,z,rot:this.rot}):{id:E.nextFurnitureId(b),type:app.ui.furniture||'bed',x,z,rot:this.rot};
- const err=E.furnitureProblems(b,f);if(err.length)return app.toast(err[0]);app.commitObjects(this.chosen?'move furniture':'place furniture',()=>{const n=b.furniture.findIndex(v=>v.id===f.id);if(n<0)b.furniture.push(f);else b.furniture[n]=f;});this.chosen=null;app.panel();}
- key(e){const k=e.key.toLowerCase();if(k==='q'||k==='e'){this.rot=(this.rot+(k==='e'?1:3))%4;this.app.panel();this.hover(this.app.hoverP);return true;}if((k==='delete'||k==='backspace')&&this.chosen){this.remove();return true;}return false;}
- remove(){const b=this.doc.obj(this.app.interiors.id);if(b&&this.chosen)this.app.commitObjects('remove furniture',()=>{b.furniture=b.furniture.filter(f=>f.id!==this.chosen);});this.chosen=null;this.app.panel();}
- options(){if(!this.furniture)return `<h2>Buildings</h2><select data-prefab>${Object.entries(K.BUILDING_PREFABS).map(([id,d])=>`<option value="${id}" ${(this.app.ui.prefab||'cottage')===id?'selected':''}>${esc(d.name)}</option>`).join('')}</select><p class="help">Click the footprint to place. Q/E rotates. Select a building to move, rotate, delete or enter its interior.</p><p>Rotation: ${this.rot*90}°</p>`;
- const b=this.doc.obj(this.app.interiors.id);return `<h2>Interior furniture</h2><p>${b?esc(b.prefab):'Select a building first.'}</p><select data-furniture>${Object.entries(K.FURNITURE).map(([id,d])=>`<option value="${id}" ${(this.app.ui.furniture||'bed')===id?'selected':''}>${esc(d.group||'Decor')} · ${esc(d.name)}</option>`).join('')}</select><p class="help">Click to place. Q/E rotates. Alt-click an existing item, then click its new location. Delete removes the selected item.</p>${this.chosen?'<button class="b" data-remove>Remove selected furniture</button>':''}<button class="b" data-exit>Leave interior</button>`;}
- bind(root){const p=root.querySelector('[data-prefab]');if(p)p.onchange=()=>{this.app.ui.prefab=p.value;};const f=root.querySelector('[data-furniture]');if(f)f.onchange=()=>{this.app.ui.furniture=f.value;this.chosen=null;};const r=root.querySelector('[data-remove]');if(r)r.onclick=()=>this.remove();const x=root.querySelector('[data-exit]');if(x)x.onclick=()=>{this.app.interiors.leave();this.app.setTool('select');};}
-}
-K.BuildingTool=BuildingTool;
-/* A compact furnished village on a flattened snowy shelf, with clear doors and paths. */
-const generate=K.WorldGenerator.prototype.generate;
-K.WorldGenerator.prototype.generate=function(w,h,name){const d=generate.call(this,w,h,name);if(w<50||h<38)return d;
- const specs=[K.makeBuilding('cottage',2,3,d.uid('b'),d.seed),K.makeBuilding('smithy',2,19,d.uid('b'),d.seed+1),K.makeBuilding('stable',22,3,d.uid('b'),d.seed+2)];
- // Keep the three footprints clear of generated cliffs, ruins and props, including their approach lanes.
- const boxes=specs.map(b=>[b.x-1,b.z-1,b.x+b.footprint.w+2,b.z+b.footprint.h+3]);
- d.objects=d.objects.filter(o=>!boxes.some(([x,z,x1,z1])=>{const b=o.kind==='prop'?[o.x/T,o.z/T,o.x/T,o.z/T]:o.kind==='bridge'?[Math.min(o.a[0],o.b[0])/T,Math.min(o.a[1],o.b[1])/T,Math.max(o.a[0],o.b[0])/T,Math.max(o.a[1],o.b[1])/T]:[Math.min(...o.pts.map(p=>p[0]))/T,Math.min(...o.pts.map(p=>p[1]))/T,Math.max(...o.pts.map(p=>p[0]))/T,Math.max(...o.pts.map(p=>p[1]))/T];return b[0]<=x1&&b[2]>=x&&b[1]<=z1&&b[3]>=z;}));
- for(const [x,z,x1,z1]of boxes)for(let j=z;j<=z1&&j<h;j++)for(let i=x;i<=x1&&i<w;i++){d.terrain[d.idx(i,j)]=K.T.SNOW;d.height[d.idx(i,j)]=0;}
- for(let j=14;j<=23;j++)for(let i=15;i<=21;i++){d.terrain[d.idx(i,j)]=K.T.SNOW;d.height[d.idx(i,j)]=0;}
- d.objects.push({id:d.uid('p'),kind:'prop',type:'res:ore',x:8.75,z:8.25,s:1,seed:d.seed},{id:d.uid('p'),kind:'prop',type:'res:pine',x:10.25,z:8.25,s:1,seed:d.seed+1});
- d.objects.push(...specs);d.objects=d.objects.filter(o=>o.type!=='start');const b=specs[0],door=b.doors.find(x=>x.kind==='exterior')||b.doors[0];
- const n={n:[0,-1],s:[0,1],e:[1,0],w:[-1,0]}[door.side];const sx=b.x+door.x+n[0]*2,sz=b.z+door.z+n[1]*2;
- d.objects.push({id:d.uid('p'),kind:'prop',type:'start',hero:'warden',x:(sx+.5)*T,z:(sz+.5)*T,s:1,seed:d.seed});return d;};
-})(window);
+(function (G) {
+  const K = G.K, T = K.TILE;
+  const U = K.BuilderAppUtils;
+
+  /* the Buildings tool (place a prefab footprint) and, with furniture=true, the interior Furniture tool */
+  class BuildingTool {
+    constructor(app, furniture = false) {
+      this.app = app;
+      this.furniture = furniture;
+      this.rot = 0;
+      this.chosen = null;
+      this.edit = new K.BuildingEdit();
+    }
+    get doc() { return this.app.doc; }
+    get interior() { return this.doc.obj(this.app.interiors.id); }
+    cursor() { return 'crosshair'; }
+    cancel() { this.drag = null; }
+    up() {}
+    dbl() {}
+    move(e, p) { this.hover(p); }
+    candidate(p) {
+      if (!p) return null;
+      const [i, j] = this.doc.tileOf(p.x, p.z);
+      let b = K.makeBuilding(this.app.ui.prefab || 'cottage', i, j, 'preview', this.doc.seed);
+      for (let k = 0; k < this.rot; k++) b = this.edit.rotate(b);
+      b.x = i;
+      b.z = j;
+      return b;
+    }
+    hover(p) {
+      const overlay = this.app.overlay;
+      overlay.brush(null);
+      if (!p) { overlay.hov.visible = false; return; }
+      const b = this.furniture ? this.interior : this.candidate(p);
+      if (!b) return;
+      if (!this.furniture) {
+        overlay.poly([], false);
+        overlay.setPts(overlay.hov, overlay.outline(b));
+        return;
+      }
+      overlay.poly(this.furnitureFootprint(p), false);
+    }
+    furnitureFootprint(p) {
+      const [i, j] = this.doc.tileOf(p.x, p.z), def = K.FURNITURE[this.app.ui.furniture || 'bed'];
+      const [w, h] = K.FurnitureFootprint.size(def, this.rot), x = i * T, z = j * T;
+      return [[x, z], [x + w * T, z], [x + w * T, z + h * T], [x, z + h * T], [x, z]];
+    }
+    down(e, p) {
+      if (!p) return;
+      if (this.furniture) this.placeFurniture(e, p);
+      else this.placeBuilding(p);
+    }
+    placeBuilding(p) {
+      const app = this.app, b = this.candidate(p), problems = this.edit.placementProblems(this.doc, b);
+      if (problems.length) { app.toast(problems[0]); return; }
+      app.commitObjects('place ' + b.prefab, (d) => {
+        b.id = d.uid('b');
+        d.objects.push(b);
+        app.sel = b.id;
+      });
+      app.panel();
+    }
+    placeFurniture(e, p) {
+      const app = this.app, b = this.interior;
+      if (!b) { app.toast('Select a building, then Enter interior first.'); return; }
+      const [i, j] = this.doc.tileOf(p.x, p.z), x = i - b.x, z = j - b.z;
+      if (e.altKey) { this.pickUp(this.edit.furnitureAt(b, x, z)); return; }
+      const f = this.chosen
+        ? Object.assign({}, b.furniture.find((v) => v.id === this.chosen), { x, z, rot: this.rot })
+        : { id: this.edit.nextFurnitureId(b), type: app.ui.furniture || 'bed', x, z, rot: this.rot };
+      const problems = this.edit.furnitureProblems(b, f);
+      if (problems.length) { app.toast(problems[0]); return; }
+      app.commitObjects(this.chosen ? 'move furniture' : 'place furniture', () => {
+        const n = b.furniture.findIndex((v) => v.id === f.id);
+        if (n < 0) b.furniture.push(f); else b.furniture[n] = f;
+      });
+      this.chosen = null;
+      app.panel();
+    }
+    /* Alt-click: choose an existing item to move */
+    pickUp(item) {
+      this.chosen = item && item.id;
+      if (item) this.rot = item.rot || 0;
+      this.app.panel();
+    }
+    key(e) {
+      const k = e.key.toLowerCase();
+      if (k === 'q' || k === 'e') {
+        this.rot = (this.rot + (k === 'e' ? 1 : 3)) % 4;
+        this.app.panel();
+        this.hover(this.app.hoverP);
+        return true;
+      }
+      if ((k === 'delete' || k === 'backspace') && this.chosen) { this.remove(); return true; }
+      return false;
+    }
+    remove() {
+      const b = this.interior;
+      if (b && this.chosen) this.app.commitObjects('remove furniture', () => { b.furniture = b.furniture.filter((f) => f.id !== this.chosen); });
+      this.chosen = null;
+      this.app.panel();
+    }
+    options() { return this.furniture ? this.furnitureOptions() : this.buildingOptions(); }
+    buildingOptions() {
+      const current = this.app.ui.prefab || 'cottage';
+      const opts = Object.entries(K.BUILDING_PREFABS)
+        .map(([id, d]) => `<option value="${id}" ${current === id ? 'selected' : ''}>${U.escapeHtml(d.name)}</option>`).join('');
+      return `<h2>Buildings</h2><select data-prefab>${opts}</select>`
+        + '<p class="help">Click the footprint to place. Q/E rotates. Select a building to move, rotate, delete or enter its interior.</p>'
+        + `<p>Rotation: ${this.rot * 90}°</p>`;
+    }
+    furnitureOptions() {
+      const b = this.interior, current = this.app.ui.furniture || 'bed';
+      const opts = Object.entries(K.FURNITURE).map(([id, d]) => {
+        const label = `${U.escapeHtml(d.group || 'Decor')} · ${U.escapeHtml(d.name)}`;
+        return `<option value="${id}" ${current === id ? 'selected' : ''}>${label}</option>`;
+      }).join('');
+      return `<h2>Interior furniture</h2><p>${b ? U.escapeHtml(b.prefab) : 'Select a building first.'}</p><select data-furniture>${opts}</select>`
+        + '<p class="help">Click to place. Q/E rotates. Alt-click an existing item, then click its new location. Delete removes the selected item.</p>'
+        + (this.chosen ? '<button class="b" data-remove>Remove selected furniture</button>' : '')
+        + '<button class="b" data-exit>Leave interior</button>';
+    }
+    bind(root) {
+      const app = this.app;
+      const prefab = root.querySelector('[data-prefab]');
+      if (prefab) prefab.onchange = () => { app.ui.prefab = prefab.value; };
+      const furniture = root.querySelector('[data-furniture]');
+      if (furniture) furniture.onchange = () => { app.ui.furniture = furniture.value; this.chosen = null; };
+      const remove = root.querySelector('[data-remove]');
+      if (remove) remove.onclick = () => this.remove();
+      const exit = root.querySelector('[data-exit]');
+      if (exit) exit.onclick = () => { app.interiors.leave(); app.setTool('select'); };
+    }
+  }
+  K.BuildingTool = BuildingTool;
+})(typeof window !== 'undefined' ? window : globalThis);
