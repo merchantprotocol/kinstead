@@ -3,11 +3,11 @@
    are kept, and you see the stores grow.
      Ledger     what one building holds
      Fields     the wheat squares you draw around a farm: they grow sprout, green, gold, then give a wheat
-     Cart       a handcart carrying goods from one building to another, along the ground
+     (the handcarts are K.Cart, 119a-castle-cart.js: a worker always pulls them)
      Economy    the whole thing: planting, growing, sending carts, the market's piles and the silo's fill level, saving */
 (function (G) {
   const K = G.K, THREE = G.THREE, TILE = K.TILE;
-  const GROW = 180, FIELD_REACH = 14, FARM_CAP = 40, SILO_CAP = 200, MARKET_CAP = 999, CART_LOAD = 10, CART_SPEED = 2.2;
+  const GROW = 180, FIELD_REACH = 14, FARM_CAP = 40, SILO_CAP = 200, MARKET_CAP = 999, CART_LOAD = 10;
   const STAGE_COLOR = [0x9fe070, 0x55b844, 0xf6c845], STAGE_H = [0.12, 0.32, 0.5];
   /** one wheat square as a single geometry of unit height: 4 rows of stalks with fat ears on top, shaded dark at the root and
       bright at the tip (vertex colours), so the per-square stage colour reads as sprouts, green wheat, then golden wheat */
@@ -67,28 +67,6 @@
     }
     dispose() { this.eco.g.group.remove(this.mesh); this.mesh.geometry.dispose(); this.mesh.material.dispose(); }
   }
-
-  class Cart {
-    constructor(eco, from, to, good, n) {
-      this.eco = eco; this.from = from; this.to = to; this.good = good; this.n = n; const g = eco.g, P = g.play;
-      const k = new K.VoxKit(); k.box('planks', 0, 0.28, 0, 0.6, 0.3, 0.9); k.box('timber', 0, 0.58, -0.6, 0.06, 0.06, 0.6, 0, 0.5); k.box({ wheat: 'hay', egg: 'linen', milk: 'plaster', beef: 'leather', stone: 'ashlar', iron: 'iron' }[good] || 'wood', 0, 0.58, 0, 0.5, 0.18, 0.7); if (good === 'wood') for (let q = 0; q < 3; q++) k.geo('bark', K.VoxKit.CYL8, -0.15 + q * 0.15, 0.82, 0, Math.PI / 2, 0, 0, 0.07, 0.8, 0.07); if (good === 'stone') for (let q = 0; q < 3; q++) k.box('ashlar', -0.15 + q * 0.15, 0.76, -0.1 + (q % 2) * 0.2, 0.14, 0.14, 0.14, q);
-      for (const [x, z] of [[-0.34, 0.2], [0.34, 0.2]]) k.geo('wood', K.VoxKit.CYL, x, 0.24, z, 0, 0, Math.PI / 2, 0.5, 0.06, 0.5);
-      this.mesh = new THREE.Group(); for (const m of k.meshes(g.R.bmats)) this.mesh.add(m); g.group.add(this.mesh);
-      this.a = { x: from.x, z: from.z, y: P.nav.y(from.x, from.z), view: { setFacing() {} }, path: null };
-      this.a.path = P.nav.find(from.x, from.z, to.x, to.z, { range: 2.4, maxNodes: 20000 }) || [[to.x, to.z]];
-    }
-    /** false once delivered */
-    update(dt) {
-      const P = this.eco.g.play, a = this.a, p0x = a.x, p0z = a.z;
-      if (a.path && a.path.length) P.move(a, dt, CART_SPEED); a.y = P.nav.y(a.x, a.z);
-      this.mesh.position.set(a.x, a.y, a.z); if (Math.hypot(a.x - p0x, a.z - p0z) > 1e-4) this.mesh.rotation.y = Math.atan2(a.x - p0x, a.z - p0z);
-      if (a.path && a.path.length) return true;
-      if (this.n > 0) { const left = this.eco.ledger(this.to).add(this.good, this.n); if (left < this.n) this.eco.ledger(this.from).add(this.good, this.n - left); }   // what does not fit goes back (an empty-handed cart is a courier's run: it just shows the haul)
-      this.dispose(); return false;
-    }
-    dispose() { this.eco.g.group.remove(this.mesh); }
-  }
-
 
   /* ---------- livestock ---------- */
   const KINDS = {
@@ -251,16 +229,16 @@
       for (const f of this.of('farm')) {
         const l = this.ledger(f), w = l.amount('wheat'); if (w < CART_LOAD || this.carts.some((c) => c.from === f)) continue;
         const dest = this.of('silo').filter((s) => this.ledger(s).room('wheat') >= CART_LOAD).concat(this.of('market'))[0]; if (!dest) continue;
-        this.carts.push(new Cart(this, f, dest, 'wheat', l.take('wheat', CART_LOAD)));
+        this.carts.push(new K.Cart(this, f, dest, 'wheat', l.take('wheat', CART_LOAD)));
       }
       const mk = this.of('market')[0];
       if (mk) for (const b of this.of('coop').concat(this.of('barn'))) {   // eggs, milk and beef go to the market by the cartload
         if (this.carts.some((c) => c.from === b)) continue; const l = this.ledger(b);
-        for (const good of ['egg', 'milk', 'beef']) if (l.amount(good) >= CART_LOAD) { this.carts.push(new Cart(this, b, mk, good, l.take(good, CART_LOAD))); break; }
+        for (const good of ['egg', 'milk', 'beef']) if (l.amount(good) >= CART_LOAD) { this.carts.push(new K.Cart(this, b, mk, good, l.take(good, CART_LOAD))); break; }
       }
       for (const s of this.of('silo')) {   // a nearly full silo sends its surplus to the market
         const l = this.ledger(s), m = this.of('market')[0]; if (!m || l.amount('wheat') < SILO_CAP - CART_LOAD || this.carts.some((c) => c.from === s)) continue;
-        this.carts.push(new Cart(this, s, m, 'wheat', l.take('wheat', CART_LOAD)));
+        this.carts.push(new K.Cart(this, s, m, 'wheat', l.take('wheat', CART_LOAD)));
       }
     }
     /** a building that was taken down: its stock spills as pickups, its ledger goes */
@@ -303,5 +281,5 @@
     dispose() { this.stock.dispose(); this.fields.dispose(); for (const c of this.carts) c.dispose(); for (const v of this.piles.values()) this.g.group.remove(v.grp); }
   }
 
-  Object.assign(K, { Ledger, Fields, Cart, Economy, Livestock, Beast, LIVESTOCK: KINDS });
+  Object.assign(K, { Ledger, Fields, Economy, Livestock, Beast, LIVESTOCK: KINDS });
 })(typeof window !== 'undefined' ? window : globalThis);

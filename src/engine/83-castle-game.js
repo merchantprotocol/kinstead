@@ -207,6 +207,7 @@
       const play = this.play, R = this.R;
       document.body.classList.add('castle');
       this.art = new CastleArt(R.bmats); this.group = new THREE.Group(); this.group.name = 'castle'; R.scene.add(this.group);
+      this.floors = new K.PieceFloors(this);
       this.meshes = new Map(); this.tracers = []; this.shakeT = 0; this.flareT = 0; this.nightK = this.day.isNight ? 1 : 0; this.lastCl = this.castle.cl(); this.saveT = 0; this.prevBook = null;
       this.occ = new Uint8Array(play.nav.w * play.nav.h); this.gateTiles = new Set();
       // spawn by the Keep's door
@@ -257,8 +258,7 @@
       const far = V.o.distanceTo(V.h) - 0.4; V.ray.set(V.o, V.d.subVectors(V.h, V.o).normalize());
       for (const m of [...this.meshes.values(), this.keepMesh]) {
         if (!m || !m.parent) continue;
-        const roof = m.userData.roof, pc = m.userData.piece;
-        if (roof && pc) { const under = this.onPiece(pc, me.x, me.z, 0.1); if (roof.visible === under) roof.visible = !under; if (under) { if (m.userData.faded) this.setFaded(m, false); continue; } }   // you walked in: the roof lifts, the walls stay
+        if (this.floors.liftRoof(m, me)) continue;   // you walked in under its roof: the roof lifts, the walls stay
         if (!m.userData.box || m.userData.popT < 0.5) m.userData.box = new THREE.Box3().setFromObject(m);   // re-measure while a new piece pops up
         const hit = V.ray.intersectBox(m.userData.box, V.hit), fade = !!hit && V.o.distanceTo(V.hit) < far;
         if (fade !== !!m.userData.faded) this.setFaded(m, fade);
@@ -333,16 +333,8 @@
       if (K.Breacher.GATES.has(p.type)) { if (p.bridge) p.bridge.apply(); return; }   // a gate's tiles follow its leaves or bridge: shut, nothing passes; open, you do
       if (p.type === 'gate_old') { const nav = this.play.nav; this.rectTiles(p.x, p.z, 2, 0.5, p.rot, (i, j) => { this.occ[j * nav.w + i] = 1; this.gateTiles.add(i + ',' + j); }); return; }   // occupied for building, but you can walk through
       const [w, d] = CastleArt.size(p.type);
-      if (CastleArt.solids(p.type)) { this.blockSolids(p); return; }
+      if (this.floors.handles(p.type)) { this.floors.block(p); return; }   // a workshop you can walk into: only its walls block
       this.blockRect(p.x, p.z, this.walls.handles(p.type) ? w + 0.04 : w, d, p.rot, p.type === 'gatehouse'); }
-    /** a workshop with a walkable yard or work floor: its whole footprint is taken (nothing else is built there), but only its solid parts block feet */
-    blockSolids(p) {
-      const nav = this.play.nav, [w, d] = CastleArt.size(p.type);
-      this.rectTiles(p.x, p.z, w, d, p.rot, (i, j, lx, lz) => { const k = j * nav.w + i; this.occ[k] = 1; if (CastleArt.solidAt(p.type, lx, lz)) nav.walk[k] = 0; });
-      const me = this.play.me; if (me && !nav.standable(me.x, me.z)) { const q = nav.nearestOk(...nav.tile(me.x, me.z), 8); if (q) { [me.x, me.z] = nav.centre(...q); me.path = null; } }
-    }
-    /** is this point on the floor of a piece (inside its footprint)? */
-    onPiece(p, x, z, pad = 0) { const [w, d] = CastleArt.size(p.type), c = Math.cos(p.rot || 0), s = Math.sin(p.rot || 0), dx = x - p.x, dz = z - p.z; return Math.abs(dx * c - dz * s) <= w / 2 + pad && Math.abs(dx * s + dz * c) <= d / 2 + pad; }
     /* the piece standing on this ground point, or null */
     pieceAt(x, z, pad = 0.2) {
       for (const p of this.castle.pieces) {
