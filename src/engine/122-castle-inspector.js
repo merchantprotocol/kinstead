@@ -9,9 +9,11 @@
     open(title, icon, body) { const image = icon && String(icon).startsWith('<') ? icon : K.Icons.img(icon || 'eye', 3); this.root.innerHTML = `<section class="ci-shell"><header>${image}<h2>${esc(title)}<button data-close aria-label="Close">×</button></header><div class="ci-content">${body}</div></section>`; this.root.hidden = false; }
     piece(e) {
       const g = this.g, c = this.c, remote = e.type === 'c_rpiece', p = remote ? e.rec.p : e.piece, d = g.data.piece(p.type); if (!d) return;
-      const owner = remote ? (g.mp && g.mp.owners[e.rec.p.owner] || 'Another player') : 'You'; const banner = remote && g.mp ? g.mp.teamId(e.rec.p.owner) : null;
+      const owner = remote ? (g.mp && g.mp.owners[e.rec.p.owner] || 'Another player') : 'You'; const banner = remote && g.mp ? g.mp.teamId(e.rec.p.owner) : null; const keeper = !remote && p.gatekeeper; const keeperTower = !remote && p.keeperGate;
       const pr = remote ? null : c.producesOf(p), stock = remote ? {} : (g.economy && g.economy.stock && g.economy.stock.stock ? g.economy.stock.stock(p) : {});
       const hpMax = g.pieceHpMax(p), rows = [`<div class="ci-row"><span>Owner</span><b>${esc(owner)}${banner!=null?` · Team ${esc(banner)}`:''}</b></div>`,`<div class="ci-row"><span>Health</span><b>${Number.isFinite(p.hp) ? Math.ceil(p.hp) : hpMax} / ${hpMax}</b></div>`,`<div class="ci-row"><span>Level</span><b>${p.level || 1}</b></div>`,`<div class="ci-row"><span>Condition</span><b>${remote ? 'Other player’s building' : c.isFrosted(p) ? 'Frosted — production stopped' : 'Working'}</b></div>`];
+      if (keeper) rows.push(`<div class="ci-row"><span>Archer</span><b>Gatekeeper</b></div>`);
+      if (keeperTower) rows.push(`<div class="ci-row"><span>Role</span><b>Gatekeeper · ${esc(g.data.piece(keeperTower.type).name)}</b></div>`);
       if (pr) rows.push(`<div class="ci-row"><span>Producing</span><b>${Object.entries(pr).map(([r,n])=>`+${n} ${K.CastleData.resName(r)}/min`).join(', ')}</b></div>`);
       if (Object.keys(stock).length) rows.push(`<div class="ci-row"><span>Stored</span><b>${Object.entries(stock).map(([r,n])=>`${n} ${K.CastleData.resName(r)}`).join(', ')}</b></div>`);
       const actions = [];

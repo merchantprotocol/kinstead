@@ -78,6 +78,7 @@ class EngineManifest {
     '125-castle-rampart-walker.js',
     '126-castle-rampart-cursor.js',
     '127-castle-ramparts.js',
+    '128-castle-gatekeeper.js',
   ];
   /* game data inlined as K.CASTLE_DATA (src/data is the single source; tests read the same file) */
   static DATA = { '@castle-data': ['data/game-data-castle.json', 'CASTLE_DATA'] };
