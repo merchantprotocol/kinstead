@@ -958,9 +958,15 @@
     }
 
     /* ---------- input ---------- */
-    click(sx, sy) { if (!this.ready) return false; this.sound.unlock(); const e = this.play.pick(sx, sy); if (e && (e.type === 'c_piece' || e.type === 'c_rpiece')) { this.buildingPanel.piece(e); return true; } return this.tools.click(sx, sy); }
+    click(sx, sy) { if (!this.ready) return false; this.sound.unlock(); return this.tools.click(sx, sy); }   // left click only acts (walk, attack, gather); info screens are on right click
     pointerMove(sx, sy) { return this.ready ? this.cui.pointerMove(sx, sy) : false; }
-    rightClick(sx, sy) { return this.ready ? this.stash.rightClick(sx, sy) : false; }
+    rightClick(sx, sy) {   // right click owns every info screen: a building's details, your own purse
+      if (!this.ready) return false; this.sound.unlock();
+      const e = this.play.pick(sx, sy);
+      if (e && (e.type === 'c_piece' || e.type === 'c_rpiece')) { this.buildingPanel.piece(e); return true; }
+      if (e && e === this.play.me) { this.purse.toggle(); return true; }
+      return this.stash.rightClick(sx, sy);
+    }
     pointerDown(sx, sy) { if (!this.ready) return false; return this.brush.down(sx, sy) || this.site.down(sx, sy) || this.steer.down(sx, sy) || this.walls.down(sx, sy) || this.demolisher.down(sx, sy); }
     pointerDrag(sx, sy) { if (!this.ready) return; this.brush.drag(sx, sy); this.site.drag(sx, sy); this.steer.drag(sx, sy); this.walls.drag(sx, sy); this.demolisher.drag(sx, sy); }
     pointerUp(sx, sy) { if (!this.ready) return; this.brush.up(sx, sy); this.site.up(sx, sy); this.steer.up(sx, sy); this.walls.up(sx, sy); this.demolisher.up(sx, sy); }
