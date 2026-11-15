@@ -16,7 +16,8 @@
       this.home = { x: 135, z: 97, w: 10, h: 7 };                    // the cottage's north-west tile and size (tiles)
       this.start = { x: 69.75, z: 50.75 };                           // you wake up inside
       this.ruins = {}; this.kin = {}; this.barriers = {}; this.outcrop = null; this.troll = null;
-      this.hills = [{ x: 96, z: 36, r: 6, h: 3.5 }, { x: 42, z: 66, r: 5, h: 3 }, { x: 56, z: 22, r: 5, h: 3 }, { x: 104, z: 70, r: 6, h: 3.5 }, { x: 34, z: 34, r: 5, h: 3 }];
+      this.hills = [{ x: 96, z: 36, r: 6, h: 3.5 }, { x: 42, z: 66, r: 5, h: 3 }, { x: 56, z: 22, r: 5, h: 3 }, { x: 104, z: 70, r: 6, h: 3.5 }, { x: 34, z: 34, r: 5, h: 3 },
+        { x: 128, z: 14, r: 5, h: 3.5, iron: true }];   // the Iron Hills: the only iron on the map, a long walk from home
       this.outside = [{ x: 70, z: 12 }, { x: 70, z: 88 }, { x: 14, z: 50 }, { x: 126, z: 50 }];
       // where wolves and thieves walk in from: just beyond what the camera can show
       this.frostEdges = { north: { x0: 40, x1: 100, z: 9 }, south: { x0: 40, x1: 100, z: 91 }, west: { x: 10, z0: 30, z1: 70 } };
@@ -67,7 +68,7 @@
         const dead = R.next() >= 0.88; this.prop(dead ? 'c:deadtree' : 'c:pine', x, z, { s: R.range(0.85, 1.25), name: dead ? 'Dead tree' : 'Snow pine' }); trees++;
       }
       for (let k = 0, got = 0; got < 34 && k < 900; k++) { const x = R.range(8, wu - 8), z = R.range(8, hu - 8); if (Math.hypot(x - L.keep.x, z - L.keep.z) < 8 || this.heightAt(x, z).rock || near(x, z, 2.2)) continue; this.prop('c:boulder', x, z, { name: 'Boulder', rot: R.range(0, 6) }); got++; }
-      for (const H of L.hills) for (let k = 0; k < 8; k++) { const a = this.R.range(0, 6.28), x = H.x + Math.cos(a) * (H.r + 1.2), z = H.z + Math.sin(a) * (H.r + 1.2); if (!this.heightAt(x, z).rock && !near(x, z, 1.6)) this.prop('c:iron', x, z, { name: 'Iron rock', rot: this.R.range(0, 6) }); }   // iron to forge with, on the edge of every hill
+      for (const H of L.hills.filter((q) => q.iron)) for (let k = 0; k < 14; k++) { const a = this.R.range(0, 6.28), x = H.x + Math.cos(a) * (H.r + 1.2), z = H.z + Math.sin(a) * (H.r + 1.2); if (!this.heightAt(x, z).rock && !near(x, z, 1.6)) this.prop('c:iron', x, z, { name: 'Iron rock', rot: this.R.range(0, 6) }); }   // iron to forge with, on the edge of every hill
       for (let k = 0, got = 0; got < 24 && k < 600; k++) { const x = R.range(8, wu - 8), z = R.range(8, hu - 8); if (Math.hypot(x - L.keep.x, z - L.keep.z) < 7 || this.heightAt(x, z).rock || near(x, z, 1.8)) continue; this.prop('rock', x, z, { s: R.range(0.8, 1.4) }); got++; }
     }
   }

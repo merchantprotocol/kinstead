@@ -238,7 +238,16 @@
       }
       return null;
     }
+    /** do the animals have a reason to come? Food left outside, you outside, or a way in to you. Walls up and nothing outside: they stop coming. */
+    attracted() {
+      const now = this.t; if (this.attrAt != null && now < this.attrAt) return this.attrVal; this.attrAt = now + 10;
+      const g = this.g, me = this.P.me, food = g.home.stores.some((s) => s.res === 'food' && s.present && s.amount >= 1);
+      let yes = food || !g.home.inside(me.x, me.z);
+      if (!yes) { const from = this.edgePoint(); if (from) { const probe = { x: from.x, z: from.z, speed: 2.8, view: { setState() {}, setFacing() {}, state: '' }, atk: 0 }, d = g.home.doorPoint; yes = !new K.Breacher(g, probe, 'wolf').makePlan(d.x, d.z, 1.3).stuck; } }   // can a wolf get to the door (or dig to it)?
+      return (this.attrVal = yes);
+    }
     spawnPack(n) {
+      if (!this.attracted()) return;   // nothing out there for them
       const base = this.edgePoint(); if (!base) return;
       for (let i = 0; i < n; i++) this.spawnWolf(base.x + rnd(-2, 2), base.z + rnd(-2, 2));
       if (this.cal.isNight) this.g.cui.toast(n > 1 ? 'Wolves are howling out in the dark…' : 'A wolf is howling nearby…');

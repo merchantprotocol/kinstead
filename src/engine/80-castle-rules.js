@@ -71,7 +71,7 @@
     }
     /* ---- Castle Level ---- */
     builtTypes() { const s = new Set(this.pieces.map((p) => p.type)); if (this.lit) s.add('keep'); return s; }
-    has(type) { return this.builtTypes().has(type); }
+    has(type) { return this.builtTypes().has(type) || !!(this.extraHas && this.extraHas(type)); }   // extraHas: things built outside the piece list (the blacksmith building)
     count(type) { return this.pieces.filter((p) => p.type === type).length; }
     score() { let s = 0; for (const t of this.builtTypes()) { const p = this.data.piece(t); s += p ? p.castlePoints || 0 : 0; } return s; }
     cl() {

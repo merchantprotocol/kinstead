@@ -192,7 +192,7 @@
       play.spawn = { x: this.L.start.x, z: this.L.start.z };
       if (this.saved && this.saved.hero) { const [x, z] = this.saved.hero; if (play.nav.standable(x, z)) { play.me.x = x; play.me.z = z; play.me.y = play.nav.y(x, z); } }
       // your hut: the fire, the furniture, the barrels. No keep, ruins, outcrop or zone barriers.
-      this.gateTiles = new Set(); this.smithy = null; this.forge = null; this.home = new K.Home(this); this.keepMesh = null; this.ruinEnts = {}; this.outcropEnt = null;
+      this.gateTiles = new Set(); this.smithy = null; this.forge = null; this.home = new K.Home(this); this.castle.extraHas = (t) => t === 'blacksmith' && !!this.smithy; this.keepMesh = null; this.ruinEnts = {}; this.outcropEnt = null;
       this.keepEnt = { id: 'c-home', type: 'c_keep', name: 'Your home', x: this.L.keep.x, z: this.L.keep.z, y: 0, r: 0.1, h: 2, goal: [this.home.doorPoint.x, this.home.doorPoint.z] };
       if (!this.castle.lit) this.castle.light();
       for (const p of this.castle.pieces) this.addPieceMesh(p);
@@ -867,6 +867,7 @@
     /* close the topmost thing; false when nothing was open */
     dismissTop() {
       const cui = this.cui, ui = this.play.ui;
+      if (this.vitals && this.vitals.sleeping) { this.vitals.wake(); return true; }
       if (this.purse && this.purse.isOpen) { this.purse.close(); return true; }
       if (this.brush && this.brush.drawer.isOpen) { this.brush.drawer.close(); return true; }
       if (cui.placing) { cui.stopPlacing(); return true; }

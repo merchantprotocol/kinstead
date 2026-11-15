@@ -282,7 +282,7 @@
    "requiresCastleLevel": 1,
    "castlePoints": 4,
    "hp": 80,
-   "effect": "Produces wood while you do anything else.",
+   "effect": "A woodcutter's hut. It brings in wood on its own. The first thing to build.",
    "artPrompt": "a small log lodge with a chopping block, a stacked woodpile and a big axe in a stump",
    "produces": {
     "wood": 6
@@ -316,7 +316,7 @@
    "requiresCastleLevel": 1,
    "castlePoints": 4,
    "hp": 80,
-   "effect": "Produces stone while you do anything else.",
+   "effect": "Cuts stone for you, steadily. Needs a woodcutter's hut first.",
    "artPrompt": "a small stone quarry cut into a grey rock face with a timber crane, a rope and a pile of cut blocks",
    "produces": {
     "stone": 6
@@ -337,7 +337,9 @@
      "paybackMinWithSmithy": 4.3
     }
    ],
-   "buildRequires": [],
+   "buildRequires": [
+    "woodcutter"
+   ],
    "paybackMin": 1.7
   },
   "mine": {
@@ -441,10 +443,10 @@
     "wood": 20,
     "stone": 12
    },
-   "requiresCastleLevel": 2,
+   "requiresCastleLevel": 1,
    "castlePoints": 4,
    "hp": 200,
-   "effect": "Raises every storage cap and guards half of what you hold from raid loot.",
+   "effect": "Holds far more of everything. Needs a quarry first.",
    "artPrompt": "a sturdy stone storehouse with a timber loft, barrels, sacks and crates under a sloped roof, iron-bound door",
    "storageCap": {
     "wood": 100,
@@ -473,7 +475,9 @@
      "requiresCastleLevel": 3
     }
    ],
-   "buildRequires": []
+   "buildRequires": [
+    "quarry"
+   ]
   },
   "smithy": {
    "id": "smithy",
@@ -581,9 +585,11 @@
    "requiresCastleLevel": 1,
    "castlePoints": 0,
    "hp": 0,
-   "effect": "A forge, anvil and workbench in a stone workshop. Forge new weapons. Build it onto your house or on its own.",
+   "effect": "A forge for weapons. Needs a quarry first. Iron comes from the Iron Hills, far from home.",
    "artPrompt": "a stone blacksmith workshop with a chimney",
-   "buildRequires": []
+   "buildRequires": [
+    "quarry"
+   ]
   },
   "stone_gate": {
    "id": "stone_gate",
@@ -591,14 +597,17 @@
    "category": "defense",
    "cost": {
     "stone": 20,
-    "wood": 8
+    "wood": 8,
+    "iron": 4
    },
    "requiresCastleLevel": 1,
    "castlePoints": 0,
    "hp": 600,
-   "effect": "A stone arch with a great timber drawbridge. Click it to lower the bridge and come and go. A bear can batter the bridge down; a deep pit in front keeps it away. Press R to turn it.",
+   "effect": "A stone arch with a great timber drawbridge. Needs a blacksmith (iron fittings). Click it to lower the bridge. A bear can batter the bridge down; a deep pit in front keeps it away.",
    "artPrompt": "a stone castle gate arch with a raised timber drawbridge",
-   "buildRequires": []
+   "buildRequires": [
+    "blacksmith"
+   ]
   }
  },
  "keepUpgrade": {

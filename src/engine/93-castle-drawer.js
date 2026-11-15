@@ -7,8 +7,8 @@
 (function (G) {
   const K = G.K;
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const GROUPS = [['terrain', 'Land'], ['defense', 'Walls'], ['building', 'Buildings']];
-const BUILDABLE = new Set(['dirt', 'palisade', 'gate', 'stone_wall', 'stone_gate', 'blacksmith']);   // what you can place by the square
+  const GROUPS = [['terrain', 'Land'], ['defense', 'Walls'], ['producer', 'Workshops'], ['storage', 'Storage'], ['building', 'Buildings']];
+const BUILDABLE = new Set(['dirt', 'palisade', 'gate', 'stone_wall', 'stone_gate', 'woodcutter', 'quarry', 'storehouse', 'blacksmith']);   // what you can place by the square
 
   /** Replace an element's HTML only if it changed; keep its scroll. */
   const patch = (el, html) => { if (el._h === html) return; const top = el.scrollTop; el._h = html; el.innerHTML = html; el.scrollTop = top; };

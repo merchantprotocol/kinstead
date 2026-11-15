@@ -375,3 +375,5 @@ body.castle #voxOrbit{display:none!important}
   #cPurse .hint{position:absolute;bottom:30px;left:calc(50% + 110px);right:0;text-align:left;font:italic 13px Georgia,serif;color:#ffe9b8;text-shadow:0 1px 3px #000,0 0 8px #000;pointer-events:none}
   #cTools .tl .bd[data-ic]{display:flex;align-items:center;gap:2px;padding:0 4px 0 2px}
   #cTools .tl .bd[data-ic]::before{content:"";width:13px;height:13px;background:var(--ic) center/contain no-repeat}
+  #cSleep{position:fixed;inset:0;background:radial-gradient(ellipse at 50% 50%,rgba(4,6,16,.08),rgba(4,6,16,.42));display:flex;align-items:flex-end;justify-content:center;padding-bottom:140px;z-index:11;pointer-events:auto;cursor:pointer}
+  #cSleep[hidden]{display:none}#cSleep div{text-align:center;color:#e8efff;text-shadow:0 2px 8px #000}#cSleep b{display:block;font:700 30px Georgia,serif;letter-spacing:.1em}#cSleep span{font:italic 15px Georgia,serif;opacity:.85}
