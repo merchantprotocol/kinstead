@@ -150,7 +150,23 @@
     constructor(w, p) { const k = KEEP[p.type], look = (K.WORKER_LOOKS || {})[k.name]; super(w, { role: 'keep' + p.uid, sprite: look ? look.sprite : k.sprite, name: k.name, tint: look ? look.tint : k.tint, speed: 1.2 }); this.p = p; this.wanderT = Math.random() * 8; }
     get post() { const p = this.p, [, d] = K.CastleArt.size(p.type), r = p.rot || 0, o = d / 2 + 0.9; return { x: p.x + Math.sin(r) * o + Math.cos(r) * 0.6, z: p.z + Math.cos(r) * o - Math.sin(r) * 0.6 }; }
     update() { if (!this.a) { const at = this.post; if (this.g.play.nav.standable(at.x, at.z)) this.spawn(at); } }
-    idle(e, dt) { if ((this.wanderT -= dt) > 0) return; this.wanderT = 6 + Math.random() * 8; const p = this.post, a = Math.random() * 6.283; e.go(p.x + Math.cos(a) * 0.8, p.z + Math.sin(a) * 0.8).pause(2 + Math.random() * 3, Math.random() < 0.4 ? 'action' : 'idle'); }
+    /** the woodcutter and the quarryman go out to real trees and rocks, work them and carry the load back; every few loads a cart takes it to your stores */
+    courier(e) {
+      const g = this.g, p = this.p, wood = p.type === 'woodcutter', kinds = wood ? ['c_tree'] : ['c_boulder', 'c_rubble'], P = g.play;
+      let best = null, bd = 32; for (const n of g.forest.nodes) { if (!kinds.includes(n.type) || !g.forest.live(n)) continue; const d = Math.hypot(n.x - p.x, n.z - p.z); if (d < bd) { bd = d; best = n; } }
+      if (!best) return false; const dx = p.x - best.x, dz = p.z - best.z, L = Math.hypot(dx, dz) || 1, r = (best.r || 0.5) + 0.55, at = { x: best.x + dx / L * r, z: best.z + dz / L * r };
+      if (!P.nav.standable(at.x, at.z)) return false; const home = this.post;
+      e.go(at.x, at.z).then(() => { if (this.a) P.face(this.a, best); }).pause(4.5, 'attack').go(home.x, home.z).pause(1, 'action').then(() => {
+        this.trips = (this.trips || 0) + 1; if (this.trips % 3) return;
+        const eco = g.economy, to = eco.of('storehouse').sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))[0] || eco.of('market')[0];
+        if (to && Math.hypot(to.x - p.x, to.z - p.z) > 3 && eco.carts.length < 12) eco.carts.push(new K.Cart(eco, p, to, wood ? 'wood' : 'stone', 0));
+      });
+      return true;
+    }
+    idle(e, dt) {
+      if ((this.wanderT -= dt) > 0) return; this.wanderT = 6 + Math.random() * 8;
+      if ((this.p.type === 'woodcutter' || this.p.type === 'quarry') && this.courier(e)) { this.wanderT = 1; return; }
+      const p = this.post, a = Math.random() * 6.283; e.go(p.x + Math.cos(a) * 0.8, p.z + Math.sin(a) * 0.8).pause(2 + Math.random() * 3, Math.random() < 0.4 ? 'action' : 'idle'); }
     report() {
       const g = this.g, p = this.p, c = g.castle, e = g.economy, l = e.ledger(p), held = Object.entries(p.held || {}).filter(([, n]) => n >= 1).map(([r, n]) => `${Math.floor(n)} ${K.CastleData.resName(r)}`);
       const full = held.length ? `Your purse and storehouses are full, so I have ${held.join(', ')} stacked here. Build a storehouse and I will send it over.` : null;

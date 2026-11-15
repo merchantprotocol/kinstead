@@ -52,7 +52,7 @@
   class Cart {
     constructor(eco, from, to, good, n) {
       this.eco = eco; this.from = from; this.to = to; this.good = good; this.n = n; const g = eco.g, P = g.play;
-      const k = new K.VoxKit(); k.box('planks', 0, 0.28, 0, 0.6, 0.3, 0.9); k.box('timber', 0, 0.58, -0.6, 0.06, 0.06, 0.6, 0, 0.5); k.box({ wheat: 'hay', egg: 'linen', milk: 'plaster', beef: 'leather' }[good] || 'wood', 0, 0.58, 0, 0.5, 0.18, 0.7);
+      const k = new K.VoxKit(); k.box('planks', 0, 0.28, 0, 0.6, 0.3, 0.9); k.box('timber', 0, 0.58, -0.6, 0.06, 0.06, 0.6, 0, 0.5); k.box({ wheat: 'hay', egg: 'linen', milk: 'plaster', beef: 'leather', stone: 'ashlar', iron: 'iron' }[good] || 'wood', 0, 0.58, 0, 0.5, 0.18, 0.7); if (good === 'wood') for (let q = 0; q < 3; q++) k.geo('bark', K.VoxKit.CYL8, -0.15 + q * 0.15, 0.82, 0, Math.PI / 2, 0, 0, 0.07, 0.8, 0.07); if (good === 'stone') for (let q = 0; q < 3; q++) k.box('ashlar', -0.15 + q * 0.15, 0.76, -0.1 + (q % 2) * 0.2, 0.14, 0.14, 0.14, q);
       for (const [x, z] of [[-0.34, 0.2], [0.34, 0.2]]) k.geo('wood', K.VoxKit.CYL, x, 0.24, z, 0, 0, Math.PI / 2, 0.5, 0.06, 0.5);
       this.mesh = new THREE.Group(); for (const m of k.meshes(g.R.bmats)) this.mesh.add(m); g.group.add(this.mesh);
       this.a = { x: from.x, z: from.z, y: P.nav.y(from.x, from.z), view: { setFacing() {} }, path: null };
@@ -64,7 +64,7 @@
       if (a.path && a.path.length) P.move(a, dt, CART_SPEED); a.y = P.nav.y(a.x, a.z);
       this.mesh.position.set(a.x, a.y, a.z); if (Math.hypot(a.x - p0x, a.z - p0z) > 1e-4) this.mesh.rotation.y = Math.atan2(a.x - p0x, a.z - p0z);
       if (a.path && a.path.length) return true;
-      const left = this.eco.ledger(this.to).add(this.good, this.n); if (left < this.n) this.eco.ledger(this.from).add(this.good, this.n - left);   // what does not fit goes back
+      if (this.n > 0) { const left = this.eco.ledger(this.to).add(this.good, this.n); if (left < this.n) this.eco.ledger(this.from).add(this.good, this.n - left); }   // what does not fit goes back (an empty-handed cart is a courier's run: it just shows the haul)
       this.dispose(); return false;
     }
     dispose() { this.eco.g.group.remove(this.mesh); }
