@@ -80,7 +80,7 @@
 
   /** other people's edits, applied to your map */
   class RemoteWorld {
-    constructor(game, net) { this.g = game; this.net = net; this.pieces = new Map(); this.byId = null; this.cottages = new Set(); this.doors = new Map(); this.owners = {}; this.objDirty = false; this.propsDirty = false; }   // doors: slot -> { door, owner, hp, max }
+    constructor(game, net) { this.g = game; this.net = net; this.pieces = new Map(); this.byId = null; this.cottages = new Set(); this.doors = new Map(); this.owners = {}; this.objDirty = false; this.propsDirty = false; this.houseAt = {}; }   // doors: slot -> { door, owner, hp, max }
     get play() { return this.g.play; }
     /** a burst of other people's changes (a player joining sends dozens) is applied once per frame, not once per change */
     flush() {
@@ -112,7 +112,7 @@
     /** a settler's cottage on their plot */
     cottage(slot, given, owner) {
       const id = 'home:' + slot; if (this.cottages.has(id) || slot === this.g.L.slot || !given) return; this.cottages.add(id);
-      const spec = Object.assign({}, given, { id }); this.building(id, spec); if (owner) this.g.flags.flag('rh' + slot, (spec.x + spec.footprint.w) * TILE + 0.35, spec.z * TILE - 0.3, owner, 3.6);
+      const spec = Object.assign({}, given, { id }); this.building(id, spec); if (owner) this.houseAt[owner] = { x: (spec.x + spec.footprint.w / 2) * TILE, z: (spec.z + spec.footprint.h / 2) * TILE }; if (owner) this.g.flags.flag('rh' + slot, (spec.x + spec.footprint.w) * TILE + 0.35, spec.z * TILE - 0.3, owner, 3.6);
       const obj = this.play.doc.obj(id); if (obj) { this.remoteDoor(slot, obj, null); this.g.play.refreshProps(); }
     }
     building(id, spec) {
@@ -335,6 +335,23 @@
       if (g.play.player.hurt(m.dmg)) g.play.defeat();
       g.xp.taken(); const r = this.avatars.by.get(m.from); if (r) g.sweep.defend(r.a);   // you always fight back
     }
+    /** if you are shut inside someone else's house or fence you may walk out: the door or gate opens for you (only you), then shuts behind you. You cannot come back in. */
+    exits() {
+      const g = this.g, me = g.play.me, b = g.R.buildings.at(Math.floor(me.x / TILE), Math.floor(me.z / TILE)), here = b ? b.spec.id : null;
+      for (const rec of this.world.doors.values()) {
+        const d = rec.door; if (this.mayUse(rec.owner) || d.broken || d.open) { if (d.localOpen) { d.localOpen = false; d.apply(); } continue; }
+        const dist = Math.hypot(me.x - d.ent.x, me.z - d.ent.z);
+        if (!d.localOpen && here === 'home:' + rec.slot && dist < 1.9) { d.localOpen = true; d.apply(); } else if (d.localOpen && dist > 2.8) { d.localOpen = false; d.apply(); }
+      }
+      for (const r of this.world.pieces.values()) {
+        const gt = r.gate; if (!gt) continue; const p = r.p;
+        if (this.mayUse(p.owner) || gt.open) { if (gt.localOpen) { gt.localOpen = false; gt.apply(); } continue; }
+        const dist = Math.hypot(me.x - p.x, me.z - p.z), h = this.world.houseAt[p.owner], nx = Math.sin(p.rot || 0), nz = Math.cos(p.rot || 0);
+        const mine = (me.x - p.x) * nx + (me.z - p.z) * nz, theirs = h ? (h.x - p.x) * nx + (h.z - p.z) * nz : 0;
+        const inside = !!h && mine * theirs > 0;   // you are on the side where their house is
+        if (!gt.localOpen && inside && dist < 2.2) { gt.localOpen = true; gt.apply(); } else if (gt.localOpen && dist > 3.2) { gt.localOpen = false; gt.apply(); }
+      }
+    }
     /** a swing at someone else's wall, gate or door: the server decides if it lands */
     hit(rec, door) {
       const g = this.g, now = g.play.t; if (now - this.lastHit < 0.35) return; this.lastHit = now; const me = g.play.me;
@@ -389,7 +406,7 @@
     op(o) { this.net.op(o); }
     pieceId(p) { return this.net.id + ':' + p.uid; }
     update(dt) {
-      this.t += dt; this.avatars.update(dt); this.world.flush(); this.stores.flush();
+      this.t += dt; this.avatars.update(dt); this.world.flush(); this.stores.flush(); this.exits();
       for (const r of this.world.doors.values()) r.door.update(dt);
       for (const r of this.world.pieces.values()) if (r.gate) r.gate.update(dt);
       const d = this.g.home.door; if (this.lastOpen !== d.open) { if (this.lastOpen !== null) this.net.send({ t: 'open', slot: this.g.L.slot, open: d.open }); this.lastOpen = d.open; }

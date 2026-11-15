@@ -109,7 +109,7 @@
     }
     /** write the door into the ground: shut = the doorway tiles cannot be walked */
     apply() {
-      const nav = this.home.g.play.nav; for (const [i, j] of this.tiles) nav.walk[j * nav.w + i] = (this.open || !this.locked) && !this.broken || this.broken ? 1 : 0;
+      const nav = this.home.g.play.nav; for (const [i, j] of this.tiles) nav.walk[j * nav.w + i] = (this.open || this.localOpen || !this.locked) && !this.broken || this.broken ? 1 : 0;   // localOpen: it lets you out of a house you have no key to (not back in)
       this.leaf.visible = !this.broken;   // one leaf only: shut across the doorway, or swung open into the room
     }
     /** swing the leaf toward open or shut */
@@ -119,7 +119,7 @@
       if (!this.open && d < 1.9) { this.open = true; this.apply(); g.sound.play('clank'); }
       else if (this.open && d > 2.8 && !this.occupied()) { this.open = false; this.apply(); g.sound.play('thunk'); }
     }
-    update(dt) { this.auto(); const t = this.open ? 1.35 : 0, step = dt * 6; this.angle += Math.max(-step, Math.min(step, t - this.angle)); this.leaf.rotation.y = this.angle; }
+    update(dt) { this.auto(); const t = this.open || this.localOpen ? 1.35 : 0, step = dt * 6; this.angle += Math.max(-step, Math.min(step, t - this.angle)); this.leaf.rotation.y = this.angle; }
     /** something (you or a creature) is standing in the doorway */
     occupied() {
       const P = this.home.g.play, r = 0.55;

@@ -29,8 +29,9 @@
     /** write the gate's state into the world's tiles (safe to call again at any time) */
     apply() {
       const g = this.g, nav = this.nav, w = nav.w;
-      this.archTiles((i, j) => { const k = j * w + i; g.occ[k] = 1; nav.walk[k] = this.open ? 1 : 0; if (this.open) g.gateTiles.delete(i + ',' + j); else g.gateTiles.add(i + ',' + j); });
-      if (this.open) {
+      const pass = this.open || this.localOpen;
+      this.archTiles((i, j) => { const k = j * w + i; g.occ[k] = 1; nav.walk[k] = pass ? 1 : 0; if (pass) g.gateTiles.delete(i + ',' + j); else g.gateTiles.add(i + ',' + j); });
+      if (pass) {
         if (!this.saved) { this.saved = []; const floor = nav.y(this.p.x, this.p.z); this.bridgeTiles((i, j) => { const k = j * w + i; this.saved.push([k, nav.walk[k], nav.S[k], nav.deck[k]]); nav.walk[k] = 1; nav.S[k] = floor; nav.deck[k] = 1; }); }
       } else this.restore();
     }
@@ -47,7 +48,7 @@
       this.apply(); if (g.mp && !this.remote) g.mp.gate(this.p, this.open);
     }
     update(dt) {
-      const target = this.open ? DOWN : UP; this.angle += (target - this.angle) * Math.min(1, dt * 3.2); this.mesh.rotation.x = this.angle;
+      const target = this.open || this.localOpen ? DOWN : UP; this.angle += (target - this.angle) * Math.min(1, dt * 3.2); this.mesh.rotation.x = this.angle;
       if (this.open && !this.remote) {
         const me = this.g.play.me, d = Math.hypot(me.x - this.p.x, me.z - this.p.z);
         this.away = d > AUTO_CLOSE_DIST ? this.away + dt : 0;
@@ -73,7 +74,8 @@
     tiles(fn) { const p = this.p; this.g.rectTiles(p.x, p.z, 2, 0.5, p.rot, fn); }
     apply() {
       const g = this.g, nav = this.nav, w = nav.w;
-      this.tiles((i, j) => { const k = j * w + i; g.occ[k] = 1; nav.walk[k] = this.open ? 1 : 0; if (this.open) g.gateTiles.delete(i + ',' + j); else g.gateTiles.add(i + ',' + j); });
+      const pass = this.open || this.localOpen;   // localOpen: it lets you out from the inside of someone else's fence, never in
+      this.tiles((i, j) => { const k = j * w + i; g.occ[k] = 1; nav.walk[k] = pass ? 1 : 0; if (pass) g.gateTiles.delete(i + ',' + j); else g.gateTiles.add(i + ',' + j); });
     }
     occupied() { let busy = false; const nav = this.nav; this.tiles((i, j) => { for (const a of this.g.play.actors) if ((a.alive || a === this.g.play.me) && nav.tile(a.x, a.z).join() === i + ',' + j) busy = true; }); return busy; }
     toggle() {
@@ -83,7 +85,7 @@
       this.apply(); if (g.mp && !this.remote) g.mp.gate(this.p, this.open);
     }
     update(dt) {
-      const target = this.open ? 1.5 : 0; this.angle += (target - this.angle) * Math.min(1, dt * 7);
+      const target = this.open || this.localOpen ? 1.5 : 0; this.angle += (target - this.angle) * Math.min(1, dt * 7);
       for (const [s, leaf] of this.leaves) leaf.rotation.y = s * this.angle;
       if (this.open && !this.remote) { const me = this.g.play.me, d = Math.hypot(me.x - this.p.x, me.z - this.p.z); this.away = d > AUTO_CLOSE_DIST ? this.away + dt : 0; if (this.away > 2 && !this.occupied()) { this.open = false; this.apply(); this.g.cui.toast('The gate swings shut.'); if (this.g.mp && !this.remote) this.g.mp.gate(this.p, false); } }
     }
