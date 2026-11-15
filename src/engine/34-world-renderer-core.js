@@ -59,9 +59,9 @@
         pine: lam(B.pixel(P.pine(), { repeat: true }), { flatShading: true }), boulder: lam(stoneTex, { flatShading: true }),
         fern: lam(B.pixel(P.fern(), { mips: false, flipY: true }), { alphaTest: 0.5, side: THREE.DoubleSide }),
         banner: lam(B.pixel(P.banner(), { mips: false, flipY: true }), { alphaTest: 0.5, side: THREE.DoubleSide }),
-        hole: lam(B.pixel(WorldRenderer.pattern(K.ramp('#050b14', '#0b1a2a', '#10263c', '#1d4566', '#3a7499'), 21, 0.35))),
-        ore: lam(B.pixel(WorldRenderer.pattern(K.ramp('#3a1a0a', '#7a3a14', '#b0602a', '#e09a4a', '#ffd08a'), 22, 0.6)), { flatShading: true }),
-        leaf: lam(B.pixel(WorldRenderer.pattern(K.ramp('#10241a', '#1f4a2c', '#2f6a3c', '#4a8a50', '#9fd0b8'), 23, 0.55)), { flatShading: true }),
+        hole: lam(B.pixel(WorldRendererCore.pattern(K.ramp('#050b14', '#0b1a2a', '#10263c', '#1d4566', '#3a7499'), 21, 0.35))),
+        ore: lam(B.pixel(WorldRendererCore.pattern(K.ramp('#3a1a0a', '#7a3a14', '#b0602a', '#e09a4a', '#ffd08a'), 22, 0.6)), { flatShading: true }),
+        leaf: lam(B.pixel(WorldRendererCore.pattern(K.ramp('#10241a', '#1f4a2c', '#2f6a3c', '#4a8a50', '#9fd0b8'), 23, 0.55)), { flatShading: true }),
       };
       const fireFrames = P.fire();
       this.fireSheet = new K.PixelBuffer(16 * 4, 24); fireFrames.forEach((f, i) => this.fireSheet.blit(f, i * 16, 0));
@@ -153,7 +153,7 @@
       const x0 = a0 * TILE, z0 = b0 * TILE, x1 = a1 * TILE, z1 = b1 * TILE;
       let bdirty = false;
       for (const o of this.doc.objects) {
-        const bb = WorldRenderer.objBox(o); if (bb[2] < x0 || bb[0] > x1 || bb[3] < z0 || bb[1] > z1) continue;
+        const bb = WorldRendererCore.objBox(o); if (bb[2] < x0 || bb[0] > x1 || bb[3] < z0 || bb[1] > z1) continue;
         if (o.kind === 'building') { bdirty = true; continue; }    // a building's base height follows the terrain under it
         const c = this.anchorChunk(o); if (c) c.propsDirty = true;
       }
