@@ -1,4 +1,6 @@
 // Copyright (c) 2026 Merchant Protocol. All rights reserved.
+import { ShopReach } from './ShopReach.js';
+
 export class Markets {
   cleanOffers(offers) {
     const clean = {};
@@ -24,7 +26,7 @@ export class Markets {
     const good = String(m.good || ''), amount = Math.max(1, Math.min(999, m.n | 0));
     const fail = (why) => this.send(ws, { t: 'buyfail', why });
     if (!market || market.owner === p.id) return fail('There is no clerk here to buy from.');
-    if (!this.near(p, market, 12)) return fail('Walk up to the market stalls to trade.');
+    if (!this.shopReach.allows(p, market, m.at)) return fail('Walk up to the market stalls to trade.');
     const teammate = this.sameTeam(p.id, market.owner);
     const price = teammate ? 0 : market.prices[good] | 0;
     if (!teammate && !price) return fail('That is not for sale.');
@@ -49,6 +51,7 @@ export class Markets {
   }
 
   install(room) {
+    room.shopReach = new ShopReach((a, b, range) => room.near(a, b, range));
     for (const method of ['cleanOffers', 'onMarket', 'onBuy', 'takeSales']) room[method] = this[method].bind(room);
   }
 }

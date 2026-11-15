@@ -20,10 +20,9 @@
       this.game = game;
       this.type = type;
       this.spec = spec;
-      this.owner = owner || '';
-      this.id = this.owner ? `${type}:${this.owner}` : spec.id;
+      this.id = owner ? `${type}:${owner}` : spec.id;
       this.turns = turns;
-      this.stock = new K.ShelfStock(game, type, this.owner);
+      this.stock = new K.ShelfStock(game, type, owner);
       this.racks = new Map();
       this.parts = this.positions();
       this.disposed = false;
@@ -31,6 +30,11 @@
         if (message.m && message.m.owner === this.owner) this.refreshInteractions();
       });
     }
+
+    /** resolved on every use, so a shop restored before multiplayer started still belongs to the local player */
+    get owner() { return this.stock.owner; }
+
+    isOwner() { return this.stock.mine(); }
 
     positions() {
       const spec = this.spec, width = spec.footprint.w, depth = spec.footprint.h;
@@ -54,7 +58,7 @@
         const names = goods.map(({ good, count }) => `${count} ${K.CastleData.resName(good)}`).join(', ');
         const shelf = {
           set: this, slot: part.slot, goods,
-          actions: (game) => this.actions(game, part.slot, goods),
+          actions: (game) => this.actions(game, part, goods),
         };
         entities.push({
           id: `shop-shelf:${this.id}:${part.slot}`, type: 'c_shop_shelf', shelf,
@@ -66,7 +70,7 @@
       const counter = this.parts[1];
       entities.push({
         id: `shop-counter:${this.id}`, type: 'c_shop_shelf',
-        shelf: { actions: (game) => this.counterActions(game) },
+        shelf: { actions: (game) => this.counterActions(game, { x: counter.x + 0.8, z: counter.z }) },
         x: counter.x + 0.8, z: counter.z, y: this.game.play.nav.y(counter.x + 0.8, counter.z),
         r: 0.7, h: 1.2, name: `Talk to the ${ShopShelfSet.SHOPKEEPERS[this.type]}`,
         stockText: 'Talk to the shopkeeper to buy.',
@@ -76,8 +80,8 @@
 
     refreshInteractions() { if (!this.disposed) this.game.play.refreshProps(); }
 
-    actions(game, slot, goods) {
-      const isOwner = game.mp ? game.mp.net.id === this.owner : !this.owner;
+    actions(game, part, goods) {
+      const isOwner = this.isOwner();
       const mayUse = game.mp ? game.mp.mayUse(this.owner) : isOwner;
       const available = goods.filter(({ good }) => this.stock.count(good) > 0);
       if (!isOwner && !mayUse) {
@@ -89,7 +93,7 @@
       }
       const actions = [];
       for (const { good, count } of available) {
-        const take = (amount) => isOwner ? this.stock.take(good, amount) : game.workers.buy(this.owner, good, amount);
+        const take = (amount) => isOwner ? this.stock.take(good, amount) : game.workers.buy(this.owner, good, amount, part);
         actions.push({ id: `shop-take-${good}-1`, label: `Take 1 ${K.CastleData.resName(good)}`, icon: 'hand', run: () => take(1) });
         if (count >= 5) actions.push({ id: `shop-take-${good}-5`, label: `Take 5 ${K.CastleData.resName(good)}`, icon: 'hand', run: () => take(5) });
         actions.push({ id: `shop-take-${good}-all`, label: `Take all ${K.CastleData.resName(good)} (${count})`, icon: 'hand', run: () => take(count) });
@@ -99,11 +103,11 @@
       return actions;
     }
 
-    counterActions(game) {
-      if (game.mp ? game.mp.net.id === this.owner : !this.owner) {
+    counterActions(game, at) {
+      if (this.isOwner()) {
         return [{ id: 'shop-prices', label: 'Set shop prices', icon: 'coin', run: () => game.workers.setPrices() }];
       }
-      return [{ id: 'shop-trade', label: `Talk to the ${ShopShelfSet.SHOPKEEPERS[this.type]}`, icon: 'coin', run: () => game.workers.trade(this.owner) }];
+      return [{ id: 'shop-trade', label: `Talk to the ${ShopShelfSet.SHOPKEEPERS[this.type]}`, icon: 'coin', run: () => game.workers.trade(this.owner, at) }];
     }
 
     refreshRack(part, goods) {

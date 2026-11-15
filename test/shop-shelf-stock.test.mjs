@@ -59,3 +59,32 @@ test('bakery shelf shares account for a single loaf without displaying duplicate
   assert.deepEqual(JSON.parse(JSON.stringify(stock.goods('inside'))), [{ good: 'bread', count: 1 }]);
   assert.deepEqual(JSON.parse(JSON.stringify(stock.goods('outside'))), []);
 });
+
+test('own shop restored before joining reads the local market ledger after multiplayer starts', () => {
+  // risk: owner sees an empty shelf while their market holds the goods (QA prod bug)
+  const ShelfStock = loadShelfStock();
+  const ledger = { goods: { bread: 18 } };
+  const game = {
+    mp: null,
+    workers: { cook: { market: {} }, markets: new Map() },
+    economy: { ledger: () => ledger },
+  };
+  const stock = new ShelfStock(game, 'bakery', '');
+  game.mp = { net: { id: 'ann' } };
+
+  assert.equal(stock.owner, 'ann');
+  assert.equal(stock.count('bread'), 18);
+});
+
+test('a remote owner shop reads the published market stock, not the viewer ledger', () => {
+  // risk: a visitor seeing (and taking from) their own ledger at someone else's shop
+  const ShelfStock = loadShelfStock();
+  const game = {
+    mp: { net: { id: 'bo' } },
+    workers: { cook: { market: {} }, markets: new Map([['ann', { stock: { bread: 4 } }]]) },
+    economy: { ledger: () => ({ goods: { bread: 99 } }) },
+  };
+  const stock = new ShelfStock(game, 'bakery', 'ann');
+
+  assert.equal(stock.count('bread'), 4);
+});

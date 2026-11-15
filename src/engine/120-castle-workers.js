@@ -106,15 +106,16 @@
       const sig = JSON.stringify([stock, prices, Math.round(mk.x), Math.round(mk.z)]); if (sig === this.pubSig) return; this.pubSig = sig;
       mp.net.send({ t: 'market', x: mk.x, z: mk.z, stock, prices });
     }
-    buy(owner, good, n) {
+    /** `at` is the shelf or counter you are trading at ({x, z}); without it the server expects you at the market stalls */
+    buy(owner, good, n, at) {
       const g = this.g, m = this.markets.get(owner); if (!m) return; const cost = g.mp.mayUse(owner) ? 0 : (m.prices[good] || 0) * n;   // your team takes for free
       if (g.castle.amount('gold') < cost) { g.cui.toast(`That costs ${cost} gold. You have ${g.castle.amount('gold')}.`); g.sound.play('clank'); return; }
-      g.mp.net.send({ t: 'buy', owner, good, n });
+      g.mp.net.send(at ? { t: 'buy', owner, good, n, at: { x: at.x, z: at.z } } : { t: 'buy', owner, good, n });
     }
     bought(m) {
       const g = this.g, c = g.castle; c.spend({ gold: m.cost }); const got = c.add(m.good, m.n);
       g.cui.toast(`${m.cost ? 'You bought' : 'You took'} ${m.n} ${K.CastleData.resName(m.good)}${m.cost ? ` for ${m.cost} gold` : ''}.${got < m.n ? ' Your purse was full; the rest is lost.' : ''}`); g.sound.play('gather'); g.changed();
-      const mk = this.markets.get(m.owner); if (mk && mk.stock) mk.stock[m.good] = Math.max(0, (mk.stock[m.good] || 0) - m.n); if (this.tradeWith === m.owner) this.trade(m.owner);
+      const mk = this.markets.get(m.owner); if (mk && mk.stock) mk.stock[m.good] = Math.max(0, (mk.stock[m.good] || 0) - m.n); if (this.tradeWith === m.owner) this.trade(m.owner, this.tradeAt);
     }
     /** someone bought from your clerk (now, or while you were away) */
     sold(s) {
@@ -122,13 +123,13 @@
       g.cui.toast(s.gold ? `${s.by} bought ${s.n} ${K.CastleData.resName(s.good)} from your clerk for ${s.gold} gold.` : `${s.by} (your team) took ${s.n} ${K.CastleData.resName(s.good)} from your market.`); g.changed(); this.pubSig = '';
     }
     /** the trading window at another player's market */
-    trade(owner) {
-      const g = this.g, m = this.markets.get(owner); this.tradeWith = owner;
+    trade(owner, at) {
+      const g = this.g, m = this.markets.get(owner); this.tradeWith = owner; this.tradeAt = at || null;
       if (!m || !Object.entries(m.stock || {}).some(([gd, n]) => n > 0 && (g.mp.mayUse(owner) || (m.prices || {})[gd] > 0))) { g.cui.modal(`<h2>The clerk shrugs</h2><p>Nothing is for sale here right now.</p>`, [{ label: 'Leave', pri: true }]); return; }
       const team = g.mp.mayUse(owner), verb = team ? 'Take' : 'Buy';
       const rows = Object.entries(m.stock).filter(([gd, n]) => n > 0 && (team || m.prices[gd] > 0)).map(([gd, n]) => `<div class="trow"><b>${K.CastleData.resName(gd)}</b> <span>${n} in stock${team ? '' : ` · ${m.prices[gd]} gold each`}</span> <button class="cb" data-buy="${gd}" data-n="1">${verb} 1</button> <button class="cb" data-buy="${gd}" data-n="5">${verb} 5</button></div>`).join('');
-      g.cui.modal(`<h2>${m.name || 'A settler'}'s market</h2><p>${team ? 'Your team: take what you need, free.' : `You have ${g.castle.amount('gold')} gold.`}</p><div class="trade">${rows}</div>`, [{ label: 'Done', pri: true, run: () => { this.tradeWith = null; } }]);
-      const box = g.cui.$('cModal'), prev = box.onclick; box.onclick = (e) => { const b = e.target.closest('[data-buy]'); if (b) { this.buy(owner, b.dataset.buy, +b.dataset.n); return; } prev(e); };
+      g.cui.modal(`<h2>${m.name || 'A settler'}'s market</h2><p>${team ? 'Your team: take what you need, free.' : `You have ${g.castle.amount('gold')} gold.`}</p><div class="trade">${rows}</div>`, [{ label: 'Done', pri: true, run: () => { this.tradeWith = null; this.tradeAt = null; } }]);
+      const box = g.cui.$('cModal'), prev = box.onclick; box.onclick = (e) => { const b = e.target.closest('[data-buy]'); if (b) { this.buy(owner, b.dataset.buy, +b.dataset.n, at); return; } prev(e); };
     }
     /** your own prices, set at your market */
     setPrices() {
