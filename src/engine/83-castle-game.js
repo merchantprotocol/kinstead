@@ -255,6 +255,13 @@
       rig.maxDist = C.maxDist; rig.minPitch = C.minPitch; rig.lookUpFrom = C.lookUpFrom; rig.groundAt = (x, z) => play.nav.y(x, z); rig.groundClear = C.groundClearM;
       this.camFar0 = cam.far; cam.far = C.far; cam.updateProjectionMatrix();
     }
+    /** numbers for a performance check from the console: window.castle.perf() */
+    perf() {
+      const R = this.R, app = this.app, fr = app.frames || [], mem = G.performance && performance.memory, rw = this.redwood;
+      const inst = rw ? rw.group.children.filter((m) => m.isInstancedMesh).reduce((n, m) => n + m.count, 0) : 0;
+      return { fps: fr.length, chunks: R.live ? R.live.size : R.chunks.length, pending: R.pending || 0, instances: inst, ambience: rw ? +rw.ambience.toFixed(2) : 0,
+        heapMB: mem ? Math.round(mem.usedJSHeapSize / 1e6) : null, world: [this.play.doc.w, this.play.doc.h], drawCalls: app.renderer3 ? app.renderer3.info.render.calls : null, tris: app.renderer3 ? app.renderer3.info.render.triangles : null };
+    }
     exitRedwoods() {
       if (!this.redwood) return; const rig = this.play.app.rig, cam = this.play.app.camera;
       this.redwood.dispose(); this.redwood = null;

@@ -88,7 +88,9 @@
       const fill = start.slice(0, cells), items = new Int32Array(n); for (let k = 0; k < n; k++) items[fill[cellOf[k]]++] = k;
       this.cellStart = start; this.cellItems = items;
       this.cosR = this.rot.map(Math.cos); this.sinR = this.rot.map(Math.sin);
+      this.y = new Float32Array(n); for (let k = 0; k < n; k++) this.y[k] = this.groundY(this.x[k], this.z[k], this.kind[k] === KIND.LOG ? 0 : this.r[k] * (this.kind[k] === KIND.STUMP ? 0.5 : 1));   // where each one stands (the lowest ground under its foot)
     }
+    groundY(x, z, r) { const d = this.doc; let y = d.tileY(x, z); if (r) for (const [dx, dz] of [[r, 0], [-r, 0], [0, r], [0, -r]]) y = Math.min(y, d.tileY(x + dx, z + dz)); return y; }
     cellKey(x, z) { const ci = Math.max(0, Math.min(this.ncx - 1, Math.floor(x / this.cell))), cj = Math.max(0, Math.min(this.ncz - 1, Math.floor(z / this.cell))); return cj * this.ncx + ci; }
     /** call fn(k) for every trunk/log/stump whose cell lies within radius m of (x,z) */
     near(x, z, m, fn) {
@@ -128,7 +130,7 @@
           const gx = ci * 64 + a, gz = cj * 64 + b, x = x0 + (a + this.h(gx, gz, s0)) * sp, z = z0 + (b + this.h(gx, gz, s0 + 1)) * sp;
           if (x >= x0 + S || z >= z0 + S || this.terrainAt(x, z) !== T.FOREST) continue;
           const p = ok(x, z); if (this.h(gx, gz, s0 + 2) >= spec.chance * p || solid(x, z, 0.3)) continue;
-          out.push(x, z, 0.65 + this.h(gx, gz, s0 + 3) * 0.8, this.h(gx, gz, s0 + 4) * 6.283);
+          out.push(x, z, 0.65 + this.h(gx, gz, s0 + 3) * 0.8, this.h(gx, gz, s0 + 4) * 6.283, this.doc.tileY(x, z));
         }
       };
       grid(c.fern, 41, ferns, (x, z) => 0.35 + 0.65 * clamp01((this.n2.fbm(x * 0.05, z * 0.05, 2) - 0.38) * 4));
@@ -177,7 +179,7 @@
     }
     /** an irregular foliage clump (a squashed icosahedron, jittered) */
     clump(pos, col, x, y, z, rx, ry, rz, seed, ramp) {
-      const ico = new THREE.IcosahedronGeometry(1, 0).toNonIndexed(), p = ico.attributes.position.array;
+      const ico = new THREE.IcosahedronGeometry(1, 0), p = ico.attributes.position.array;   // already one triangle per face
       const jit = (v, k) => 1 + (K.hash2(Math.round(v * 1000), k, seed) - 0.5) * 0.35;
       for (let i = 0; i < p.length; i += 9) {
         const ny = (p[i + 1] + p[i + 4] + p[i + 7]) / 3, c = this.rampCol(ramp, clamp01(0.3 + ny * 0.45 + (K.hash2(i, seed, 3) - 0.5) * 0.35));
@@ -277,9 +279,13 @@
       this.ambience = 0;
     }
     ground(x, z, r) { const d = this.g.play.doc; let y = d.tileY(x, z); if (r) for (const [dx, dz] of [[r, 0], [-r, 0], [0, r], [0, -r]]) y = Math.min(y, d.tileY(x + dx, z + dz)); return y; }
+    /** instance i of mesh: turned rot about y, scaled, at (x,y,z) (the column-major matrix written straight into the buffer) */
     put(mesh, x, y, z, rot, sx, sy, sz) {
       const i = mesh.count; if (i >= mesh.instanceMatrix.count) return -1;
-      this.q.setFromAxisAngle(this.up, rot); this.m4.compose(this.v.set(x, y, z), this.q, this.sc.set(sx, sy, sz)); mesh.setMatrixAt(i, this.m4); mesh.count = i + 1; return i;
+      const c = Math.cos(rot), s = Math.sin(rot), a = mesh.instanceMatrix.array, o = i * 16;
+      a[o] = c * sx; a[o + 1] = 0; a[o + 2] = -s * sx; a[o + 3] = 0; a[o + 4] = 0; a[o + 5] = sy; a[o + 6] = 0; a[o + 7] = 0;
+      a[o + 8] = s * sz; a[o + 9] = 0; a[o + 10] = c * sz; a[o + 11] = 0; a[o + 12] = x; a[o + 13] = y; a[o + 14] = z; a[o + 15] = 1;
+      mesh.count = i + 1; return i;
     }
     /** gather what is near (x,z) into the instanced meshes */
     gather(x, z) {
@@ -288,16 +294,16 @@
       this.near = []; const KD = KIND;
       f.near(x, z, c.drawGiantsM, (k) => {
         const d = Math.hypot(f.x[k] - x, f.z[k] - z), kd = f.kind[k], r = f.r[k];
-        if (kd === KD.GIANT) { if (d > c.drawGiantsM) return; const near = d < c.drawGiantsLodM, s = f.ht[k] / 75, mesh = this.giant[f.variant[k]][near ? 0 : 1], i = this.put(mesh, f.x[k], this.ground(f.x[k], f.z[k], r), f.z[k], f.rot[k], s, s, s); if (near && i >= 0) this.near.push({ mesh, i, x: f.x[k], z: f.z[k], r: r * 1.3, s }); }
-        else if (kd === KD.MID) { if (d > c.drawMidM) return; const near = d < c.drawGiantsLodM * 0.6, s = f.ht[k] / 30, mesh = this.mid[f.variant[k]][near ? 0 : 1], i = this.put(mesh, f.x[k], this.ground(f.x[k], f.z[k], r), f.z[k], f.rot[k], s, s, s); if (near && i >= 0) this.near.push({ mesh, i, x: f.x[k], z: f.z[k], r: r * 1.1, s }); }
-        else if (kd === KD.LOG) { if (d < c.drawFloorM * 1.8) this.put(this.logs, f.x[k], this.ground(f.x[k], f.z[k]) + r * 0.55, f.z[k], -f.rot[k], f.len[k], r, r); }
-        else if (d < c.drawFloorM * 1.8) this.put(this.stumps, f.x[k], this.ground(f.x[k], f.z[k], r * 0.5), f.z[k], f.rot[k], r, f.ht[k], r);
+        if (kd === KD.GIANT) { if (d > c.drawGiantsM) return; const near = d < c.drawGiantsLodM, s = f.ht[k] / 75, mesh = this.giant[f.variant[k]][near ? 0 : 1], i = this.put(mesh, f.x[k], f.y[k], f.z[k], f.rot[k], s, s, s); if (near && i >= 0) this.near.push({ mesh, i, x: f.x[k], z: f.z[k], r: r * 1.3, s }); }
+        else if (kd === KD.MID) { if (d > c.drawMidM) return; const near = d < c.drawGiantsLodM * 0.6, s = f.ht[k] / 30, mesh = this.mid[f.variant[k]][near ? 0 : 1], i = this.put(mesh, f.x[k], f.y[k], f.z[k], f.rot[k], s, s, s); if (near && i >= 0) this.near.push({ mesh, i, x: f.x[k], z: f.z[k], r: r * 1.1, s }); }
+        else if (kd === KD.LOG) { if (d < c.drawFloorM * 1.8) this.put(this.logs, f.x[k], f.y[k] + r * 0.55, f.z[k], -f.rot[k], f.len[k], r, r); }
+        else if (d < c.drawFloorM * 1.8) this.put(this.stumps, f.x[k], f.y[k], f.z[k], f.rot[k], r, f.ht[k], r);
       });
       const S = f.cell, R = c.drawFloorM, ci0 = Math.max(0, Math.floor((x - R) / S)), ci1 = Math.min(f.ncx - 1, Math.floor((x + R) / S)), cj0 = Math.max(0, Math.floor((z - R) / S)), cj1 = Math.min(f.ncz - 1, Math.floor((z + R) / S));
       for (let cj = cj0; cj <= cj1; cj++) for (let ci = ci0; ci <= ci1; ci++) {
         if (Math.hypot((ci + 0.5) * S - x, (cj + 0.5) * S - z) > R + S) continue;
         const fl = f.floor(ci, cj);
-        for (const [arr, mesh] of [[fl.ferns, this.ferns], [fl.sorrel, this.sorrel]]) for (let q = 0; q < arr.length; q += 4) this.put(mesh, arr[q], this.ground(arr[q], arr[q + 1]), arr[q + 1], arr[q + 3], arr[q + 2], arr[q + 2], arr[q + 2]);
+        for (const [arr, mesh] of [[fl.ferns, this.ferns], [fl.sorrel, this.sorrel]]) for (let q = 0; q < arr.length; q += 5) this.put(mesh, arr[q], arr[q + 4], arr[q + 1], arr[q + 3], arr[q + 2], arr[q + 2], arr[q + 2]);
       }
       for (const m of all) { m.instanceMatrix.needsUpdate = true; m.instanceMatrix.clearUpdateRanges && m.instanceMatrix.clearUpdateRanges(); }
       // light shafts in the gaps near you (fixed spots on a 28 m grid, so they do not swim as you walk)
