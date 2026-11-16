@@ -27,6 +27,9 @@
     cloth: ramp('#1a070c', '#3a0d16', '#5c1420', '#82202a', '#a8383a'),
     grass: ramp('#1f1e1a', '#2e2c25', '#423f33', '#58543f', '#6f6a4f', '#8a8466'),
     fern: ramp('#0f1a12', '#18291a', '#223a22', '#2f4d2c', '#40633a'),
+    duff: ramp('#1c120c', '#2a1a10', '#3a2416', '#4c301c', '#5e3d24', '#704a2c'),            // redwood needle duff (the Redwood world)
+    redwoodMoss: ramp('#16210f', '#1f3014', '#2b4219', '#3a561f', '#4d6c27', '#6a8a36'),
+    redbark: ramp('#1a0c08', '#2b130c', '#3d1b10', '#552616', '#6e321c', '#874326', '#a05a34'),
   };
 
   class TexturePainter {

@@ -26,13 +26,19 @@
     pieces() { return this.g.castle.pieces.filter((p) => Ramparts.handles(p.type) && p.hp > 0); }
     signature() { return this.pieces().map((p) => p.uid + ':' + p.x + ':' + p.z + ':' + p.rot).join('|'); }
     rebuild() {
-      const nav = this.nav, L = new K.RampartLayer(nav.w, nav.h), towers = [];
-      this.layer = L; this.stairs = []; this.sig = this.signature();
+      const nav = this.nav, towers = [], cells = [];
       for (const p of this.pieces()) {
         const base = nav.y(p.x, p.z) - 0.02, [w, d] = K.CastleArt.size(p.type);   // the mesh stands at nav.y - 0.02 (CastleGame.place)
-        this.g.rectTiles(p.x, p.z, w, d, p.rot || 0, (i, j, lx) => L.set(i, j, base + K.RampartPlan.topOf(p.type, lx)));
+        this.g.rectTiles(p.x, p.z, w, d, p.rot || 0, (i, j, lx) => cells.push([i, j, base + K.RampartPlan.topOf(p.type, lx)]));
         if (p.type === 'stone_tower') towers.push([p, base]);
       }
+      // the layer covers only the box around the walls (plus an apron), not the whole world
+      let i0 = 1e9, j0 = 1e9, i1 = -1e9, j1 = -1e9; for (const [i, j] of cells) { i0 = Math.min(i0, i); j0 = Math.min(j0, j); i1 = Math.max(i1, i); j1 = Math.max(j1, j); }
+      if (!cells.length) { i0 = j0 = 0; i1 = j1 = 0; }
+      i0 = Math.max(0, i0 - 4); j0 = Math.max(0, j0 - 4); i1 = Math.min(nav.w - 1, i1 + 4); j1 = Math.min(nav.h - 1, j1 + 4);
+      const L = new K.RampartLayer(i1 - i0 + 1, j1 - j0 + 1, i0, j0);
+      this.layer = L; this.stairs = []; this.sig = this.signature();
+      for (const [i, j, y] of cells) L.set(i, j, y);
       for (const [p, base] of towers) this.addStairs(p, base);
     }
     /* a stair from every corner door with open ground outside it */

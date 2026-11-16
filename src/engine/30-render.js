@@ -413,7 +413,7 @@
       try {
         const src = '(' + G.KPaintModules.toString() + ')();\n' +
           'const P = new K.GroundPainter(7);\n' +
-          'onmessage = (e) => { const m = e.data, d = new K.WorldDoc(m.w, m.h); d.terrain = m.terrain; d.height = m.height;\n' +
+          'onmessage = (e) => { const m = e.data, d = new K.TileWindow(m.w, m.h, m.x0, m.y0, m.ww, m.wh, m.terrain, m.height);\n' +
           '  const [i0, j0, i1, j1] = m.rect, tp = K.TILE * m.ppu, W = (i1 - i0) * tp, H = (j1 - j0) * tp;\n' +
           '  const out = new K.PixelBuffer(W, H), spark = new K.PixelBuffer(W, H);\n' +
           '  P.paint(d, out, spark, i0, j0, i0, j0, i1, j1, m.ppu);\n' +
@@ -431,7 +431,8 @@
     send(job, doc) {
       const w = this.workers.find((x) => x.free); if (!w) return false;
       job.id = this.seq++; job.worker = w; w.free = false; this.jobs.set(job.id, job);
-      w.postMessage({ id: job.id, w: doc.w, h: doc.h, terrain: doc.terrain.slice(), height: doc.height.slice(), rect: job.rect, ppu: PPU });
+      const win = K.TileWindow.cut(doc, ...job.rect);   // just the band (and a one-tile apron), never a copy of the whole world
+      w.postMessage({ id: job.id, w: doc.w, h: doc.h, x0: win.x0, y0: win.y0, ww: win.ww, wh: win.wh, terrain: win.terrain, height: win.height, rect: job.rect, ppu: job.ppu }, [win.terrain.buffer, win.height.buffer]);
       return true;
     }
     done(m) { const job = this.jobs.get(m.id); if (!job) return; this.jobs.delete(m.id); job.worker.free = true; job.cb(m); }
@@ -440,11 +441,13 @@
 
   /* one 32x32-tile block of the world: ground texture + terrain mesh + merged prop meshes */
   class Chunk {
-    constructor(R, ci, cj) {
+    /* lod 0: full detail ground (PPU texels per unit); lod 1: the streamed far ring, painted coarser */
+    constructor(R, ci, cj, lod = 0) {
       const doc = R.doc;
-      this.R = R; this.ci = ci; this.cj = cj; this.i0 = ci * CH; this.j0 = cj * CH;
+      this.R = R; this.ci = ci; this.cj = cj; this.i0 = ci * CH; this.j0 = cj * CH; this.key = cj * R.ncx + ci; this.lod = lod;
+      this.ppu = lod ? K.REDWOOD.stream.ppuFar : PPU;
       this.i1 = Math.min(doc.w, this.i0 + CH); this.j1 = Math.min(doc.h, this.j0 + CH);
-      const tw = (this.i1 - this.i0) * TILE * PPU, th = (this.j1 - this.j0) * TILE * PPU;
+      const tw = (this.i1 - this.i0) * TILE * this.ppu, th = (this.j1 - this.j0) * TILE * this.ppu;
       const buf = new K.PixelBuffer(tw, th), spark = new K.PixelBuffer(tw, th);
       buf.fill(K.TP.snow[3]); spark.fill([0, 0, 0]);
       this.canvas = R.bank.canvasOf(buf); this.scanvas = R.bank.canvasOf(spark);
@@ -479,7 +482,7 @@
     }
     /* copy a painted band into the chunk canvases, skipping tiles that were edited again since it was sent */
     blit(band, data, sdata) {
-      const [i0, j0, i1, j1] = band.rect, tp = TILE * PPU, W = (i1 - i0) * tp, H = (j1 - j0) * tp, cw = this.i1 - this.i0;
+      const [i0, j0, i1, j1] = band.rect, tp = TILE * this.ppu, W = (i1 - i0) * tp, H = (j1 - j0) * tp, cw = this.i1 - this.i0;
       const img = new ImageData(new Uint8ClampedArray(data.buffer || data), W, H), simg = new ImageData(new Uint8ClampedArray(sdata.buffer || sdata), W, H);
       const ox = (i0 - this.i0) * tp, oy = (j0 - this.j0) * tp;
       let q = 0, stale = 0;
@@ -499,14 +502,14 @@
       const R = this.R;
       if (pool && pool.ok) {
         if (!pool.idle) return false;
-        const band = this.nextBand(4); if (!band) return false;
+        const band = this.nextBand(this.lod ? CH : 4); if (!band) return false; band.ppu = this.ppu;
         band.cb = (m) => { if (!this.flying.delete(band)) return; this.inflight--; if (!this.disposed) { this.blit(band, m.data, m.sdata); R.pumpPaint(); } };
         this.inflight++; this.flying.add(band); pool.send(band, R.doc); return true;
       }
-      const band = this.nextBand(2); if (!band) return false;
-      const [i0, j0, i1, j1] = band.rect, tp = TILE * PPU, W = (i1 - i0) * tp, H = (j1 - j0) * tp;
+      const band = this.nextBand(this.lod ? CH : 2); if (!band) return false;
+      const [i0, j0, i1, j1] = band.rect, tp = TILE * this.ppu, W = (i1 - i0) * tp, H = (j1 - j0) * tp;
       const out = new K.PixelBuffer(W, H), spark = new K.PixelBuffer(W, H);
-      R.painter.paint(R.doc, out, spark, i0, j0, i0, j0, i1, j1, PPU);
+      R.painter.paint(R.doc, out, spark, i0, j0, i0, j0, i1, j1, this.ppu);
       this.blit(band, out.data, spark.data);
       return true;
     }
@@ -571,7 +574,7 @@
       this.renderer = renderer; this.scene = new THREE.Scene();
       this.painter = new K.GroundPainter(7); this.texPainter = new K.TexturePainter(7); this.bank = new TextureBank(renderer);
       this.lib = new K.CharacterLibrary();
-      this.pool = new PaintPool(); this.chunks = []; this.dyn = new Map(); this.lightSrc = []; this.anim = new Map(); this.fires = new Map(); this.actors = new Map(); this.propState = new Map();
+      this.pool = new PaintPool(); this.chunks = []; this.live = new Map(); this.streamer = null; this.streamWaiting = 0; this.dyn = new Map(); this.lightSrc = []; this.anim = new Map(); this.fires = new Map(); this.actors = new Map(); this.propState = new Map();
       this.target = new V3();
       const S = this.scene;
       S.background = new THREE.Color('#1a2131');
@@ -640,7 +643,7 @@
     /* per-object visual state (e.g. a depleted ore vein) -> rebuild that object's chunk */
     setPropState(id, st) {
       if (st) this.propState.set(id, st); else this.propState.delete(id);
-      const o = this.doc && this.doc.obj(id); const c = o && this.anchorChunk(o); if (c) c.propsDirty = true;
+      const o = this.doc && this.doc.obj(id); const c = o && this.anchorChunk(o); if (c) c.propsDirty = true;   // a chunk not streamed in reads propState when it is built
     }
     clearPropStates() { const ids = [...this.propState.keys()]; this.propState.clear(); ids.forEach((id) => this.setPropState(id, null)); }
     /* the static sprite markers placed in the editor (hidden while play mode spawns live actors) */
@@ -685,21 +688,50 @@
 
     /* ---------- document binding ---------- */
     setDoc(doc) {
-      this.chunks.forEach((c) => c.dispose()); this.chunks = []; this.pool.cancelAll();
+      this.chunks.forEach((c) => c.dispose()); this.chunks = []; this.live.clear(); this.pool.cancelAll();
       for (const id of [...this.dyn.keys()]) this.removeDyn(id);
       this.doc = doc;
       this.ncx = Math.ceil(doc.w / CH); this.ncz = Math.ceil(doc.h / CH);
-      for (let cj = 0; cj < this.ncz; cj++) for (let ci = 0; ci < this.ncx; ci++) { const c = new Chunk(this, ci, cj); c.queuePaint(c.i0, c.j0, c.i1, c.j1); this.chunks.push(c); }
+      // big worlds stream their ground around the view; small ones (the editor, older maps) are built whole, as always
+      const S = K.REDWOOD.stream;
+      this.streamer = doc.w * doc.h > S.aboveTiles ? new K.ChunkStreamer({ ncx: this.ncx, ncz: this.ncz, chunkM: CH * TILE, nearM: S.nearM, farM: S.farM, hysteresisM: S.hysteresisM, budget: S.buildsPerFrame }) : null;
+      this.streamAt = null; this.streamWaiting = 0;
+      if (!this.streamer) for (let cj = 0; cj < this.ncz; cj++) for (let ci = 0; ci < this.ncx; ci++) this.addChunk(ci, cj, 0);
       this.buildFog();
       this.objectsChanged(true);
+      if (this.streamer) this.stream(true);
       this.pumpPaint();
     }
-    chunkAt(i, j) { const ci = Math.floor(i / CH), cj = Math.floor(j / CH); if (ci < 0 || cj < 0 || ci >= this.ncx || cj >= this.ncz) return null; return this.chunks[cj * this.ncx + ci]; }
-    anchorChunk(o) {
-      const p = o.kind === 'building' ? [o.x * TILE, o.z * TILE] : o.kind === 'prop' ? [o.x, o.z] : o.kind === 'bridge' ? o.a : o.pts[0];
-      const [i, j] = this.doc.tileOf(p[0], p[1]);
-      return this.chunkAt(Math.max(0, Math.min(this.doc.w - 1, i)), Math.max(0, Math.min(this.doc.h - 1, j)));
+    /** make chunk (ci,cj) live at a detail level: ground painted from the doc, terrain and props built from it */
+    addChunk(ci, cj, lod) {
+      const c = new Chunk(this, ci, cj, lod); c.queuePaint(c.i0, c.j0, c.i1, c.j1); this.chunks.push(c); this.live.set(c.key, c); return c;
     }
+    dropChunk(key) {
+      const c = this.live.get(key); if (!c) return; this.live.delete(key); c.dispose();
+      const i = this.chunks.indexOf(c); if (i >= 0) this.chunks.splice(i, 1);
+    }
+    /** streamed worlds: create the chunks near the view (nearest first, a few per call), drop the far ones */
+    stream(force) {
+      const st = this.streamer; if (!st || !this.doc) return;
+      const tg = this.target, at = this.streamAt;
+      if (!force && at && this.streamWaiting === 0 && Math.hypot(tg.x - at.x, tg.z - at.z) < 2) return;
+      this.streamAt = { x: tg.x, z: tg.z };
+      const lods = new Map(); for (const [k, c] of this.live) lods.set(k, c.lod);
+      const p = st.plan(tg.x, tg.z, lods);
+      for (const k of p.drop) this.dropChunk(k);
+      for (const r of p.relod) { this.dropChunk(r.key); this.addChunk(r.ci, r.cj, r.lod); }
+      for (const c of p.create) this.addChunk(c.ci, c.cj, c.lod);
+      this.streamWaiting = p.waiting;
+      if (p.create.length || p.relod.length) this.pumpPaint();
+    }
+    chunkAt(i, j) { const ci = Math.floor(i / CH), cj = Math.floor(j / CH); if (ci < 0 || cj < 0 || ci >= this.ncx || cj >= this.ncz) return null; return this.live.get(cj * this.ncx + ci) || null; }
+    /** the chunk key an object belongs to (whether or not that chunk is streamed in) */
+    anchorKey(o) {
+      const p = o.kind === 'building' ? [o.x * TILE, o.z * TILE] : o.kind === 'prop' ? [o.x, o.z] : o.kind === 'bridge' ? o.a : o.pts[0];
+      const [i, j] = this.doc.tileOf(p[0], p[1]), ci = Math.floor(Math.max(0, Math.min(this.doc.w - 1, i)) / CH), cj = Math.floor(Math.max(0, Math.min(this.doc.h - 1, j)) / CH);
+      return cj * this.ncx + ci;
+    }
+    anchorChunk(o) { return this.live.get(this.anchorKey(o)) || null; }
     static objBox(o) {
       if (o.kind === 'building') { const b = K.BuildingGeo.worldBox(o); return [b[0] - 1, b[1] - 1, b[2] + 1, b[3] + 1]; }
       if (o.kind === 'prop') return [o.x - 1, o.z - 1, o.x + 1, o.z + 1];
@@ -726,11 +758,11 @@
     }
     objectsChanged(force) {
       const per = new Map();
-      for (const o of this.doc.objects) { const c = this.anchorChunk(o); if (!c) continue; if (!per.has(c)) per.set(c, []); per.get(c).push(o); }
+      for (const o of this.doc.objects) { const k = this.anchorKey(o); if (!per.has(k)) per.set(k, []); per.get(k).push(o); }
       this.chunkObjs = per;
       this.syncBuildings(force);
       for (const c of this.chunks) {
-        const sig = JSON.stringify((per.get(c) || []).filter((o) => o.kind !== 'building'));
+        const sig = JSON.stringify((per.get(c.key) || []).filter((o) => o.kind !== 'building'));
         if (force || sig !== c.sig) { c.sig = sig; c.propsDirty = true; }
       }
       // bridges change the ground for anything standing on them; just re-place all dynamics
@@ -738,18 +770,19 @@
     }
     /* do queued rebuild work within a time budget; nearest chunks first */
     work(budgetMs = 10, sync = false) {
+      if (this.streamer && !sync) this.stream();
       const t0 = performance.now(), tg = this.target;
       const dist = (c) => Math.hypot((c.i0 + CH / 2) * TILE - tg.x, (c.j0 + CH / 2) * TILE - tg.z);
       const order = this.chunks.slice().sort((a, b) => dist(a) - dist(b));
       let busy = false;
       for (const c of order) if (c.geoDirty) { c.buildTerrain(); busy = true; }
-      for (const c of order) if (c.propsDirty) { c.buildProps(this.chunkObjs.get(c) || []); busy = true; if (performance.now() - t0 > budgetMs * 2) break; }
+      for (const c of order) if (c.propsDirty) { c.buildProps(this.chunkObjs.get(c.key) || []); busy = true; if (performance.now() - t0 > budgetMs * 2) break; }
       for (const c of order) {
         while (c.nDirty && performance.now() - t0 < budgetMs) { if (c.paintStep(sync ? null : this.pool)) busy = true; else break; }
         c.flushTex();
         if (performance.now() - t0 >= budgetMs) break;
       }
-      this.pending = this.chunks.reduce((s, c) => s + (c.nDirty ? 1 : 0) + (c.inflight ? 1 : 0) + (c.propsDirty ? 1 : 0) + (c.geoDirty ? 1 : 0), 0);
+      this.pending = this.chunks.reduce((s, c) => s + (c.nDirty ? 1 : 0) + (c.inflight ? 1 : 0) + (c.propsDirty ? 1 : 0) + (c.geoDirty ? 1 : 0), 0) + this.streamWaiting;
       return busy;
     }
     /* keep the paint workers fed between frames (nearest chunks first) */
@@ -863,19 +896,24 @@
       this.cam = camera; this.drift = false;
       this.cur = { tx: 8, ty: 0, tz: 8, yaw: -0.2, pitch: 0.7, dist: 21 }; this.goal = Object.assign({}, this.cur);
       this.bounds = [0, 0, 32, 24];
+      this.minPitch = 0.35; this.lookUpFrom = null; this.groundAt = null; this.groundClear = 0.9;   // a game may allow looking up (the Redwood forest): see update()
     }
     set(v, snap) { Object.assign(this.goal, v); this.clamp(); if (snap) this.cur = Object.assign({}, this.goal); }
     clamp() {
       const g = this.goal, b = this.bounds;
-      g.pitch = Math.max(0.35, Math.min(1.53, g.pitch)); g.dist = Math.max(4, Math.min(this.maxDist || Math.max(40, (b[2] - b[0]) * 1.4), g.dist));
+      g.pitch = Math.max(this.minPitch, Math.min(1.53, g.pitch)); g.dist = Math.max(4, Math.min(this.maxDist || Math.max(40, (b[2] - b[0]) * 1.4), g.dist));
       g.tx = Math.max(b[0], Math.min(b[2], g.tx)); g.tz = Math.max(b[1], Math.min(b[3], g.tz));
     }
     update(dt, t) {
       const k = 1 - Math.pow(0.0015, dt);
       for (const key of ['tx', 'ty', 'tz', 'yaw', 'pitch', 'dist']) this.cur[key] += (this.goal[key] - this.cur[key]) * k;
-      const c = this.cur, yaw = c.yaw + (this.drift ? Math.sin(t * 0.07) * 0.06 : 0), p = c.pitch;
-      this.cam.position.set(c.tx + Math.sin(yaw) * Math.cos(p) * c.dist, c.ty + Math.sin(p) * c.dist, c.tz + Math.cos(yaw) * Math.cos(p) * c.dist);
-      this.cam.lookAt(c.tx, c.ty, c.tz);
+      const c = this.cur, yaw = c.yaw + (this.drift ? Math.sin(t * 0.07) * 0.06 : 0), lu = this.lookUpFrom;
+      // below lookUpFrom the camera stays low behind the target and tilts up instead (trunks fill the frame, the canopy is overhead)
+      const low = lu != null && c.pitch < lu, p = low ? Math.max(0.07, c.pitch) : c.pitch, lift = low ? c.dist * (lu - c.pitch) * 2.4 : 0;
+      const px = c.tx + Math.sin(yaw) * Math.cos(p) * c.dist, pz = c.tz + Math.cos(yaw) * Math.cos(p) * c.dist;
+      let py = c.ty + Math.sin(p) * c.dist; if (this.groundAt) py = Math.max(py, this.groundAt(px, pz) + this.groundClear);
+      this.cam.position.set(px, py, pz);
+      this.cam.lookAt(c.tx, c.ty + lift, c.tz);
       return c.dist;
     }
   }
