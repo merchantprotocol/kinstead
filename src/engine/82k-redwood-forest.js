@@ -331,7 +331,7 @@
       const me = this.g.play.me; if (!me) return;
       if (!this.at || Math.hypot(me.x - this.at.x, me.z - this.at.z) > this.cfg.refreshM) this.gather(me.x, me.z);
       this.cutaway(this.g.app.camera, me);
-      const amb = clamp01(this.f.density(me.x, me.z) * 1.4 + (this.f.inCore(me.x, me.z) ? 0 : 0.35));
+      const amb = clamp01(Math.max(0.3, this.f.density(me.x, me.z) * 1.4 + (this.f.inCore(me.x, me.z) ? 0 : 0.35)));   // even on the snowfield the mist opens enough to see giants tower over the homestead
       this.ambience += (amb - this.ambience) * Math.min(1, dt * 0.6);
       this.shaftMat.opacity = 0.16 * this.ambience * (1 - night);
     }

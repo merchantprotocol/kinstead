@@ -43,7 +43,7 @@
   class Persist {
     constructor(game) {
       this.g = game; const d = game.play.doc;
-      this.h0 = Int8Array.from(d.height); this.t0 = Uint8Array.from(d.terrain);   // the land as generated: dug and raised ground is saved as the difference
+      this.h0 = d.height.slice(); this.t0 = d.terrain.slice();   // the land as generated: dug and raised ground is saved as the difference
     }
     get play() { return this.g.play; }
     weaponIds(list) { return list.map((w) => w.id); }
