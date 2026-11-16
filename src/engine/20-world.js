@@ -82,7 +82,7 @@
       if (!(o.version >= 1)) throw new Error('Missing world format version.');
       if (o.version > VERSION) throw new Error('This world was saved by a newer builder (v' + o.version + '). This builder reads v' + VERSION + '.');
       const w = o.size && o.size.w | 0, h = o.size && o.size.h | 0;
-      if (!(w >= 8 && h >= 8 && w <= 512 && h <= 512)) throw new Error('World size must be between 8 and 512 tiles on each side.');
+      if (!(w >= 8 && h >= 8 && w <= 1536 && h <= 1536)) throw new Error('World size must be between 8 and 1536 tiles on each side.');
       const d = new WorldDoc(w, h, { name: o.name, seed: o.seed });
       d.terrain.set(b64.dec(o.tiles.terrain, w * h));
       d.height.set(new Int8Array(b64.dec(o.tiles.height, w * h).buffer));
