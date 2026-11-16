@@ -8,20 +8,59 @@
 (function (G) {
   const K = G.K;
 
+  /** Saves across the Redwood world change, both ways. Builds before it read `terrain` as [index, height, type] on the
+      560-tile-wide map and know nothing else; this build writes dug ground as `ground` {w, h, list} (old builds ignore it)
+      and keeps anything standing beyond the old map's edge under `far`, so an older build never tries to put it back. */
+  class SaveCompat {
+    /** dug ground from a save, as world tile indices of a map w tiles wide (old saves were always the 560 x 400 map) */
+    static ground(x, w, h) {
+      const src = x.ground && x.ground.list ? x.ground : x.terrain && x.terrain.length ? { w: SaveCompat.OLD.w, h: SaveCompat.OLD.h, list: x.terrain } : null;
+      if (!src) return [];
+      const out = [];
+      for (const [k, hh, t] of src.list) { const i = k % src.w, j = (k - i) / src.w; if (i < w && j < h && j < src.h) out.push([j * w + i, hh, t]); }
+      return out;
+    }
+    /** is tile (i, j) beyond the old map? */
+    static far(i, j) { return i + 1 >= SaveCompat.OLD.w || j + 1 >= SaveCompat.OLD.h; }
+    /** move buildings standing beyond the old map's edge out of the keys older builds read */
+    static split(c) {
+      const far = {};
+      for (const key of ['home', 'smithy', 'market']) if (c[key] && SaveCompat.far(c[key].x, c[key].z)) { far[key] = c[key]; c[key] = null; }
+      for (const [t, h] of Object.entries(c.halls || {})) if (SaveCompat.far(h.x, h.z)) { (far.halls = far.halls || {})[t] = h; delete c.halls[t]; }
+      if (Object.keys(far).length) c.far = far;
+      return c;
+    }
+    /** put them back (this build) */
+    static merge(x) {
+      const f = x.far; if (!f) return x;
+      const y = Object.assign({}, x); for (const key of ['home', 'smithy', 'market']) if (f[key]) y[key] = f[key];
+      if (f.halls) y.halls = Object.assign({}, x.halls || {}, f.halls);
+      return y;
+    }
+  }
+  SaveCompat.OLD = { w: 560, h: 400 };
+
   class Persist {
     constructor(game) {
       this.g = game; const d = game.play.doc;
-      this.h0 = Int8Array.from(d.height); this.t0 = Uint8Array.from(d.terrain);   // the land as generated: dug and raised ground is saved as the difference
+      this.h0 = d.height.slice(); this.t0 = d.terrain.slice();   // the land as generated: dug and raised ground is saved as the difference
     }
     get play() { return this.g.play; }
     weaponIds(list) { return list.map((w) => w.id); }
+    /** tiles dug or raised since the world was made: [index, height, type]. Compares four tiles at a time (a big world is 22M tiles) */
+    changedGround() {
+      const d = this.play.doc, out = [], n = d.height.length, H = d.height, T0 = d.terrain, h0 = this.h0, t0 = this.t0;
+      const q = n % 4 === 0 && !H.byteOffset && !h0.byteOffset ? n / 4 : 0, a = q && new Uint32Array(H.buffer, 0, q), b = q && new Uint32Array(h0.buffer, 0, q), c = q && new Uint32Array(T0.buffer, 0, q), e = q && new Uint32Array(t0.buffer, 0, q);
+      if (q) { for (let w = 0; w < q; w++) if (a[w] !== b[w] || c[w] !== e[w]) for (let k = w * 4; k < w * 4 + 4; k++) if (H[k] !== h0[k] || T0[k] !== t0[k]) out.push([k, H[k], T0[k]]); }
+      else for (let k = 0; k < n; k++) if (H[k] !== h0[k] || T0[k] !== t0[k]) out.push([k, H[k], T0[k]]);
+      return out;
+    }
     capture() {
-      const g = this.g, d = this.play.doc, terrain = [];
-      for (let k = 0; k < d.height.length; k++) if (d.height[k] !== this.h0[k] || d.terrain[k] !== this.t0[k]) terrain.push([k, d.height[k], d.terrain[k]]);
+      const g = this.g, d = this.play.doc, terrain = this.changedGround();
       const vaults = {}; for (const [id, v] of g.purse.vaults) vaults[id] = { res: v.res, items: v.items, weapons: this.weaponIds(v.weapons) };
       const mp = !!g.mp;   // on a server the land, felled trees and supplies are the server's: your save keeps only what is yours
-      return {
-        respawn: g.respawn || null, terrain: mp ? [] : terrain, vaults,
+      return SaveCompat.split({
+        respawn: g.respawn || null, terrain: [], ground: { w: d.w, h: d.h, list: mp ? [] : terrain }, vaults,   // terrain: [] so an older build restores no ground (it would misplace it)
         piles: mp ? [] : g.home.stores.filter((s) => s.pile && s.present).map((s) => ({ res: s.res, x: s.x, z: s.z, n: s.stock })),
         stores: mp ? [] : g.home.stores.filter((s) => !s.pile && s.stock != null).map((s) => [s.id, s.stock]),
         weapons: this.weaponIds(g.tools.belt.weapons), held: g.tools.tool.kind === 'weapon' ? g.tools.tool.id : null,
@@ -32,12 +71,13 @@
         home: g.home.built ? { x: g.home.spec.x, z: g.home.spec.z, turns: g.homeTurns || 0 } : null,
         bag: g.play.player.bag.filter((q) => q).map((q) => [q.id, q.n]),
         xp: g.xp.toJSON(), economy: g.economy ? g.economy.toJSON() : null, workers: g.workers ? g.workers.toJSON() : null, moved: mp ? {} : g.forest.moved, wolves: g.wild.difficulty.wolvesSpawned,
-      };
+      });
     }
     restore(x) {
       const g = this.g, play = this.play, d = play.doc, nav = play.nav, T = K.TILE;
-      if (x.terrain && x.terrain.length) {
-        for (const [k, h, t] of x.terrain) { d.height[k] = h; d.terrain[k] = t; const i = k % d.w, j = (k - i) / d.w; nav.S[k] = nav.surface((i + 0.5) * T, (j + 0.5) * T, d.hy(i, j)); }
+      x = SaveCompat.merge(x); const ground = SaveCompat.ground(x, d.w, d.h);
+      if (ground.length) {
+        for (const [k, h, t] of ground) { d.height[k] = h; d.terrain[k] = t; const i = k % d.w, j = (k - i) / d.w; nav.S[k] = nav.surface((i + 0.5) * T, (j + 0.5) * T, d.hy(i, j)); }
         play.R.tilesChanged(0, 0, d.w, d.h); if (g.tools.editor) g.tools.editor.version++;
       }
       // trees that grew back somewhere else, then free the ground of every felled tree and rock (and plan the regrowth)
@@ -66,5 +106,5 @@
     }
   }
 
-  K.Persist = Persist;
+  K.Persist = Persist; K.SaveCompat = SaveCompat;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -29,7 +29,10 @@
       const doc = this.doc, w = (this.w = doc.w), h = (this.h = doc.h), n = w * h;
       this.S = new Float32Array(n); this.walk = new Uint8Array(n); this.edge = new Uint8Array(n); this.deck = new Uint8Array(n); this.free = new Uint8Array(n);
       this.bridges = doc.objects.filter((o) => o.kind === 'bridge');
-      for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+      if (!(this.buildings && this.buildings.list && this.buildings.list.length) && !this.bridges.length) {   // plain ground (the common case, and a 22M-tile Redwood world): no per-tile surface search
+        const S = this.S, walk = this.walk, H = doc.height, TT = doc.terrain, HQ = K.HQ;
+        for (let k = 0; k < n; k++) { S[k] = H[k] * HQ; const t = TT[k]; walk[k] = t !== T.CHASM && t !== T.WATER ? 1 : 0; }
+      } else for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
         const k = j * w + i, x = (i + 0.5) * TILE, z = (j + 0.5) * TILE, g = doc.hy(i, j), y = this.surface(x, z, g);
         this.S[k] = y; const onDeck = y > g + 0.02; this.deck[k] = onDeck ? 1 : 0;
         const t = doc.terrain[k]; this.walk[k] = onDeck || (t !== T.CHASM && t !== T.WATER) ? 1 : 0;
@@ -38,6 +41,7 @@
         if (o.kind === 'prop') this.blockProp(o);
         else if (o.kind === 'wall') this.blockWall(o);
       }
+      if (doc.redwoods) doc.redwoods.blockNav(this);   // the Redwood world's trunks and logs (not doc objects: see 82k-redwood-forest.js)
       if (this.buildings) this.applyBuildings(this.buildings);
     }
     /* building tiles: floor height + furniture walkability; every edge of a building tile follows BuildingSet.canStep.
@@ -126,8 +130,9 @@
       if (!di || !dj) return this.orth(i, j, di, dj);
       return this.ok(ni, nj) && this.orth(i, j, di, 0) && this.orth(i + di, j, 0, dj) && this.orth(i, j, 0, dj) && this.orth(i, j + dj, di, 0);
     }
-    tile(x, z) { return [Math.floor(x / TILE), Math.floor(z / TILE)]; }
-    centre(i, j) { return [(i + 0.5) * TILE, (j + 0.5) * TILE]; }
+    /* ox, oz: a grid that covers only part of the world (a RampartLayer window) counts its tiles from there */
+    tile(x, z) { return [Math.floor(x / TILE) - (this.ox || 0), Math.floor(z / TILE) - (this.oz || 0)]; }
+    centre(i, j) { return [(i + (this.ox || 0) + 0.5) * TILE, (j + (this.oz || 0) + 0.5) * TILE]; }
     standable(x, z) { const [i, j] = this.tile(x, z); return this.ok(i, j); }
     /* nearest walkable tile to (i,j) within rad tiles, optionally reachable from a component */
     nearestOk(i, j, rad = 3) {
@@ -171,25 +176,21 @@
       // a range goal accepts tile centres within range; a goal on a tile corner has no centre closer than TILE/sqrt2,
       // so a range below that could never be met: the search stops on the nearest tiles, the last step closes in
       const reach = Math.max(range, TILE * 0.75);
-      const isGoal = range ? (i, j) => Math.hypot((i + 0.5) * TILE - gx, (j + 0.5) * TILE - gz) <= reach : (i, j) => i === ti && j === tj;
-      const hf = (i, j) => Math.max(0, Math.hypot((i + 0.5) * TILE - goalC[0], (j + 0.5) * TILE - goalC[1]) - range) / TILE;
-      const n = w * this.h, g = new Float32Array(n).fill(Infinity), from = new Int32Array(n).fill(-1), closed = new Uint8Array(n), open = new Heap();
-      const s = sj * w + si; g[s] = 0; open.push(s, hf(si, sj));
-      let found = -1, count = 0;
-      while (open.size && count++ < maxN) {
-        const k = open.pop(); if (closed[k]) continue; closed[k] = 1;
-        const i = k % w, j = (k / w) | 0;
-        if (isGoal(i, j)) { found = k; break; }
-        for (const [di, dj, c] of NB) {
-          const ni = i + di, nj = j + dj; if (!this.inside(ni, nj)) continue; const nk = nj * w + ni; if (closed[nk]) continue;
-          if (!this.step(i, j, ni, nj)) continue;
-          if (opts.blocked && opts.blocked(ni, nj)) continue;   // tiles this walker may not enter (a gate is shut to creatures, open to you)
-          const climb = Math.abs(this.S[nk] - this.S[k]) * 0.6, ng = g[k] + c + climb + (opts.extra ? opts.extra(i, j, ni, nj) : 0);
-          if (ng < g[nk]) { g[nk] = ng; from[nk] = k; open.push(nk, ng + hf(ni, nj)); }
-        }
+      const ox = this.ox || 0, oz = this.oz || 0;
+      const isGoal = range ? (i, j) => Math.hypot((i + ox + 0.5) * TILE - gx, (j + oz + 0.5) * TILE - gz) <= reach : (i, j) => i === ti && j === tj;
+      const hf = (i, j) => Math.max(0, Math.hypot((i + ox + 0.5) * TILE - goalC[0], (j + oz + 0.5) * TILE - goalC[1]) - range) / TILE;
+      // the search runs inside a window around start and goal (the whole map when it is small), on scratch memory reused
+      // between searches: a 22M-tile world must never allocate full-world arrays per path
+      let win = this.searchWindow(si, sj, ti, tj, range, NavGrid.MARGIN), found = -1;
+      for (;;) {
+        found = this.search(win, si, sj, isGoal, hf, maxN, opts);
+        if (found >= 0 || win.full || !win.hitEdge || win.margin >= NavGrid.MAX_MARGIN) break;
+        win = this.searchWindow(si, sj, ti, tj, range, win.margin * 4);   // boxed in by the window's edge: look wider once more
       }
       if (found < 0) return null;
-      const tiles = []; for (let k = found; k !== s && k >= 0; k = from[k]) tiles.push(k); tiles.reverse();
+      const sc = this.scratch, s = sj * w + si, tiles = [];
+      for (let lk = found; lk >= 0; lk = sc.from[lk]) { const k = (win.y0 + ((lk / win.ww) | 0)) * w + win.x0 + (lk % win.ww); if (k === s) break; tiles.push(k); }
+      tiles.reverse();
       const pts = tiles.map((k) => this.centre(k % w, (k / w) | 0));
       if (exact && pts.length && this.los(pts[pts.length - 1][0], pts[pts.length - 1][1], gx, gz)) pts[pts.length - 1] = [gx, gz];
       else if (exact && !pts.length) pts.push([gx, gz]);
@@ -199,6 +200,42 @@
         if (d > range * 0.9) { const k = (d - range * 0.75) / d, px = lx + (gx - lx) * k, pz = lz + (gz - lz) * k; if (this.los(lx, lz, px, pz)) pts.push([px, pz]); }
       }
       return this.smooth([sx, sz], pts);
+    }
+    /** the box a search may use: start and goal plus a margin (in tiles), or the whole map when it is small */
+    searchWindow(si, sj, ti, tj, range, margin) {
+      if (this.w * this.h <= NavGrid.FULL_SEARCH_TILES) return { x0: 0, y0: 0, ww: this.w, wh: this.h, full: true, margin };
+      const m = margin + Math.ceil(range / TILE);
+      const x0 = Math.max(0, Math.min(si, ti) - m), y0 = Math.max(0, Math.min(sj, tj) - m), x1 = Math.min(this.w, Math.max(si, ti) + m + 1), y1 = Math.min(this.h, Math.max(sj, tj) + m + 1);
+      return { x0, y0, ww: x1 - x0, wh: y1 - y0, full: x0 === 0 && y0 === 0 && x1 === this.w && y1 === this.h, margin };
+    }
+    /** scratch arrays for a window of n tiles, grown when needed and reused; a stamp marks which entries are this search's */
+    scratchFor(n) {
+      let sc = this.scratch;
+      if (!sc || sc.n < n) sc = this.scratch = { n, g: new Float32Array(n), from: new Int32Array(n), seen: new Uint32Array(n), shut: new Uint32Array(n), gen: 0 };
+      if (++sc.gen >= 0xffffffff) { sc.seen.fill(0); sc.shut.fill(0); sc.gen = 1; }
+      return sc;
+    }
+    /** A* inside the window; returns the goal's window index, or -1 */
+    search(win, si, sj, isGoal, hf, maxN, opts) {
+      const w = this.w, ww = win.ww, x0 = win.x0, y0 = win.y0, x1 = x0 + ww, y1 = y0 + win.wh, sc = this.scratchFor(ww * win.wh), gen = sc.gen;
+      const g = sc.g, from = sc.from, seen = sc.seen, shut = sc.shut, open = new Heap();
+      const s = (sj - y0) * ww + (si - x0); g[s] = 0; from[s] = -1; seen[s] = gen; open.push(s, hf(si, sj));
+      let count = 0; win.hitEdge = false;
+      while (open.size && count++ < maxN) {
+        const lk = open.pop(); if (shut[lk] === gen) continue; shut[lk] = gen;
+        const i = x0 + (lk % ww), j = y0 + ((lk / ww) | 0), k = j * w + i;
+        if (isGoal(i, j)) return lk;
+        for (const [di, dj, c] of NB) {
+          const ni = i + di, nj = j + dj; if (!this.inside(ni, nj)) continue;
+          if (ni < x0 || nj < y0 || ni >= x1 || nj >= y1) { win.hitEdge = true; continue; }
+          const nl = (nj - y0) * ww + (ni - x0); if (shut[nl] === gen) continue;
+          if (!this.step(i, j, ni, nj)) continue;
+          if (opts.blocked && opts.blocked(ni, nj)) continue;   // tiles this walker may not enter (a gate is shut to creatures, open to you)
+          const nk = nj * w + ni, climb = Math.abs(this.S[nk] - this.S[k]) * 0.6, ng = g[lk] + c + climb + (opts.extra ? opts.extra(i, j, ni, nj) : 0);
+          if (seen[nl] !== gen || ng < g[nl]) { seen[nl] = gen; g[nl] = ng; from[nl] = lk; open.push(nl, ng + hf(ni, nj)); }
+        }
+      }
+      return -1;
     }
     /* string-pull: skip waypoints while the straight line stays legal */
     smooth(start, pts) {
@@ -213,5 +250,7 @@
     }
   }
 
+  NavGrid.FULL_SEARCH_TILES = 1 << 20;   // maps up to ~1M tiles search the whole map (exactly as before); bigger ones search a window
+  NavGrid.MARGIN = 96; NavGrid.MAX_MARGIN = 1536;   // tiles around start and goal (48 m), widened x4 when a search is boxed in
   Object.assign(K, { NavGrid, NAV_MAX_STEP: MAX_STEP });
 })(typeof window !== 'undefined' ? window : globalThis);

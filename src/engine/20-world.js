@@ -5,7 +5,7 @@
   const TILE = 0.5;                 // 1 tile = 1 block = 0.5 world units (diorama scale: sprites are ~1.5 units tall)
   const HQ = 0.25;                  // heights are stored as Int8 in quarter units: -32 .. +31.75 world units
   const FORMAT = 'kinstead-world-3d', VERSION = 2;   // v2 = v1 + objects of kind 'building' (worlds without buildings still save as v1)
-  const T = { SNOW: 0, PATH: 1, DIRT: 2, ICE: 3, CHASM: 4, WATER: 5, SLATE: 6, ROCK: 7 };
+  const T = { SNOW: 0, PATH: 1, DIRT: 2, ICE: 3, CHASM: 4, WATER: 5, SLATE: 6, ROCK: 7, FOREST: 8 };
   const TERRAINS = [
     { id: 0, key: 'snow', name: 'Snow', sw: '#dfe7f2' },
     { id: 1, key: 'path', name: 'Cobble path', sw: '#5a5860' },
@@ -15,6 +15,7 @@
     { id: 5, key: 'water', name: 'Dark water', sw: '#1b4262' },
     { id: 6, key: 'slate', name: 'Slate floor', sw: '#374152' },
     { id: 7, key: 'rock', name: 'Bare rock', sw: '#282c36' },
+    { id: 8, key: 'forest', name: 'Forest floor', sw: '#3b2f22' },   // redwood duff and moss (the Redwood world)
   ];
   const PRESETS = [['Small · 64 × 48', 64, 48], ['Medium · 128 × 96', 128, 96], ['Large · 256 × 192', 256, 192], ['Tiny · 32 × 24', 32, 24]];
   const OUTSIDE = -14;
@@ -82,7 +83,7 @@
       if (!(o.version >= 1)) throw new Error('Missing world format version.');
       if (o.version > VERSION) throw new Error('This world was saved by a newer builder (v' + o.version + '). This builder reads v' + VERSION + '.');
       const w = o.size && o.size.w | 0, h = o.size && o.size.h | 0;
-      if (!(w >= 8 && h >= 8 && w <= 512 && h <= 512)) throw new Error('World size must be between 8 and 512 tiles on each side.');
+      if (!(w >= 8 && h >= 8 && w <= 1536 && h <= 1536)) throw new Error('World size must be between 8 and 1536 tiles on each side.');
       const d = new WorldDoc(w, h, { name: o.name, seed: o.seed });
       d.terrain.set(b64.dec(o.tiles.terrain, w * h));
       d.height.set(new Int8Array(b64.dec(o.tiles.height, w * h).buffer));
@@ -101,7 +102,7 @@
 /* Ground painter: the diorama's per-texel palettes, driven by the tile grid instead of the hand-made layout. */
 (function (G) {
   const K = G.K;
-  const { TP, rampPick, bayer, hash2, PixelBuffer, ramp, T, TILE } = K;
+  const { TP, rampPick, bayer, hash2, PixelBuffer, ramp, T, TILE, TERRAINS } = K;
   const SLATE_ORIGIN = { x0: 0.1, z0: 0.2 };
   const WATER = ramp('#0b1a2a', '#10263c', '#163450', '#1d4566', '#28597e', '#3a7499');
 
@@ -110,10 +111,9 @@
     /* paint tiles [i0,i1) x [j0,j1) of the doc into buffers that cover chunk origin (ci0,cj0); ppu texels per world unit */
     paint(doc, out, spark, ci0, cj0, i0, j0, i1, j1, ppu) {
       const tpx = TILE * ppu, n = this.n;
-      const W = doc.w;
-      const wts = new Float32Array(8);
+      const NT = TERRAINS.length, wts = new Float32Array(NT);
       for (let j = j0; j < j1; j++) for (let i = i0; i < i1; i++) {
-        const hq = doc.height[j * W + i], own = doc.terrain[j * W + i];
+        const hq = doc.hq(i, j), own = doc.type(i, j);   // methods, not raw arrays: a paint worker only holds a window of the world (TileWindow)
         const lowN = doc.hq(i, j - 1) < hq, lowS = doc.hq(i, j + 1) < hq, lowW = doc.hq(i - 1, j) < hq, lowE = doc.hq(i + 1, j) < hq;
         const y = hq * K.HQ;
         for (let ty = 0; ty < tpx; ty++) for (let tx = 0; tx < tpx; tx++) {
@@ -125,12 +125,12 @@
           const u = x / TILE - 0.5, v = z / TILE - 0.5, iu = Math.floor(u), iv = Math.floor(v), fu = u - iu, fv = v - iv;
           for (let k = 0; k < 4; k++) {
             const ii = iu + (k & 1), jj = iv + (k >> 1), wgt = ((k & 1) ? fu : 1 - fu) * ((k >> 1) ? fv : 1 - fv);
-            const t2 = doc.inside(ii, jj) && doc.height[jj * W + ii] === hq ? doc.terrain[jj * W + ii] : own;
+            const t2 = doc.inside(ii, jj) && doc.hq(ii, jj) === hq ? doc.type(ii, jj) : own;
             wts[t2] += wgt;
           }
           let typ = own, best = -9, nt = 0;
-          for (let t2 = 0; t2 < 8; t2++) if (wts[t2] > 0) nt++;
-          if (nt > 1) for (let t2 = 0; t2 < 8; t2++) {
+          for (let t2 = 0; t2 < NT; t2++) if (wts[t2] > 0) nt++;
+          if (nt > 1) for (let t2 = 0; t2 < NT; t2++) {
             if (wts[t2] === 0) continue;
             const s = wts[t2] + (n.fbm(x * 1.3 + t2 * 17.3, z * 1.3 - t2 * 7.1, 2) - 0.5) * 0.6 + (bd - 0.5) * 0.16;
             if (s > best) { best = s; typ = t2; }
@@ -180,6 +180,7 @@
           return this.slatePx(x, z, px, py, bd, room) || this.snowPx(x, z, px, py, bd, 1);
         }
         case T.ROCK: return this.rockTopPx2(x, z, px, py, bd);
+        case T.FOREST: return this.duffPx(x, z, px, py, bd, wts[T.SNOW] || 0);
         default:
           if (y >= 1.5) return this.rockTopPx(x, z, px, py, bd);
           if (y < -6) return this.snowPx(x, z, px, py, bd, 0.8);
@@ -192,6 +193,15 @@
           }
           return this.snowPx(x, z, px, py, bd, 1);
       }
+    }
+    /* the redwood forest floor: rust-brown needle duff, deep moss pads, sorrel clover and the odd patch of old snow */
+    duffPx(x, z, px, py, bd, snowW) {
+      const n = this.n, n2 = this.n2, v = n.fbm(x * 0.9, z * 0.9, 3), moss = n2.fbm(x * 0.32 + 11, z * 0.32 - 7, 3), fine = hash2(px, py, 91);
+      if (snowW > 0.05 && hash2(px >> 1, py >> 1, 93) < snowW * 0.7) return rampPick(TP.snow, 0.35 + v * 0.4, px, py, 0.3);
+      if (moss > 0.56) { const m = (moss - 0.56) * 4 + (v - 0.5) * 0.6; return m > 0.55 && fine < 0.18 ? TP.redwoodMoss[5] : rampPick(TP.redwoodMoss, 0.2 + m, px, py, 0.35); }
+      if (moss > 0.5 && fine < 0.35) return TP.redwoodMoss[1 + ((fine * 6) | 0) % 3];
+      if (fine < 0.05) return TP.needle[(hash2(px, py, 92) * 3) | 0];
+      return rampPick(TP.duff, v * 1.1 - 0.02 + (bd - 0.5) * 0.12, px, py, 0.3);
     }
     forestFloorT(x, z, px, py) {
       const v = this.n.fbm(x * 1.2, z * 1.2, 4);
@@ -223,5 +233,22 @@
       return this.snowPx(x, z, px, py, bd, 0.9);
     }
   }
-  K.GroundPainter = GroundPainter;
+  /** A rectangle of a world's tile layers (with a one-tile apron), shaped like a WorldDoc for the painter: paint workers
+      receive just the band they paint instead of a copy of the whole world. Coordinates stay world tile coordinates. */
+  class TileWindow {
+    constructor(w, h, x0, y0, ww, wh, terrain, height) { this.w = w; this.h = h; this.x0 = x0; this.y0 = y0; this.ww = ww; this.wh = wh; this.terrain = terrain; this.height = height; }
+    /** the window [i0-1, i1+1) x [j0-1, j1+1) of doc, clipped to the world */
+    static cut(doc, i0, j0, i1, j1) {
+      const x0 = Math.max(0, i0 - 1), y0 = Math.max(0, j0 - 1), x1 = Math.min(doc.w, i1 + 1), y1 = Math.min(doc.h, j1 + 1), ww = x1 - x0, wh = y1 - y0;
+      const t = new Uint8Array(ww * wh), h = new Int8Array(ww * wh);
+      for (let j = 0; j < wh; j++) { const s = (y0 + j) * doc.w + x0; t.set(doc.terrain.subarray(s, s + ww), j * ww); h.set(doc.height.subarray(s, s + ww), j * ww); }
+      return new TileWindow(doc.w, doc.h, x0, y0, ww, wh, t, h);
+    }
+    inside(i, j) { return i >= 0 && j >= 0 && i < this.w && j < this.h; }
+    has(i, j) { return i >= this.x0 && j >= this.y0 && i < this.x0 + this.ww && j < this.y0 + this.wh; }
+    hq(i, j) { if (!this.inside(i, j)) return K.OUTSIDE / K.HQ; return this.has(i, j) ? this.height[(j - this.y0) * this.ww + (i - this.x0)] : 0; }
+    type(i, j) { return this.inside(i, j) && this.has(i, j) ? this.terrain[(j - this.y0) * this.ww + (i - this.x0)] : T.SNOW; }
+  }
+
+  K.GroundPainter = GroundPainter; K.TileWindow = TileWindow;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -52,14 +52,18 @@
     build() {
       const L = this.L, doc = new WorldDoc(L.size.w, L.size.h, { name: 'The Frozen Castle', seed: 1107 });
       this.doc = doc;
-      for (let j = 0; j < doc.h; j++) for (let i = 0; i < doc.w; i++) {
+      this.shape(doc, 0, 0, doc.w, doc.h);
+      this.objects();
+      doc.camera = { tx: L.start.x, ty: 0, tz: L.start.z, yaw: -0.2, pitch: 0.74, dist: 13 };
+      return doc;
+    }
+    /** the land of tiles [i0,i1) x [j0,j1): height and terrain from heightAt */
+    shape(doc, i0, j0, i1, j1) {
+      for (let j = j0; j < j1; j++) for (let i = i0; i < i1; i++) {
         const x = (i + 0.5) * TILE, z = (j + 0.5) * TILE, r = this.heightAt(x, z), k = j * doc.w + i;
         doc.height[k] = Math.max(-128, Math.min(127, Math.round(r.h / HQ)));
         doc.terrain[k] = r.chasm ? T.CHASM : r.rock ? T.ROCK : T.SNOW;
       }
-      this.objects();
-      doc.camera = { tx: L.start.x, ty: 0, tz: L.start.z, yaw: -0.2, pitch: 0.74, dist: 13 };
-      return doc;
     }
     heightAt(x, z) {
       const L = this.L, n = this.n, wu = L.size.w * TILE, hu = L.size.h * TILE;

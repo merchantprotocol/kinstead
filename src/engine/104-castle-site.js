@@ -36,7 +36,7 @@
     }
     /** a spot where a new tree may stand: forest-ish, away from you and your home, clear of everything */
     spot() {
-      const L = this.g.L, d = this.doc, me = this.play.me, wu = L.size.w * TILE, hu = L.size.h * TILE, trees = this.nodes.filter((q) => this.live(q));
+      const L = this.g.L, d = this.doc, me = this.play.me, cm = L.plan ? L.plan.coreMetres : { w: L.size.w * TILE, h: L.size.h * TILE }, wu = cm.w, hu = cm.h, trees = this.nodes.filter((q) => this.live(q));   // regrowth stays on the snowfield (older builds can see it there)
       for (let n = 0; n < 60; n++) {
         const x = rnd(6, wu - 6), z = rnd(6, hu - 6), [i, j] = d.tileOf(x, z), k = j * d.w + i;
         if (L.plots.some((q) => Math.hypot(x - q.x, z - q.z) < 14) || Math.hypot(x - me.x, z - me.z) < 9) continue;   // never on anyone's plot
