@@ -240,13 +240,42 @@
       this.ramparts = new K.Ramparts(this);   // the walk along your stone walls, towers and gate (127-castle-ramparts.js)
       if (this.day.isNight) this.startRaid();
       play.app.rig.set({ dist: 11, pitch: 0.78 }); play.app.rig.maxDist = 44;   // you can never zoom out far enough to see the edge of the world
+      this.enterRedwoods();
       this.persist = new K.Persist(this); if (this.saved && this.saved.extras) { try { this.persist.restore(this.saved.extras); } catch (err) { console.warn('could not restore the homestead', err); } }
       if (this.net) { try { this.mp = new K.Multiplayer(this, this.net); this.calendar.sync = () => this.mp.cycleState(); this.mp.uploadMine(); } catch (err) { console.warn('multiplayer failed to start; playing alone', err); this.mp = null; } }   // after your own save is back, so the shared world wins
       this.gatekeepers = new K.GateKeeper(this); this.gatekeepers.refresh();
       this.cui.toast(this.saved ? 'Welcome back.' : 'You arrive with wood, stone and bread. Build your cottage first: hammer (5), then Buildings. Wolves hunt at night. Press E to eat.');
       G.castle = this;   // test hook (and the console's best friend)
     }
+    /** the Redwood world: the forest's meshes, and a camera that can drop low and look up the trunks */
+    enterRedwoods() {
+      const play = this.play, f = play.doc.redwoods; if (!f) return;
+      const C = K.REDWOOD.camera, rig = play.app.rig, cam = play.app.camera;
+      this.redwood = new K.RedwoodView(this, f);
+      rig.maxDist = C.maxDist; rig.minPitch = C.minPitch; rig.lookUpFrom = C.lookUpFrom; rig.groundAt = (x, z) => play.nav.y(x, z); rig.groundClear = C.groundClearM;
+      this.camFar0 = cam.far; cam.far = C.far; cam.updateProjectionMatrix();
+    }
+    exitRedwoods() {
+      if (!this.redwood) return; const rig = this.play.app.rig, cam = this.play.app.camera;
+      this.redwood.dispose(); this.redwood = null;
+      rig.minPitch = 0.35; rig.lookUpFrom = null; rig.groundAt = null; cam.far = this.camFar0 || 400; cam.updateProjectionMatrix();
+    }
+    /** fog: the castle's close fog on the snowfield, a deep blue-grey mist under the redwoods (giants fade instead of popping) */
+    updateMist(dt) {
+      const fog = this.R.scene.fog; if (!fog) return;
+      const dd = this.app.rig.cur.dist, ws = this.weather.fogScale, M = K.REDWOOD.mist, rw = this.redwood;
+      if (rw) rw.update(dt, this.nightK);
+      const a = rw ? rw.ambience : 0;
+      fog.near = lerp(dd + M.castleNear * ws, M.near * ws, a); fog.far = lerp(dd + M.castleFar * ws, M.far * Math.min(1, ws), a);   // the far edge of the world always fades out, at any zoom
+      if (rw && this.base) {
+        const mist = (this.mistCol = this.mistCol || new THREE.Color(M.color)), night = (this.mistNight = this.mistNight || new THREE.Color(M.nightColor)), k = this.nightK;
+        fog.color.lerp(this.tmpCol = (this.tmpCol || new THREE.Color()).copy(mist).lerp(night, k * 0.85), a);
+        this.R.scene.background.lerp(this.tmpCol, a);
+        this.R.sun.intensity *= 1 - 0.45 * a; if (this.hemi) this.hemi.intensity *= 1 - 0.3 * a;   // the canopy shades the floor
+      }
+    }
     exit() {
+      this.exitRedwoods();
       if (this.entitySources) for (const id of this.entitySources.keys()) this.removeEntitySource(id);
       this.play.app.rig.maxDist = null; if (this.minimap) this.minimap.dispose(); if (this.vitals) this.vitals.dispose(); if (this.home) this.home.dispose();
       this.save(); if (this.tools) this.tools.dispose(); if (this.sweep) this.sweep.dispose(); if (this.demolisher) this.demolisher.dispose(); if (this.site) this.site.dispose(); if (this.brush) this.brush.dispose(); if (this.mp) this.mp.dispose(); if (this.weather) this.weather.dispose(); if (this.towers) this.towers.dispose(); if (this.economy) this.economy.dispose(); if (this.workers) this.workers.dispose(); if (this.wildGame) this.wildGame.dispose(); if (this.flags) this.flags.dispose(); if (this.purse) this.purse.dispose(); if (this.buildingPanel) this.buildingPanel.dispose();
@@ -903,7 +932,7 @@
       this.tracers = this.tracers.filter((l) => { l.userData.t += dt; l.material.opacity = 1 - l.userData.t / 0.25; if (l.userData.t > 0.25) { this.group.remove(l); l.geometry.dispose(); l.material.dispose(); return false; } return true; });
       for (const m of this.meshes.values()) if (m.userData.shake > 0) { m.userData.shake -= dt; m.position.x += (Math.random() - 0.5) * 0.04; }
       for (const m of this.meshes.values()) m.traverse((o) => { if (o.userData.flame) o.scale.y = 0.85 + 0.25 * Math.sin(play.t * 11 + o.id); });
-      { const fog = this.R.scene.fog, dd = this.app.rig.cur.dist, ws = this.weather.fogScale; if (fog) { fog.near = dd + 8 * ws; fog.far = dd + 32 * ws; } }   // the far edge of the world always fades out, at any zoom
+      this.updateMist(dt);
       this.updateArrow(dt); this.minimap.update(dt); this.weather.update(dt); this.flags.update(dt); this.towers.update(dt); if (this.gatekeepers) this.gatekeepers.update(dt); this.economy.update(dt); this.workers.update(dt); this.wildGame.update(dt); this.forest.update(dt); if (this.mp) this.mp.update(dt); for (const p of this.castle.pieces) if (p.bridge) p.bridge.update(dt); this.tools.update(dt); this.sweep.update(dt); this.home.update(dt); this.vitals.update(dt); this.wild.update(dt);
       this.ramparts.update(dt);
       this.updateOcclusion(dt);

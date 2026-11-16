@@ -29,7 +29,10 @@
       const doc = this.doc, w = (this.w = doc.w), h = (this.h = doc.h), n = w * h;
       this.S = new Float32Array(n); this.walk = new Uint8Array(n); this.edge = new Uint8Array(n); this.deck = new Uint8Array(n); this.free = new Uint8Array(n);
       this.bridges = doc.objects.filter((o) => o.kind === 'bridge');
-      for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+      if (!(this.buildings && this.buildings.list && this.buildings.list.length) && !this.bridges.length) {   // plain ground (the common case, and a 22M-tile Redwood world): no per-tile surface search
+        const S = this.S, walk = this.walk, H = doc.height, TT = doc.terrain, HQ = K.HQ;
+        for (let k = 0; k < n; k++) { S[k] = H[k] * HQ; const t = TT[k]; walk[k] = t !== T.CHASM && t !== T.WATER ? 1 : 0; }
+      } else for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
         const k = j * w + i, x = (i + 0.5) * TILE, z = (j + 0.5) * TILE, g = doc.hy(i, j), y = this.surface(x, z, g);
         this.S[k] = y; const onDeck = y > g + 0.02; this.deck[k] = onDeck ? 1 : 0;
         const t = doc.terrain[k]; this.walk[k] = onDeck || (t !== T.CHASM && t !== T.WATER) ? 1 : 0;

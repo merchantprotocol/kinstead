@@ -16,7 +16,7 @@
       axis: 10,                       // x per axis: 10 -> 100x the area (5600 x 4000 tiles, 2.8 x 2.0 km). 1 = the old map.
       core: { w: 560, h: 400 },       // the original snowfield in tiles; it stays at the world origin
       forestTerrainFrom: 34,          // metres beyond the core edge where the snow has fully given way to forest floor
-      heightGrid: 8,                  // tiles between forest-floor height samples (bilinear in between): keeps a 22M-tile map quick to make
+      heightGrid: 16,                 // tiles between forest-floor height samples (bilinear in between): keeps a 22M-tile map quick to make
     },
     stream: {
       aboveTiles: 400000,             // worlds bigger than this stream their ground; smaller ones (the editor, old maps) build everything
